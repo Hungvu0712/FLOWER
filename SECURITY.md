@@ -1,0 +1,128 @@
+# 🔒 Bảo mật hệ thống (Security)
+
+Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website bán hoa và biện pháp phòng ngừa cụ thể theo từng tầng (auth, API, database, thanh toán, hạ tầng). Tham khảo cùng [README.md](README.md) (tổng quan) và [DATABASE.md](DATABASE.md) (schema & RBAC).
+
+---
+
+## 1. Xác thực (Authentication)
+
+| Rủi ro | Biện pháp |
+|---|---|
+| Mật khẩu yếu / lộ mật khẩu | Hash bằng **bcrypt** (cost ≥ 12) hoặc **argon2**; bắt buộc độ dài tối thiểu 8 ký tự khi đăng ký |
+| Brute-force đăng nhập | Rate limit theo IP + email (`express-rate-limit`), khoá tạm tài khoản sau 5 lần sai (kèm cooldown tăng dần), captcha (reCAPTCHA/hCaptcha) sau vài lần thất bại |
+| Đánh cắp session/token | Access token JWT **thời gian sống ngắn** (15 phút), refresh token lưu ở **httpOnly, Secure, SameSite=Strict cookie** (không lưu localStorage — tránh XSS đánh cắp token) |
+| Refresh token bị lộ | Refresh token **rotation**: mỗi lần dùng để cấp access token mới thì phát hành refresh token mới, thu hồi token cũ; lưu danh sách token đã revoke (Redis/DB) |
+| Chiếm quyền tài khoản admin/nhân viên | Bắt buộc **2FA (TOTP)** cho các vai trò `super_admin`, `store_manager` trở lên |
+| OAuth Google bị giả mạo callback | Dùng `state` param chống CSRF, xác thực domain redirect_uri whitelist |
+| Email/số điện thoại giả khi đăng ký | Xác thực email (verification link) trước khi cho đặt hàng thanh toán online; OTP SMS khi cần |
+
+---
+
+## 2. Phân quyền & Kiểm soát truy cập (Authorization)
+
+Đã thiết kế RBAC chi tiết ở [DATABASE.md §2](DATABASE.md#2-hệ-thống-vai-trò--phân-quyền-rbac). Về mặt bảo mật cần lưu ý thêm:
+
+- **Không bao giờ tin tưởng kiểm tra quyền ở frontend** — mọi permission check phải lặp lại ở backend (frontend chỉ ẩn UI cho trải nghiệm).
+- **Chống IDOR (Insecure Direct Object Reference)**: khi truy vấn `GET /api/orders/:id`, phải kiểm tra `orders.user_id === req.user.id` (trừ khi user có `orders.view_all`) — không chỉ dựa vào việc "biết ID" là được xem.
+- **Row-level check cho nhân viên vận hành**: `shipper` chỉ được cập nhật đơn có `order_deliveries.shipper_id = req.user.id`; `florist` chỉ được sửa đơn đang ở trạng thái "đang chuẩn bị".
+- **Nguyên tắc đặc quyền tối thiểu (least privilege)**: tài khoản `sales_staff` mặc định không có `products.delete`, `settings.manage`.
+- **Audit log** cho hành động nhạy cảm: đổi giá sản phẩm, xoá sản phẩm, đổi quyền nhân viên, hoàn tiền đơn hàng — ghi rõ ai (`changed_by`), khi nào, giá trị trước/sau.
+
+---
+
+## 3. Bảo mật tầng API (Express)
+
+| Hạng mục | Công cụ / cách làm |
+|---|---|
+| HTTP headers an toàn | `helmet` middleware (CSP, X-Frame-Options, X-Content-Type-Options...) |
+| CORS | Whitelist chính xác domain frontend (`origin: process.env.FRONTEND_URL`), không dùng `*` khi có credentials |
+| Validate input | `zod` hoặc `joi` validate toàn bộ body/query/params trước khi vào controller — chặn payload rác, giới hạn độ dài chuỗi |
+| Chống SQL Injection | Dùng ORM (Prisma) với parameterized query; **không** nối chuỗi SQL thủ công |
+| Chống NoSQL/JSON injection | Validate kiểu dữ liệu nghiêm ngặt nếu dùng JSONB trong Postgres |
+| Chống XSS | React tự escape output; nếu render nội dung blog dạng HTML (`dangerouslySetInnerHTML`) phải sanitize bằng `DOMPurify` trước khi lưu/hiển thị |
+| CSRF | Nếu dùng cookie cho auth: bật CSRF token cho các request thay đổi state (`csurf` hoặc double-submit cookie pattern) |
+| Rate limiting API công khai | Giới hạn `/api/products`, `/api/cart` theo IP để chống scraping/spam bot |
+| Giới hạn kích thước request | `express.json({ limit: '1mb' })` tránh payload khổng lồ gây DoS |
+| HTTPS bắt buộc | Redirect HTTP→HTTPS, bật HSTS ở production |
+| Upload ảnh sản phẩm/avatar | Giới hạn loại file (jpg/png/webp), giới hạn dung lượng, đổi tên file ngẫu nhiên, upload thẳng lên Cloudinary/S3 (không lưu trên server ứng dụng), quét virus nếu cho khách upload ảnh review |
+
+---
+
+## 4. Bảo mật thanh toán
+
+- **Không bao giờ lưu số thẻ/CVV trên server của mình** — dùng cổng thanh toán (VNPay/Momo/Stripe) theo mô hình hosted checkout hoặc tokenization, giữ hệ thống ngoài phạm vi PCI DSS.
+- **Xác thực webhook**: mọi callback từ cổng thanh toán phải verify chữ ký (HMAC secret key) trước khi cập nhật `payment_status` — chặn giả mạo webhook để "đánh dấu đã thanh toán" khống.
+- **Idempotency**: webhook có thể bị gọi lại nhiều lần — dùng `transaction_id` unique để tránh cộng tiền/xử lý đơn hai lần.
+- **Đối soát**: log toàn bộ giao dịch thanh toán (amount, status, timestamp) để đối chiếu cuối ngày với cổng thanh toán.
+- Với COD: giới hạn giá trị đơn tối đa hoặc yêu cầu xác thực OTP với đơn giá trị lớn để giảm rủi ro đơn ảo/bom hàng.
+
+---
+
+## 5. Bảo mật dữ liệu & tuân thủ
+
+- **Dữ liệu cá nhân khách hàng** (họ tên, SĐT, địa chỉ) cần tuân thủ **Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân** (Việt Nam):
+  - Có trang "Chính sách bảo mật" nêu rõ mục đích thu thập, thời gian lưu trữ.
+  - Cho phép khách yêu cầu xoá tài khoản/dữ liệu cá nhân.
+  - Xin sự đồng ý (checkbox) khi đăng ký nhận email marketing.
+- **Mã hoá dữ liệu nhạy cảm**: số điện thoại, địa chỉ có thể mã hoá ở tầng ứng dụng (application-level encryption) nếu yêu cầu bảo mật cao, hoặc tối thiểu mã hoá ổ đĩa (encryption at rest) ở tầng database.
+- **Không log dữ liệu nhạy cảm**: mật khẩu, token, số thẻ/OTP không bao giờ được ghi vào log server.
+- **Backup**: backup PostgreSQL định kỳ (daily), mã hoá file backup, test khôi phục định kỳ.
+- **Xoá mềm (soft delete)** cho `users`/`products` để vẫn giữ được lịch sử đơn hàng hợp lệ khi dữ liệu gốc bị xoá, nhưng ẩn khỏi truy vấn thông thường.
+
+---
+
+## 6. Bảo mật logic nghiệp vụ (Business Logic Abuse)
+
+| Rủi ro | Biện pháp |
+|---|---|
+| Lạm dụng mã giảm giá (dùng nhiều lần, chia sẻ mã cá nhân) | Giới hạn `usage_limit` tổng và `usage_limit_per_user`; kiểm tra qua bảng `coupon_usages` trước khi áp dụng |
+| Race condition khi nhiều người mua cùng lúc sản phẩm sắp hết hàng | Dùng transaction + `SELECT ... FOR UPDATE` (row lock) khi trừ `stock`, hoặc kiểm tra tồn kho ngay trong câu `UPDATE ... WHERE stock >= quantity` |
+| Đơn hàng ảo / spam checkout | Captcha ở bước đặt hàng cho guest, rate limit theo IP/session, xác thực số điện thoại với đơn giá trị cao |
+| Sửa giá ở client trước khi gửi đơn | Server **luôn tính lại giá** từ dữ liệu `products`/`product_variants` trong DB tại thời điểm đặt hàng, không tin giá gửi từ frontend |
+| Tự ý đổi trạng thái đơn hàng qua API | Validate state machine hợp lệ (vd không cho chuyển thẳng từ "đã đặt" sang "đã giao"), chỉ role có permission tương ứng mới đổi được |
+
+---
+
+## 7. Hạ tầng & DevOps
+
+- **Biến môi trường**: toàn bộ secret (DB password, JWT secret, API key cổng thanh toán, Cloudinary key) nằm trong `.env`, **không commit vào Git** (`.gitignore` chuẩn ngay từ đầu). Ở production dùng secret manager (AWS Secrets Manager/Doppler/Vault).
+- **Database user riêng cho ứng dụng** với quyền hạn tối thiểu (không dùng `postgres` superuser), chỉ mở cổng DB nội bộ (không public ra internet).
+- **Dependency scanning**: chạy `npm audit` / Dependabot / Snyk định kỳ để phát hiện thư viện có lỗ hổng đã biết.
+- **Docker**: build image tối giản (alpine), chạy container với user non-root, không để `node_modules` chứa devDependencies ở production image.
+- **CI/CD**: chặn merge nếu có secret bị commit nhầm (dùng `gitleaks`/`trufflehog` trong pipeline).
+- **Giám sát & cảnh báo**: log tập trung (vd. cấu hình đơn giản với Winston + một dịch vụ log), cảnh báo khi có nhiều lỗi 401/403 bất thường, nhiều đăng nhập thất bại liên tiếp, hoặc lượng đơn hàng tăng đột biến bất thường (dấu hiệu bot).
+
+---
+
+## 8. Checklist theo từng giai đoạn (map với Roadmap ở README)
+
+**Giai đoạn 1 — MVP**
+- [ ] Hash mật khẩu bcrypt, JWT access/refresh cơ bản
+- [ ] Validate input toàn bộ API (zod/joi)
+- [ ] Helmet + CORS whitelist đúng domain
+- [ ] RBAC middleware `authenticate` + `authorize`
+- [ ] `.env` không commit, có `.env.example`
+
+**Giai đoạn 2 — Thanh toán**
+- [ ] Verify chữ ký webhook thanh toán
+- [ ] Idempotency xử lý webhook
+- [ ] Rate limit đăng nhập + captcha checkout
+- [ ] HTTPS + HSTS ở production
+
+**Giai đoạn 3 — Tăng trưởng**
+- [ ] Giới hạn coupon per-user, chống race condition tồn kho
+- [ ] Audit log cho thao tác admin/nhân viên
+- [ ] Trang chính sách bảo mật + cơ chế xoá dữ liệu cá nhân
+
+**Giai đoạn 4 — Mở rộng**
+- [ ] 2FA cho tài khoản quản trị
+- [ ] Dependency scanning tự động trong CI
+- [ ] Penetration test / security review trước khi scale lớn
+
+---
+
+## 9. Tham khảo
+
+- OWASP Top 10: https://owasp.org/www-project-top-ten/
+- Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân (Việt Nam)
+- PCI DSS (nếu sau này cân nhắc tự xử lý thanh toán thẻ thay vì qua cổng trung gian)
