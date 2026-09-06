@@ -126,21 +126,21 @@ Cấu trúc dưới đây tách rõ **core** (🔧 tái sử dụng nguyên vẹ
 
 ```
 FLOWER/
-├── frontend/                # Next.js app (App Router, TypeScript)
+├── frontend/                # Next.js app (App Router, TypeScript) — đã scaffold, xem frontend/README.md
 │   ├── src/
 │   │   ├── app/             # routes: page.tsx, layout.tsx theo file-system routing
-│   │   │   ├── (storefront)/    # 🌸 PUBLIC: /, /products/[slug], /cart, /checkout...
-│   │   │   ├── (account)/       # 🔧 PROTECTED: /profile, /orders, /devices (cần đăng nhập)
-│   │   │   ├── admin/           # 🔧 khung + 🌸 nội dung menu: /admin/products, /admin/orders...
-│   │   │   └── superadmin/      # 🔧 PRIVATE (chỉ super_admin): /superadmin/users, /roles, /permissions, /audit-log
-│   │   ├── components/      # UI dùng chung (Button, Card, Modal...)
+│   │   │   ├── (storefront)/    # 🌸 PUBLIC: /, /products/[slug], /cart, /checkout... (chưa triển khai)
+│   │   │   ├── (auth)/          # 🔧 PUBLIC: /login, /register, /magic-link, /forgot-password...
+│   │   │   ├── account/         # 🔧 PROTECTED: /account/profile, /account/devices (route thật, không phải route group — để proxy.ts match theo prefix)
+│   │   │   ├── admin/           # 🔧 khung + 🌸 nội dung menu: /admin (dashboard placeholder, mở rộng dần)
+│   │   │   └── superadmin/      # 🔧 PRIVATE (chỉ super_admin): /superadmin/users, /superadmin/login-methods
+│   │   ├── components/ui/   # UI dùng chung (Button, FormField...)
 │   │   ├── features/
-│   │   │   ├── core/         # 🔧 auth, account, admin-users, admin-roles, admin-permissions, file-manager
-│   │   │   └── domain/       # 🌸 products, cart, orders, promotions, blog
-│   │   ├── hooks/           # custom hook gọi API (useProducts, useCreateOrder...)
-│   │   ├── services/        # gọi API (axios instances tới backend Express)
-│   │   ├── store/           # Zustand — global client state
-│   │   └── middleware.ts    # 🔧 bảo vệ route /admin, /superadmin, /account ở edge
+│   │   │   ├── core/         # 🔧 mỗi feature = *.service.ts (axios) + *.hooks.ts (TanStack Query): auth, account, files, admin-users, admin-login-methods
+│   │   │   └── domain/       # 🌸 products, cart, orders, promotions, blog (chưa triển khai)
+│   │   ├── lib/              # 🔧 axios instance, decode JWT (chỉ đọc, không verify — xem lib/jwt.ts)
+│   │   ├── store/            # 🔧 Zustand — global client state (vd user hiện tại)
+│   │   └── proxy.ts          # 🔧 Next.js 16 "proxy" (đổi tên từ middleware.ts) — bảo vệ route /admin, /superadmin, /account
 │   └── package.json
 │
 ├── backend/                 # Node.js + Express API (modular + MVC, xem ARCHITECTURE.md)
@@ -350,10 +350,16 @@ Tất cả response theo chuẩn:
 
 ---
 
-## 9. Bước tiếp theo
+## 9. Trạng thái hiện tại & bước tiếp theo
 
-1. Xác nhận phạm vi MVP (những chức năng nào bắt buộc có ngay từ đầu).
-2. Khởi tạo 2 project con: `frontend/` (Next.js — đã scaffold xong) và `backend/` (Express, theo cấu trúc modular ở [ARCHITECTURE.md](ARCHITECTURE.md)).
-3. Thiết kế schema Prisma dựa trên [DATABASE.md](DATABASE.md) (roles, auth, files...) và chạy migration đầu tiên trên Neon.
-4. Dựng khung API cho `auth` (3 phương thức) và `products` trước để có dữ liệu hiển thị lên FE.
-5. Seed 6 role + tài khoản `super_admin` mặc định, seed `login_method_settings`.
+**Core đã triển khai** (xem [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md)):
+- Backend: modular MVC, error handling chuẩn, auth 3 phương thức (email/password, Google OAuth, magic link), JWT + Cookie session với refresh rotation, quản lý thiết bị, RBAC đầy đủ (Custom Role + Permission CRUD, `is_restricted`/`is_system`), quản lý user cho SuperAdmin, file/ảnh qua R2 (presigned upload, dedup, dọn mồ côi), email (Resend/SMTP), audit log, cron backup DB + dọn file mồ côi.
+- Frontend: Next.js `proxy.ts` bảo vệ route, TanStack Query + Zustand + react-hook-form/zod, trang login/register/magic-link/quên mật khẩu, trang tự quản lý tài khoản (profile, avatar, đổi mật khẩu, thiết bị), trang SuperAdmin (quản lý user, bật/tắt phương thức đăng nhập).
+- Đã build/lint/type-check sạch cho cả 2 phía. **Chưa test end-to-end với Neon DB thật** (môi trường dev không có Postgres/Docker sẵn) — cần chạy `prisma migrate dev` + `seed:core` + `seed:domain` với `DATABASE_URL` thật trước khi dùng.
+
+**Còn thiếu / bước tiếp theo:**
+1. Nối `DATABASE_URL` Neon thật, chạy migration + seed, kiểm thử toàn bộ luồng auth thật (đặc biệt Google OAuth — cần cấu hình `GOOGLE_CLIENT_ID` và tích hợp Google Identity Services ở frontend).
+2. UI `/superadmin/roles`, `/superadmin/permissions` (API backend đã sẵn, chưa có trang — xem `frontend/README.md`).
+3. Màn hình quản lý tài nguyên (grid/list theo folder) — API `GET/DELETE /api/files` đã có, chưa có UI duyệt folder.
+4. Viết domain thật (`backend/src/modules/domain/`, `frontend/src/features/domain/`): products, categories, cart, orders... theo [DATABASE.md §3.4-3.6](DATABASE.md).
+5. Cấu hình R2 bucket + domain Resend thật khi triển khai production.

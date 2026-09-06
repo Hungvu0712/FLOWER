@@ -68,7 +68,7 @@ Route group `(account)/`, `admin/`, `superadmin/` (mục 8.1) là **khung sườ
 ### 2.4. Khi bắt đầu 1 dự án mới từ source base này
 
 1. Copy `backend/src/modules/core/`, `middlewares/`, `config/`, `lib/`, `jobs/`, `prisma/seed/core.seed.ts`, và phần model core trong `schema.prisma`.
-2. Copy `frontend/src/features/core/`, route group `(account)/`, `admin/`, `superadmin/`, `(auth)/`, `middleware.ts`.
+2. Copy `frontend/src/features/core/`, route `account/`, `admin/`, `superadmin/`, route group `(auth)/`, `proxy.ts`.
 3. Xoá toàn bộ `modules/domain/` và `features/domain/` mẫu, viết domain mới theo nghiệp vụ dự án đó.
 4. Đổi `.env` (DB Neon mới, bucket R2 mới, domain Resend mới nếu có) — không phần nào của core cần sửa code.
 
@@ -262,26 +262,29 @@ function ProductList({ filters }: Props) {
 ### 8.1. Frontend (Next.js App Router)
 
 ```
-app/
-├── (storefront)/           # PUBLIC — domain, ai cũng vào được
-│   ├── page.tsx
-│   └── products/[slug]/page.tsx
-├── (account)/               # PROTECTED — core, cần đăng nhập (bất kỳ role nào)
-│   ├── layout.tsx           # redirect '/login' nếu chưa auth
-│   └── profile/page.tsx
-├── admin/                   # PRIVATE — core (khung) + domain (nội dung menu) — role admin/super_admin
-│   ├── layout.tsx           # kiểm tra permission, redirect 403 nếu member thường
-│   └── products/page.tsx
-├── superadmin/               # PRIVATE — core, chỉ super_admin (quản lý user/role/permission, bật/tắt auth method)
-│   ├── layout.tsx
-│   └── users/page.tsx
-└── (auth)/                  # PUBLIC — core, trang login/register, redirect nếu đã đăng nhập
-    ├── login/page.tsx
-    └── register/page.tsx
+src/
+├── proxy.ts                 # Next.js 16: "proxy" (đổi tên từ middleware.ts từ v16.0.0) — chặn sớm
+│                             # theo pathname trước khi vào app/
+└── app/
+    ├── (storefront)/         # PUBLIC — domain, ai cũng vào được
+    │   ├── page.tsx
+    │   └── products/[slug]/page.tsx
+    ├── account/               # PROTECTED — core, cần đăng nhập (bất kỳ role nào); route thật (không
+    │   ├── layout.tsx         # phải route group) để proxy.ts match theo prefix /account/*
+    │   └── profile/page.tsx
+    ├── admin/                 # PRIVATE — core (khung) + domain (nội dung menu) — role admin/super_admin
+    │   ├── layout.tsx         # kiểm tra permission, redirect nếu member thường
+    │   └── products/page.tsx
+    ├── superadmin/             # PRIVATE — core, chỉ super_admin (quản lý user/role/permission, bật/tắt auth method)
+    │   ├── layout.tsx
+    │   └── users/page.tsx
+    └── (auth)/                # PUBLIC — core, trang login/register, redirect nếu đã đăng nhập
+        ├── login/page.tsx
+        └── register/page.tsx
 ```
 
-- `middleware.ts` ở gốc `app/` chặn sớm ở edge: đọc cookie session, nếu route thuộc `/admin` hoặc `/superadmin` mà chưa có session hợp lệ → redirect `/login`.
-- Kiểm tra **role/permission chi tiết** (không chỉ "đã đăng nhập") thực hiện trong `layout.tsx` của từng nhóm route (Server Component, đọc session từ cookie, gọi API `/me` hoặc decode JWT).
+- `proxy.ts` ở `src/` (ngang hàng `app/`) chặn sớm: đọc cookie session, nếu route thuộc `/account`, `/admin` hoặc `/superadmin` mà chưa có session hợp lệ → redirect `/login`. Từ Next.js 16 chạy mặc định trên Node.js runtime (trước đó là Edge) — xem `node_modules/next/dist/docs` của bản đang dùng trước khi giả định hành vi, quy ước này có thể đổi tiếp ở các major version sau.
+- Kiểm tra **role/permission chi tiết** (không chỉ "đã đăng nhập") thực hiện trong `layout.tsx` của từng nhóm route (Server/Client Component, gọi API `/api/account/me` hoặc decode JWT).
 - Route `(auth)` (login/register) tự redirect về trang chủ nếu người dùng đã có session — tránh vào lại trang login khi đã đăng nhập.
 
 ### 8.2. Backend (Express)
