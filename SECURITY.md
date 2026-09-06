@@ -1,20 +1,25 @@
 # 🔒 Bảo mật hệ thống (Security)
 
-Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website bán hoa và biện pháp phòng ngừa cụ thể theo từng tầng (auth, API, database, thanh toán, hạ tầng). Tham khảo cùng [README.md](README.md) (tổng quan) và [DATABASE.md](DATABASE.md) (schema & RBAC).
+Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website bán hoa và biện pháp phòng ngừa cụ thể theo từng tầng (auth, API, database, thanh toán, hạ tầng). Tham khảo cùng [README.md](README.md) (tổng quan), [ARCHITECTURE.md](ARCHITECTURE.md) (kiến trúc), [DATABASE.md](DATABASE.md) (schema & RBAC).
 
 ---
 
 ## 1. Xác thực (Authentication)
+
+Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google OAuth, magic link) — schema chi tiết ở [DATABASE.md §3.2 "Nhóm Xác thực & Phiên đăng nhập"](DATABASE.md).
 
 | Rủi ro | Biện pháp |
 |---|---|
 | Mật khẩu yếu / lộ mật khẩu | Hash bằng **bcrypt** (cost ≥ 12) hoặc **argon2**; bắt buộc độ dài tối thiểu 8 ký tự khi đăng ký |
 | Brute-force đăng nhập | Rate limit theo IP + email (`express-rate-limit`), khoá tạm tài khoản sau 5 lần sai (kèm cooldown tăng dần), captcha (reCAPTCHA/hCaptcha) sau vài lần thất bại |
 | Đánh cắp session/token | Access token JWT **thời gian sống ngắn** (15 phút), refresh token lưu ở **httpOnly, Secure, SameSite=Strict cookie** (không lưu localStorage — tránh XSS đánh cắp token) |
-| Refresh token bị lộ | Refresh token **rotation**: mỗi lần dùng để cấp access token mới thì phát hành refresh token mới, thu hồi token cũ; lưu danh sách token đã revoke (Redis/DB) |
-| Chiếm quyền tài khoản admin/nhân viên | Bắt buộc **2FA (TOTP)** cho các vai trò `super_admin`, `store_manager` trở lên |
+| Refresh token bị lộ | Refresh token **rotation**: mỗi lần dùng để cấp access token mới thì phát hành refresh token mới, thu hồi token cũ (set `sessions.revoked_at`); chỉ lưu `refresh_token_hash`, không lưu token thô |
+| **Magic link bị lộ/đoán được** | Token magic link sinh ngẫu nhiên đủ dài (≥ 32 byte), chỉ lưu `token_hash` (sha256) trong DB, **hết hạn ngắn** (~15 phút), **dùng 1 lần** (set `used_at` ngay khi verify — verify lần 2 phải fail), gửi qua Resend với rate limit theo email (chống spam yêu cầu magic link liên tục) |
+| Chiếm quyền tài khoản admin/nhân viên | Bắt buộc **2FA (TOTP)** cho các vai trò `super_admin`, `admin` trở lên |
 | OAuth Google bị giả mạo callback | Dùng `state` param chống CSRF, xác thực domain redirect_uri whitelist |
 | Email/số điện thoại giả khi đăng ký | Xác thực email (verification link) trước khi cho đặt hàng thanh toán online; OTP SMS khi cần |
+| **Bị vô hiệu hoá hết phương thức đăng nhập** | Service `login-methods.update` luôn kiểm tra: sau khi áp thay đổi, phải còn **≥ 1** phương thức `is_enabled = true`, nếu không → trả lỗi 400 + cảnh báo rõ ràng trên UI SuperAdmin, không cho lưu |
+| Chiếm phiên qua thiết bị bị đánh cắp | Người dùng tự xem danh sách thiết bị (`GET /api/account/sessions`) và **đăng xuất từ xa** từng thiết bị hoặc toàn bộ (revoke `sessions`); nên gửi email cảnh báo khi có đăng nhập từ thiết bị/IP lạ |
 
 ---
 
@@ -26,7 +31,11 @@ Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website
 - **Chống IDOR (Insecure Direct Object Reference)**: khi truy vấn `GET /api/orders/:id`, phải kiểm tra `orders.user_id === req.user.id` (trừ khi user có `orders.view_all`) — không chỉ dựa vào việc "biết ID" là được xem.
 - **Row-level check cho nhân viên vận hành**: `shipper` chỉ được cập nhật đơn có `order_deliveries.shipper_id = req.user.id`; `florist` chỉ được sửa đơn đang ở trạng thái "đang chuẩn bị".
 - **Nguyên tắc đặc quyền tối thiểu (least privilege)**: tài khoản `sales_staff` mặc định không có `products.delete`, `settings.manage`.
-- **Audit log** cho hành động nhạy cảm: đổi giá sản phẩm, xoá sản phẩm, đổi quyền nhân viên, hoàn tiền đơn hàng — ghi rõ ai (`changed_by`), khi nào, giá trị trước/sau.
+- **Quản lý user chỉ thuộc về `super_admin`** (permission `users.manage` chỉ gán cho role này) — service xử lý các API `PATCH /api/superadmin/users/:id/role`, `/block`, `/unblock`, `/reset-password` phải chặn cứng ở tầng service (không chỉ dựa vào middleware `authorize`), với 2 ràng buộc bắt buộc:
+  1. `targetUserId !== req.user.id` — không tự đổi role chính mình.
+  2. `newRole !== 'super_admin'` — không được nâng bất kỳ ai (kể cả chính mình) lên `super_admin` qua API; tài khoản `super_admin` chỉ tạo được qua seed hoặc thao tác thủ công trực tiếp trên DB.
+- **Reset password bởi SuperAdmin**: sinh mật khẩu ngẫu nhiên đủ mạnh, hash trước khi lưu, gửi bản rõ **duy nhất một lần** qua email (Resend) — không log, không trả về trong response API, không hiển thị lại cho `super_admin`.
+- **Audit log** cho hành động nhạy cảm: đổi giá sản phẩm, xoá sản phẩm, đổi role user, block/unblock user, bật/tắt phương thức đăng nhập, hoàn tiền đơn hàng — ghi rõ ai (`changed_by`), khi nào, giá trị trước/sau.
 
 ---
 
@@ -44,7 +53,7 @@ Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website
 | Rate limiting API công khai | Giới hạn `/api/products`, `/api/cart` theo IP để chống scraping/spam bot |
 | Giới hạn kích thước request | `express.json({ limit: '1mb' })` tránh payload khổng lồ gây DoS |
 | HTTPS bắt buộc | Redirect HTTP→HTTPS, bật HSTS ở production |
-| Upload ảnh sản phẩm/avatar | Giới hạn loại file (jpg/png/webp), giới hạn dung lượng, đổi tên file ngẫu nhiên, upload thẳng lên Cloudinary/S3 (không lưu trên server ứng dụng), quét virus nếu cho khách upload ảnh review |
+| Upload ảnh sản phẩm/avatar | Giới hạn loại file (jpg/png/webp), giới hạn dung lượng, đổi tên file ngẫu nhiên (không dùng tên gốc làm key), upload thẳng lên Cloudflare R2 qua **presigned URL** (không đi qua server ứng dụng), quét virus nếu cho khách upload ảnh review |
 
 ---
 
@@ -58,20 +67,30 @@ Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website
 
 ---
 
-## 5. Bảo mật dữ liệu & tuân thủ
+## 5. Bảo mật lưu trữ file & backup (Cloudflare R2)
+
+- **Bucket private**: file/ảnh không public trực tiếp qua R2 endpoint gốc; phục vụ qua custom domain có kiểm soát hoặc signed URL có thời hạn cho nội dung nhạy cảm (vd hoá đơn), ảnh sản phẩm công khai thì dùng CDN cache bình thường.
+- **Presigned upload có kiểm soát**: URL presigned chỉ cấp sau khi backend xác thực user, giới hạn `content-type` + kích thước tối đa trong điều kiện ký, và có thời gian hết hạn ngắn (vài phút) — tránh bị lợi dụng upload file tuỳ ý.
+- **Dọn file mồ côi (10 ngày/lần)**: cron job xoá file trong `files` không còn `file_usages` tham chiếu và đã quá ngưỡng an toàn (≥ 24h kể từ lúc upload) — vừa tiết kiệm dung lượng, vừa giảm bề mặt tấn công (file rác không ai quản lý). Trước khi xoá cứng trên R2, xoá record DB trong cùng transaction để tránh mất đồng bộ.
+- **Backup PostgreSQL lên R2**: `pg_dump` định kỳ **2 ngày/lần**, nén + **mã hoá** trước khi đẩy lên bucket `backups/` riêng (tách khỏi bucket ảnh công khai), giới hạn quyền truy cập bucket này ở mức tối thiểu (chỉ service account backup được ghi/đọc).
+- **Retention tự động**: cấu hình lifecycle rule của R2 (hoặc cron job riêng) để **tự xoá backup cũ hơn 1 tháng** — tránh backup tồn đọng vô thời hạn vừa tốn chi phí vừa tăng rủi ro rò rỉ nếu bucket bị lộ.
+- **Test khôi phục định kỳ**: backup vô dụng nếu chưa từng thử restore — lên lịch kiểm tra khôi phục thử (staging) theo quý.
+
+---
+
+## 6. Bảo mật dữ liệu & tuân thủ
 
 - **Dữ liệu cá nhân khách hàng** (họ tên, SĐT, địa chỉ) cần tuân thủ **Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân** (Việt Nam):
   - Có trang "Chính sách bảo mật" nêu rõ mục đích thu thập, thời gian lưu trữ.
   - Cho phép khách yêu cầu xoá tài khoản/dữ liệu cá nhân.
   - Xin sự đồng ý (checkbox) khi đăng ký nhận email marketing.
-- **Mã hoá dữ liệu nhạy cảm**: số điện thoại, địa chỉ có thể mã hoá ở tầng ứng dụng (application-level encryption) nếu yêu cầu bảo mật cao, hoặc tối thiểu mã hoá ổ đĩa (encryption at rest) ở tầng database.
-- **Không log dữ liệu nhạy cảm**: mật khẩu, token, số thẻ/OTP không bao giờ được ghi vào log server.
-- **Backup**: backup PostgreSQL định kỳ (daily), mã hoá file backup, test khôi phục định kỳ.
+- **Mã hoá dữ liệu nhạy cảm**: số điện thoại, địa chỉ có thể mã hoá ở tầng ứng dụng (application-level encryption) nếu yêu cầu bảo mật cao, hoặc tối thiểu mã hoá ổ đĩa (encryption at rest) ở tầng database (Neon/VPS Postgres đều hỗ trợ encryption at rest).
+- **Không log dữ liệu nhạy cảm**: mật khẩu, token (JWT/magic link/reset), số thẻ/OTP không bao giờ được ghi vào log server.
 - **Xoá mềm (soft delete)** cho `users`/`products` để vẫn giữ được lịch sử đơn hàng hợp lệ khi dữ liệu gốc bị xoá, nhưng ẩn khỏi truy vấn thông thường.
 
 ---
 
-## 6. Bảo mật logic nghiệp vụ (Business Logic Abuse)
+## 7. Bảo mật logic nghiệp vụ (Business Logic Abuse)
 
 | Rủi ro | Biện pháp |
 |---|---|
@@ -83,10 +102,10 @@ Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website
 
 ---
 
-## 7. Hạ tầng & DevOps
+## 8. Hạ tầng & DevOps
 
-- **Biến môi trường**: toàn bộ secret (DB password, JWT secret, API key cổng thanh toán, Cloudinary key) nằm trong `.env`, **không commit vào Git** (`.gitignore` chuẩn ngay từ đầu). Ở production dùng secret manager (AWS Secrets Manager/Doppler/Vault).
-- **Database user riêng cho ứng dụng** với quyền hạn tối thiểu (không dùng `postgres` superuser), chỉ mở cổng DB nội bộ (không public ra internet).
+- **Biến môi trường**: toàn bộ secret (DB URL Neon/VPS, JWT secret, API key cổng thanh toán, R2 access key, Resend API key) nằm trong `.env`, **không commit vào Git** (`.gitignore` chuẩn ngay từ đầu). Ở production dùng secret manager (AWS Secrets Manager/Doppler/Vault).
+- **Database user riêng cho ứng dụng** với quyền hạn tối thiểu (không dùng user chủ/superuser), chỉ mở cổng DB nội bộ (không public ra internet) khi tự quản lý trên VPS.
 - **Dependency scanning**: chạy `npm audit` / Dependabot / Snyk định kỳ để phát hiện thư viện có lỗ hổng đã biết.
 - **Docker**: build image tối giản (alpine), chạy container với user non-root, không để `node_modules` chứa devDependencies ở production image.
 - **CI/CD**: chặn merge nếu có secret bị commit nhầm (dùng `gitleaks`/`trufflehog` trong pipeline).
@@ -94,13 +113,15 @@ Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website
 
 ---
 
-## 8. Checklist theo từng giai đoạn (map với Roadmap ở README)
+## 9. Checklist theo từng giai đoạn (map với Roadmap ở README)
 
 **Giai đoạn 1 — MVP**
-- [ ] Hash mật khẩu bcrypt, JWT access/refresh cơ bản
-- [ ] Validate input toàn bộ API (zod/joi)
+- [ ] Hash mật khẩu bcrypt, JWT access/refresh cơ bản, session lưu ở `sessions` (device tracking)
+- [ ] Magic link: token hash, hết hạn ngắn, dùng 1 lần, rate limit theo email
+- [ ] Validate input toàn bộ API (zod)
 - [ ] Helmet + CORS whitelist đúng domain
-- [ ] RBAC middleware `authenticate` + `authorize`
+- [ ] RBAC middleware `authenticate` + `authorize`; chặn cứng ràng buộc "không tự đổi role", "không tự nâng super_admin" ở tầng service
+- [ ] Presigned URL R2 có kiểm soát content-type/size/thời hạn
 - [ ] `.env` không commit, có `.env.example`
 
 **Giai đoạn 2 — Thanh toán**
@@ -108,20 +129,25 @@ Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website
 - [ ] Idempotency xử lý webhook
 - [ ] Rate limit đăng nhập + captcha checkout
 - [ ] HTTPS + HSTS ở production
+- [ ] API đăng xuất từ xa (`DELETE /api/account/sessions/:id`) hoạt động đúng — không cho revoke session của user khác
+- [ ] Validate luôn còn ≥ 1 `login_method` được bật khi SuperAdmin cập nhật cấu hình
 
 **Giai đoạn 3 — Tăng trưởng**
 - [ ] Giới hạn coupon per-user, chống race condition tồn kho
-- [ ] Audit log cho thao tác admin/nhân viên
+- [ ] Audit log cho thao tác admin/superadmin (đổi role, block/unblock, reset password, bật/tắt auth method)
+- [ ] Cron job xoá file mồ côi (10 ngày/lần) chạy đúng, không xoá nhầm file mới upload
+- [ ] Cron backup DB → R2 (2 ngày/lần) + retention tự xoá sau 1 tháng hoạt động đúng
 - [ ] Trang chính sách bảo mật + cơ chế xoá dữ liệu cá nhân
 
 **Giai đoạn 4 — Mở rộng**
-- [ ] 2FA cho tài khoản quản trị
+- [ ] 2FA cho tài khoản `super_admin`/`admin`
 - [ ] Dependency scanning tự động trong CI
 - [ ] Penetration test / security review trước khi scale lớn
+- [ ] Khi chuyển DB sang VPS tự quản lý: harden Postgres (user riêng, không public port), cấu hình firewall
 
 ---
 
-## 9. Tham khảo
+## 10. Tham khảo
 
 - OWASP Top 10: https://owasp.org/www-project-top-ten/
 - Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân (Việt Nam)

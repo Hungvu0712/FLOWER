@@ -1,6 +1,6 @@
 # 🗄️ Thiết kế Database & Phân quyền (PostgreSQL)
 
-Tài liệu này mô tả chi tiết schema database và hệ thống phân quyền (Role-Based Access Control) cho dự án Flower Shop. Xem tổng quan chức năng và roadmap tại [README.md](README.md).
+Tài liệu này mô tả chi tiết schema database và hệ thống phân quyền (Role-Based Access Control) cho dự án Flower Shop. Xem tổng quan chức năng tại [README.md](README.md), chuẩn kiến trúc backend/frontend tại [ARCHITECTURE.md](ARCHITECTURE.md), bảo mật tại [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -18,18 +18,23 @@ Tài liệu này mô tả chi tiết schema database và hệ thống phân quy�
 
 ### 2.1. Vì sao cần RBAC chi tiết cho shop hoa
 
-Một shop hoa vận hành thật có nhiều vai trò nội bộ với phạm vi thao tác khác nhau, không chỉ đơn giản là "admin/user":
+Chuẩn chung của dự án luôn có **tối thiểu 3 vai trò**: `super_admin`, `admin`, `member`. Một shop hoa vận hành thật cần thêm vài vai trò vận hành nội bộ nằm giữa `admin` và `member`:
 
 | Vai trò | Mô tả | Ai dùng |
 |---|---|---|
-| `super_admin` | Toàn quyền hệ thống: quản lý nhân viên, cấu hình thanh toán/API keys, xem mọi báo cáo | Chủ shop |
-| `store_manager` | Quản lý sản phẩm, danh mục, khuyến mãi, xem báo cáo doanh thu, KHÔNG quản lý được tài khoản nhân viên khác | Quản lý cửa hàng |
+| `super_admin` | Toàn quyền hệ thống: **là người duy nhất quản lý tài khoản người dùng** (block/unblock, reset password, đổi role), cấu hình thanh toán/API keys, bật/tắt phương thức đăng nhập, xem mọi báo cáo | Chủ shop / chủ hệ thống |
+| `admin` | Quản lý sản phẩm, danh mục, khuyến mãi, xem báo cáo doanh thu. KHÔNG quản lý được tài khoản người dùng khác (đặc quyền riêng của `super_admin`) | Quản lý cửa hàng |
 | `sales_staff` | Xử lý đơn hàng, chăm sóc khách hàng, xem/cập nhật trạng thái đơn, KHÔNG xoá sản phẩm, KHÔNG xem báo cáo tài chính | Nhân viên bán hàng/CSKH |
 | `florist` | Xem danh sách đơn cần chuẩn bị hoa, cập nhật trạng thái "đã soạn xong", KHÔNG truy cập thông tin thanh toán | Nhân viên cắm hoa |
 | `shipper` | Xem đơn được phân công giao, cập nhật trạng thái giao hàng (đang giao/đã giao/giao thất bại) | Người giao hàng |
-| `customer` | Chỉ thao tác trên dữ liệu của chính mình (đơn hàng, địa chỉ, wishlist, review) | Khách hàng |
+| `member` | Vai trò mặc định của người dùng đăng ký — chỉ thao tác trên dữ liệu của chính mình (đơn hàng, địa chỉ, wishlist, review) | Khách hàng |
 
 > Thiết kế permission theo **code dạng chuỗi** (`orders.update_status`) thay vì hard-code role trong logic nghiệp vụ, để khi thêm vai trò mới chỉ cần cấu hình lại bảng `role_permissions`, không phải sửa code.
+
+**Quy tắc bất biến khi quản lý user (chỉ `super_admin` được gọi các API này):**
+- Không được tự đổi role của chính mình (`targetUserId === req.user.id` → chặn).
+- Không được cập nhật role của bất kỳ user nào (kể cả chính `super_admin` khác) thành `super_admin` qua API thông thường — tránh leo thang quyền hạn ngoài ý muốn; tạo `super_admin` mới chỉ qua seed/thao tác thủ công trực tiếp trên DB.
+- Reset password: `super_admin` bấm "reset" → hệ thống sinh mật khẩu ngẫu nhiên, hash và lưu, đồng thời gửi mật khẩu mới qua email (Resend) cho user — không hiển thị mật khẩu cho `super_admin` xem.
 
 ### 2.2. Bảng dữ liệu
 
@@ -37,7 +42,7 @@ Một shop hoa vận hành thật có nhiều vai trò nội bộ với phạm v
 -- Vai trò
 roles
   id            SERIAL PRIMARY KEY
-  code          VARCHAR(50) UNIQUE NOT NULL   -- 'super_admin', 'sales_staff', 'customer'...
+  code          VARCHAR(50) UNIQUE NOT NULL   -- 'super_admin', 'admin', 'sales_staff', 'florist', 'shipper', 'member'
   name          VARCHAR(100) NOT NULL          -- tên hiển thị
   description   TEXT
   is_system     BOOLEAN DEFAULT false          -- true = vai trò hệ thống, không cho xoá
@@ -86,12 +91,13 @@ user_roles
 | reviews | `reviews.moderate` | Duyệt/ẩn đánh giá |
 | reports | `reports.view` | Xem thống kê doanh thu, báo cáo |
 | blog | `blog.manage` | Quản lý bài viết blog, banner |
-| staff | `staff.manage` | Tạo/sửa/xoá tài khoản nhân viên, gán vai trò (chỉ super_admin) |
-| settings | `settings.manage` | Cấu hình hệ thống, API key thanh toán/email |
+| users | `users.manage` | Block/unblock, reset password, đổi role user (**chỉ `super_admin`**, xem ràng buộc ở mục 2.1) |
+| settings | `settings.manage` | Cấu hình hệ thống, API key thanh toán/email, **bật/tắt phương thức đăng nhập** (chỉ `super_admin`) |
+| files | `files.manage` | Xem/xoá file trong màn hình quản lý tài nguyên (folder, ảnh mồ côi...) |
 
 ### 2.4. Ma trận Vai trò × Quyền (mặc định seed)
 
-| Permission | super_admin | store_manager | sales_staff | florist | shipper | customer |
+| Permission | super_admin | admin | sales_staff | florist | shipper | member |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 | products.view | ✅ | ✅ | ✅ | – | – | – |
 | products.create/update/delete | ✅ | ✅ | – | – | – | – |
@@ -108,10 +114,11 @@ user_roles
 | reviews.moderate | ✅ | ✅ | – | – | – | – |
 | reports.view | ✅ | ✅ | – | – | – | – |
 | blog.manage | ✅ | ✅ | – | – | – | – |
-| staff.manage | ✅ | – | – | – | – | – |
+| files.manage | ✅ | ✅ | – | – | – | – |
+| users.manage | ✅ | – | – | – | – | – |
 | settings.manage | ✅ | – | – | – | – | – |
 
-> Ma trận này sẽ là dữ liệu **seed** ban đầu cho `role_permissions`. Admin (`super_admin`) có thể chỉnh sửa quyền cho từng vai trò trực tiếp qua UI ở giai đoạn 4 (Advanced), không cần sửa code.
+> Ma trận này sẽ là dữ liệu **seed** ban đầu cho `role_permissions`. `super_admin` có thể chỉnh sửa quyền cho từng vai trò trực tiếp qua UI ở giai đoạn 4 (Advanced), không cần sửa code. Lưu ý: chỉnh sửa `role_permissions` khác với chỉnh sửa **role của một user** (mục 2.1) — thao tác sau chỉ `super_admin` được làm và có các ràng buộc chống leo thang quyền.
 
 ### 2.5. Áp dụng ở tầng Backend (Express)
 
@@ -138,7 +145,7 @@ router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_st
 - Với đơn hàng, cần kiểm tra thêm **phạm vi dữ liệu** (row-level), không chỉ permission chung:
   - `florist` chỉ được cập nhật đơn đang ở trạng thái "đang chuẩn bị", không được sửa giá/thanh toán.
   - `shipper` chỉ thấy/sửa đơn **đã được phân công cho chính mình** (`order_deliveries.shipper_id = req.user.id`).
-  - `customer` chỉ thấy đơn có `orders.user_id = req.user.id`.
+  - `member` chỉ thấy đơn có `orders.user_id = req.user.id`.
 
 ### 2.6. Áp dụng ở tầng Frontend (Next.js)
 
@@ -154,7 +161,7 @@ router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_st
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
-| `users` | id, name, email, password_hash, phone, avatar_url, status (active/locked), email_verified_at, created_at, updated_at, deleted_at | |
+| `users` | id, full_name, email, password_hash (**nullable** — user chỉ dùng Google/magic link thì không có), phone, avatar_file_id (FK → `files`), status (active/blocked), email_verified_at, created_at, updated_at, deleted_at | |
 | `roles` | id, code, name, description, is_system | Xem mục 2.2 |
 | `permissions` | id, code, group_name, description | Xem mục 2.2 |
 | `role_permissions` | role_id, permission_id | |
@@ -162,7 +169,32 @@ router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_st
 | `addresses` | id, user_id, recipient_name, phone, address_line, ward, district, city, is_default | Sổ địa chỉ người nhận |
 | `special_dates` | id, user_id, label, date, remind_days_before | Nhắc lịch sinh nhật/kỷ niệm |
 
-### 3.2. Nhóm Sản phẩm
+### 3.2. Nhóm Xác thực & Phiên đăng nhập
+
+Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, magic link) với khả năng bật/tắt từng phương thức, cộng quản lý thiết bị/đăng xuất từ xa:
+
+| Bảng | Cột chính | Ghi chú |
+|---|---|---|
+| `auth_accounts` | id, user_id, provider (`google`), provider_account_id, created_at | Liên kết tài khoản OAuth với `users`; `UNIQUE(provider, provider_account_id)` |
+| `magic_link_tokens` | id, email, user_id (nullable — email chưa có account thì tạo mới lúc verify), token_hash, expires_at, used_at, created_at | Token **dùng 1 lần**: set `used_at` ngay khi verify; hết hạn ngắn (~15 phút) |
+| `password_reset_tokens` | id, user_id, token_hash, expires_at, used_at, created_at | Dùng cho luồng "quên mật khẩu"; cũng dùng khi `super_admin` reset password hộ user |
+| `sessions` | id, user_id, refresh_token_hash, device_name, ip_address, user_agent, last_active_at, expires_at, revoked_at, created_at | 1 dòng = 1 thiết bị/phiên đăng nhập → phục vụ màn "quản lý thiết bị" và "đăng xuất từ xa" (set `revoked_at`) |
+| `login_method_settings` | id, method (`google_oauth` \| `email_password` \| `magic_link`), is_enabled, updated_by (user_id), updated_at | Do `super_admin` cấu hình; **luôn phải còn ≥ 1 phương thức `is_enabled = true`** — validate ở service, không cho tắt hết |
+
+> Không lưu token thô (magic link, reset password, refresh token) — chỉ lưu `*_hash` (sha256), so khớp hash khi verify, giống nguyên tắc lưu password.
+
+### 3.3. Nhóm Quản lý File & Tài nguyên (Cloudflare R2)
+
+| Bảng | Cột chính | Ghi chú |
+|---|---|---|
+| `folders` | id, name, parent_id (cây thư mục), created_by, created_at | Phục vụ màn hình quản lý tài nguyên theo folder |
+| `files` | id, folder_id (nullable), r2_key, url, mime_type, size_bytes, original_name, uploaded_by, created_at, deleted_at | `r2_key` là đường dẫn thật trên bucket R2 |
+| `file_usages` | id, file_id, entity_type (`product`, `user_avatar`, `blog_post`...), entity_id, created_at | 1 file được gắn vào nhiều nơi → **tái sử dụng ảnh cũ** thay vì upload trùng; `UNIQUE(file_id, entity_type, entity_id)` |
+
+- File được coi là **mồ côi (orphan)** khi không còn dòng nào trong `file_usages` trỏ tới, và đã tạo quá một ngưỡng an toàn (vd 24h, để không xoá nhầm ảnh vừa upload nhưng form chưa submit xong).
+- Cron job **10 ngày/lần**: quét file mồ côi → xoá trên R2 + xoá record `files` (xem thêm [ARCHITECTURE.md §4](ARCHITECTURE.md), [SECURITY.md](SECURITY.md)).
+
+### 3.4. Nhóm Sản phẩm
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
@@ -175,7 +207,7 @@ router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_st
 | `reviews` | id, product_id, user_id, rating, comment, images, is_approved, created_at | |
 | `wishlists` | user_id, product_id | |
 
-### 3.3. Nhóm Giỏ hàng & Đơn hàng
+### 3.5. Nhóm Giỏ hàng & Đơn hàng
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
@@ -189,17 +221,20 @@ router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_st
 | `coupons` | id, code, type, value, min_order_value, start_date, end_date, usage_limit | |
 | `coupon_usages` | coupon_id, order_id, user_id | |
 
-### 3.4. Nhóm Nội dung & Thông báo
+### 3.6. Nhóm Nội dung & Thông báo
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
-| `blog_posts` | id, author_id, title, slug, content, thumbnail, published_at | |
+| `blog_posts` | id, author_id, title, slug, content, thumbnail_file_id, published_at | |
 | `notifications` | id, user_id, type, message, is_read, created_at | |
+| `email_logs` | id, to_email, type (`welcome`, `magic_link`, `password_reset`, `order_confirmation`...), status, provider_message_id, error, sent_at | Audit email gửi qua Resend |
 
-### 3.5. Quan hệ chính (ERD rút gọn)
+### 3.7. Quan hệ chính (ERD rút gọn)
 
 ```
 users ──< user_roles >── roles ──< role_permissions >── permissions
+users ──< auth_accounts
+users ──< sessions
 users ──< addresses
 users ──< special_dates
 users ──< orders ──< order_items >── products ──< product_variants
@@ -210,9 +245,11 @@ products ──< product_images
 products >──< occasions (qua product_occasions)
 products >──< categories (n:1, có parent_id tự tham chiếu)
 carts ──< cart_items >── products
+files ──< file_usages >── (products | users | blog_posts...)
+folders ──< files
 ```
 
-### 3.6. Index quan trọng
+### 3.8. Index quan trọng
 
 - `users(email)` unique.
 - `products(slug)` unique, `products(category_id)`, full-text index (`GIN`) trên `products(name, description)`.
@@ -220,16 +257,20 @@ carts ──< cart_items >── products
 - `order_deliveries(delivery_date)` — phục vụ dashboard lịch giao hoa.
 - `order_deliveries(shipper_id)` — truy vấn nhanh đơn của từng shipper.
 - `role_permissions(role_id)`, `user_roles(user_id)` — tăng tốc kiểm tra quyền lúc auth.
+- `sessions(user_id)`, `sessions(refresh_token_hash)` unique — tra cứu phiên nhanh lúc verify refresh token.
+- `magic_link_tokens(token_hash)` unique, `password_reset_tokens(token_hash)` unique.
+- `file_usages(entity_type, entity_id)` — tìm nhanh ảnh đang gắn với 1 sản phẩm/user cụ thể; `files(deleted_at)` — phục vụ job quét file mồ côi.
 
 ---
 
 ## 4. Seed dữ liệu ban đầu
 
 Khi khởi tạo DB, cần seed sẵn:
-1. 6 `roles` ở mục 2.1.
+1. 6 `roles` ở mục 2.1: `super_admin`, `admin`, `sales_staff`, `florist`, `shipper`, `member`.
 2. Toàn bộ `permissions` ở mục 2.3.
 3. Ma trận `role_permissions` theo mục 2.4.
 4. 1 tài khoản `super_admin` mặc định (đổi mật khẩu ngay sau lần đăng nhập đầu).
+5. `login_method_settings`: cả 3 phương thức (`google_oauth`, `email_password`, `magic_link`) mặc định `is_enabled = true`.
 
 ---
 
@@ -266,6 +307,30 @@ model UserRole {
   user   User @relation(fields: [userId], references: [id])
   role   Role @relation(fields: [roleId], references: [id])
   @@id([userId, roleId])
+}
+
+model Session {
+  id                String    @id @default(uuid())
+  userId            String
+  refreshTokenHash  String    @unique
+  deviceName        String?
+  ipAddress         String?
+  userAgent         String?
+  lastActiveAt      DateTime  @default(now())
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  user              User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model LoginMethodSetting {
+  id        Int      @id @default(autoincrement())
+  method    String   @unique // 'google_oauth' | 'email_password' | 'magic_link'
+  isEnabled Boolean  @default(true)
+  updatedBy String?
+  updatedAt DateTime @updatedAt
 }
 ```
 
