@@ -2,7 +2,7 @@
 
 Kế hoạch chi tiết cho website thương mại điện tử bán hoa, hướng đến người dùng thật (đặt hoa sinh nhật, cưới hỏi, khai trương, chia buồn, quà tặng...).
 
-- **Frontend:** ReactJS
+- **Frontend:** Next.js (React, App Router)
 - **Backend:** Node.js + Express
 - **Database:** PostgreSQL
 
@@ -80,17 +80,18 @@ Xây dựng một cửa hàng hoa online cho phép khách:
 ## 3. Kiến trúc hệ thống
 
 ```
-[ React SPA ]  <---REST/JSON--->  [ Express API ]  <--->  [ PostgreSQL ]
-     |                                   |
-  (Vite/CRA,                        (Redis cache,
-   React Router,                     JWT auth,
-   React Query,                      Socket.io,
-   Zustand/Redux)                    Multer/S3 upload)
+[ Next.js App ]  <---REST/JSON--->  [ Express API ]  <--->  [ PostgreSQL ]
+     |                                     |
+  (App Router,                        (Redis cache,
+   Server Components                   JWT auth,
+   cho trang SEO,                      Socket.io,
+   React Query,                        Multer/S3 upload)
+   Zustand/Redux)
 ```
 
-- **Kiến trúc:** REST API, giao tiếp qua JSON. Có thể tách thêm service thanh toán/webhook riêng nếu mở rộng.
+- **Kiến trúc:** Next.js đóng vai trò frontend (SSR/SSG cho trang cần SEO như trang chủ, danh mục, chi tiết sản phẩm; Client Components cho phần tương tác như giỏ hàng, checkout), gọi REST API riêng từ Express. Có thể tách thêm service thanh toán/webhook riêng nếu mở rộng.
 - **Realtime:** Socket.io cho cập nhật trạng thái đơn hàng / thông báo admin có đơn mới.
-- **File ảnh:** lưu ở Cloudinary/S3, DB chỉ lưu URL.
+- **File ảnh:** lưu ở Cloudinary/S3, DB chỉ lưu URL; tận dụng `next/image` để tối ưu ảnh hoa tự động.
 
 ---
 
@@ -98,15 +99,16 @@ Xây dựng một cửa hàng hoa online cho phép khách:
 
 ```
 FLOWER/
-├── frontend/                # React app
+├── frontend/                # Next.js app (App Router)
 │   ├── src/
+│   │   ├── app/             # routes: page.js, layout.js theo file-system routing
+│   │   │   ├── (storefront)/    # nhóm route công khai: /, /products/[slug], /cart, /checkout...
+│   │   │   └── admin/           # route quản trị: /admin/products, /admin/orders...
 │   │   ├── components/      # UI dùng chung (Button, Card, Modal...)
-│   │   ├── pages/           # Home, ProductDetail, Cart, Checkout, Admin/...
 │   │   ├── features/        # theo domain: auth, cart, orders, products
 │   │   ├── hooks/
-│   │   ├── services/        # gọi API (axios instances)
-│   │   ├── store/           # state management
-│   │   └── routes/
+│   │   ├── services/        # gọi API (axios instances tới backend Express)
+│   │   └── store/           # state management (client state)
 │   └── package.json
 │
 ├── backend/                 # Node.js + Express API
@@ -207,7 +209,7 @@ Tất cả response theo chuẩn:
 ## 7. Lộ trình phát triển (Roadmap)
 
 ### Giai đoạn 1 — MVP (4–5 tuần)
-- Setup dự án (React + Vite, Express, PostgreSQL + Prisma).
+- Setup dự án (Next.js, Express, PostgreSQL + Prisma).
 - Auth cơ bản (đăng ký/đăng nhập).
 - CRUD sản phẩm, danh mục (admin cơ bản).
 - Trang chủ, danh sách sản phẩm, chi tiết sản phẩm.
@@ -238,7 +240,7 @@ Tất cả response theo chuẩn:
 
 | Hạng mục | Công nghệ |
 |---|---|
-| Frontend | React (Vite), React Router, React Query/TanStack Query, Zustand hoặc Redux Toolkit, TailwindCSS |
+| Frontend | Next.js (App Router, React 19), React Query/TanStack Query, Zustand hoặc Redux Toolkit, TailwindCSS |
 | Backend | Node.js, Express, Prisma ORM |
 | Database | PostgreSQL |
 | Cache/Session | Redis |
@@ -247,7 +249,7 @@ Tất cả response theo chuẩn:
 | Thanh toán | VNPay/Momo (nội địa), Stripe (nếu cần quốc tế) |
 | Email | Nodemailer + SendGrid/Mailgun |
 | Realtime | Socket.io |
-| Deploy | Docker + Docker Compose; FE trên Vercel/Netlify, BE trên Render/Railway/VPS |
+| Deploy | Docker + Docker Compose; FE (Next.js) trên Vercel, BE trên Render/Railway/VPS |
 | CI/CD | GitHub Actions |
 
 ---
@@ -255,6 +257,6 @@ Tất cả response theo chuẩn:
 ## 9. Bước tiếp theo
 
 1. Xác nhận phạm vi MVP (những chức năng nào bắt buộc có ngay từ đầu).
-2. Khởi tạo 2 project con: `frontend/` (React) và `backend/` (Express).
+2. Khởi tạo 2 project con: `frontend/` (Next.js — đã scaffold xong) và `backend/` (Express).
 3. Thiết kế schema Prisma dựa trên mục 5 và chạy migration đầu tiên.
 4. Dựng khung API cho `auth` và `products` trước để có dữ liệu hiển thị lên FE.

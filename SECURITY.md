@@ -39,7 +39,7 @@ Tài liệu này liệt kê các rủi ro bảo mật cần xử lý cho website
 | Validate input | `zod` hoặc `joi` validate toàn bộ body/query/params trước khi vào controller — chặn payload rác, giới hạn độ dài chuỗi |
 | Chống SQL Injection | Dùng ORM (Prisma) với parameterized query; **không** nối chuỗi SQL thủ công |
 | Chống NoSQL/JSON injection | Validate kiểu dữ liệu nghiêm ngặt nếu dùng JSONB trong Postgres |
-| Chống XSS | React tự escape output; nếu render nội dung blog dạng HTML (`dangerouslySetInnerHTML`) phải sanitize bằng `DOMPurify` trước khi lưu/hiển thị |
+| Chống XSS | React/Next.js tự escape output; nếu render nội dung blog dạng HTML (`dangerouslySetInnerHTML`) phải sanitize bằng `DOMPurify` (hoặc `isomorphic-dompurify` khi chạy ở Server Component) trước khi lưu/hiển thị |
 | CSRF | Nếu dùng cookie cho auth: bật CSRF token cho các request thay đổi state (`csurf` hoặc double-submit cookie pattern) |
 | Rate limiting API công khai | Giới hạn `/api/products`, `/api/cart` theo IP để chống scraping/spam bot |
 | Giới hạn kích thước request | `express.json({ limit: '1mb' })` tránh payload khổng lồ gây DoS |

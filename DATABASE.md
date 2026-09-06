@@ -140,11 +140,11 @@ router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_st
   - `shipper` chỉ thấy/sửa đơn **đã được phân công cho chính mình** (`order_deliveries.shipper_id = req.user.id`).
   - `customer` chỉ thấy đơn có `orders.user_id = req.user.id`.
 
-### 2.6. Áp dụng ở tầng Frontend (React)
+### 2.6. Áp dụng ở tầng Frontend (Next.js)
 
-- Lưu danh sách `permissions` của user trong store (Zustand/Redux) sau khi đăng nhập.
-- Route guard: `<ProtectedRoute permission="reports.view">` ẩn/redirect nếu không đủ quyền.
-- Ẩn nút/thao tác trên UI theo permission (vd nút "Xoá sản phẩm" chỉ hiện với `products.delete`), nhưng **backend vẫn phải kiểm tra lại** — không tin tưởng riêng phía client.
+- Lưu danh sách `permissions` của user trong store (Zustand/Redux) sau khi đăng nhập, hoặc đọc từ session (cookie httpOnly) trong Server Component cho các route `/admin/*`.
+- Route protection cho khu vực quản trị: dùng `middleware.js` (Next.js Middleware) để chặn truy cập `/admin/*` ngay ở edge nếu chưa đăng nhập/không đủ quyền, kết hợp kiểm tra permission trong layout của từng nhóm route (`app/admin/layout.js`).
+- Ẩn nút/thao tác trên UI theo permission (vd nút "Xoá sản phẩm" chỉ hiện với `products.delete`), nhưng **backend (Express API) vẫn phải kiểm tra lại** — không tin tưởng riêng phía client.
 
 ---
 
