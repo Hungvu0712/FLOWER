@@ -115,7 +115,7 @@ Nguyên tắc: **không bao giờ để Promise reject không bắt** (mọi con
 | Development | **Neon Postgres** (serverless, free tier) | Cloudflare R2 (bucket dev/staging) | Không cần tự quản lý DB server lúc dev |
 | Production (khi scale lớn) | PostgreSQL tự quản lý trên **VPS**, chạy qua **Docker** | Cloudflare R2 (bucket production) | Chuyển khi Neon free tier không đủ (giới hạn compute/storage) |
 
-- **Backup production**: định kỳ **2 ngày/lần**, đẩy file backup (`pg_dump`) lên Cloudflare R2 (bucket riêng `backups/`), **tự động xoá file backup cũ hơn 1 tháng** (lifecycle rule của R2 hoặc cron job dọn dẹp — xem [DATABASE.md §6](DATABASE.md)).
+- **Backup production**: định kỳ **2 ngày/lần**, đẩy file backup (`pg_dump`) lên Cloudflare R2 (bucket riêng `backups/`), **tự động xoá file backup cũ hơn 1 tháng** (lifecycle rule của R2 hoặc cron job dọn dẹp — xem [SECURITY.md §5](SECURITY.md)).
 - Prisma migration chạy giống nhau ở cả 2 môi trường nhờ cùng schema — chỉ khác `DATABASE_URL` trong `.env`.
 - Container hoá ở production: `docker-compose.yml` gồm service `backend` (Node/Express) + `postgres` (nếu không dùng Neon nữa) + reverse proxy (nginx/caddy) cho HTTPS.
 
@@ -130,7 +130,33 @@ Nguyên tắc: **không bao giờ để Promise reject không bắt** (mọi con
 
 ---
 
-## 5. Frontend — stack & quy ước
+## 5. Email service
+
+| Phương án | Khi dùng | Điều kiện | Nhược điểm |
+|---|---|---|---|
+| **Resend** (khuyến nghị, production) | Đã có domain riêng | Bắt buộc **xác minh domain** (cấu hình DKIM/SPF/DMARC trỏ về domain) trước khi gửi được — **không gửi được** bằng địa chỉ Gmail/Yahoo cá nhân | Cần sở hữu + cấu hình DNS cho 1 domain |
+| **Nodemailer + SMTP** (tạm thời) | Chưa có domain riêng (mới bắt đầu dự án, môi trường dev/test) | Dùng SMTP của Gmail hoặc nhà cung cấp SMTP khác | Không có DKIM/domain reputation riêng → **thư rất dễ rơi vào mục Spam**; Gmail SMTP còn giới hạn số lượng gửi/ngày (~500) nên không phù hợp production lâu dài |
+
+**Cách tổ chức để đổi qua lại không phải sửa code nghiệp vụ**: bọc việc gửi email sau 1 interface chung trong module `modules/email/`, chọn implementation qua biến môi trường:
+
+```js
+// modules/email/email.service.js
+const provider = process.env.EMAIL_PROVIDER === 'smtp'
+  ? require('./providers/nodemailer.provider')
+  : require('./providers/resend.provider');
+
+async function sendEmail({ to, subject, template, data }) {
+  return provider.send({ to, subject, html: renderTemplate(template, data) });
+}
+module.exports = { sendEmail };
+```
+
+- Nơi gọi (`auth.service.js` gửi magic link, `users.service.js` gửi mật khẩu mới...) chỉ biết `emailService.sendEmail(...)`, không quan tâm đang chạy Resend hay SMTP — đúng nguyên tắc DRY, đổi môi trường (chưa có domain → có domain) chỉ cần đổi `EMAIL_PROVIDER` trong `.env`.
+- Khi chuyển hẳn sang Resend ở production: mua/trỏ domain, verify trên dashboard Resend, cập nhật `EMAIL_PROVIDER=resend` + `RESEND_API_KEY`, không cần deploy lại logic gửi mail.
+
+---
+
+## 6. Frontend — stack & quy ước
 
 ### 5.1. Chọn Next.js hay React thuần
 
@@ -140,7 +166,7 @@ Nguyên tắc: **không bao giờ để Promise reject không bắt** (mọi con
 | App nội bộ (admin dashboard, tool quản trị) | **React (Vite) + TypeScript** hoặc Next.js tuỳ quy mô | Không cần SEO, ưu tiên tốc độ dev, có thể dùng CSR thuần |
 
 - Với dự án **lớn**, tách `apps/client` (Next.js — storefront) và `apps/admin` (React/Next.js — quản trị) thành 2 app frontend riêng biệt, dùng chung 1 backend API và có thể chung 1 package UI/types (monorepo qua Turborepo/Nx nếu cần).
-- Với dự án **nhỏ/vừa** (giai đoạn đầu của Flower Shop): 1 app Next.js duy nhất, tách route `/admin/*` bằng route group + middleware bảo vệ (xem mục 6).
+- Với dự án **nhỏ/vừa** (giai đoạn đầu của Flower Shop): 1 app Next.js duy nhất, tách route `/admin/*` bằng route group + middleware bảo vệ (xem mục 7).
 
 ### 5.2. Package chuẩn & quy ước code
 
@@ -187,7 +213,7 @@ function ProductList({ filters }: Props) {
 
 ---
 
-## 6. Routing sạch sẽ
+## 7. Routing sạch sẽ
 
 ### 6.1. Frontend (Next.js App Router)
 
@@ -230,7 +256,7 @@ router.use('/api/superadmin', authenticate, authorize('superadmin_only'), superA
 
 ---
 
-## 7. Checklist khi tạo module backend mới
+## 8. Checklist khi tạo module backend mới
 
 1. Tạo folder `modules/<domain>/` với `routes` → `controller` → `service` → (`repository` nếu cần).
 2. Định nghĩa zod schema trong `<domain>.validation.js`, áp middleware `validate()` vào route.

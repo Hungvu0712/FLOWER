@@ -104,7 +104,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 
 ## 8. Hạ tầng & DevOps
 
-- **Biến môi trường**: toàn bộ secret (DB URL Neon/VPS, JWT secret, API key cổng thanh toán, R2 access key, Resend API key) nằm trong `.env`, **không commit vào Git** (`.gitignore` chuẩn ngay từ đầu). Ở production dùng secret manager (AWS Secrets Manager/Doppler/Vault).
+- **Biến môi trường**: toàn bộ secret (DB URL Neon/VPS, JWT secret, API key cổng thanh toán, R2 access key, `RESEND_API_KEY` hoặc mật khẩu SMTP tuỳ `EMAIL_PROVIDER`) nằm trong `.env`, **không commit vào Git** (`.gitignore` chuẩn ngay từ đầu). Ở production dùng secret manager (AWS Secrets Manager/Doppler/Vault).
 - **Database user riêng cho ứng dụng** với quyền hạn tối thiểu (không dùng user chủ/superuser), chỉ mở cổng DB nội bộ (không public ra internet) khi tự quản lý trên VPS.
 - **Dependency scanning**: chạy `npm audit` / Dependabot / Snyk định kỳ để phát hiện thư viện có lỗ hổng đã biết.
 - **Docker**: build image tối giản (alpine), chạy container với user non-root, không để `node_modules` chứa devDependencies ở production image.

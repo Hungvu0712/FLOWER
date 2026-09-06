@@ -6,7 +6,7 @@ Kế hoạch chi tiết cho website thương mại điện tử bán hoa, hướ
 - **Backend:** Node.js + Express (modular + MVC)
 - **Database:** PostgreSQL (Neon lúc dev, tự quản lý qua Docker trên VPS khi scale) + Prisma ORM
 - **File/ảnh:** Cloudflare R2
-- **Email:** Resend
+- **Email:** Resend (cần domain riêng đã xác minh) — fallback Nodemailer + SMTP nếu chưa có domain, xem [ARCHITECTURE.md §5](ARCHITECTURE.md)
 
 > Xem chuẩn kiến trúc backend/frontend & quy ước package tại **[ARCHITECTURE.md](ARCHITECTURE.md)**, schema & RBAC tại **[DATABASE.md](DATABASE.md)**, bảo mật tại **[SECURITY.md](SECURITY.md)**.
 
@@ -84,7 +84,7 @@ Xây dựng một cửa hàng hoa online cho phép khách:
 
 - **Xác thực**: 3 phương thức (email/password, Google OAuth, magic link qua email dùng 1 lần), quản lý phiên qua JWT + Cookie httpOnly, refresh token rotation, quản lý thiết bị/đăng xuất từ xa — chi tiết schema tại [DATABASE.md §3.2](DATABASE.md).
 - Upload ảnh & lưu trữ file: **Cloudflare R2**, có cơ chế đánh dấu tái sử dụng ảnh cũ và dọn dẹp tài nguyên mồ côi định kỳ (10 ngày/lần).
-- Email service: **Resend** — gửi xác nhận đơn hàng, magic link, reset password, nhắc lịch, khuyến mãi.
+- Email service: **Resend** (production, sau khi đã xác minh domain riêng — không gửi được bằng địa chỉ Gmail cá nhân) hoặc **Nodemailer + SMTP** (tạm thời khi chưa có domain, lưu ý dễ vào spam) — gửi xác nhận đơn hàng, magic link, reset password, nhắc lịch, khuyến mãi. Đổi qua lại giữa 2 phương án chỉ qua biến môi trường, xem [ARCHITECTURE.md §5](ARCHITECTURE.md).
 - Thông báo real-time trạng thái đơn hàng: Socket.io.
 - Thanh toán: tích hợp cổng thanh toán VN (VNPay/Momo) và/hoặc Stripe.
 - Cache/session: Redis (giỏ hàng, rate limiting).
@@ -289,7 +289,7 @@ Tất cả response theo chuẩn:
 - Chat hỗ trợ / chatbot tư vấn chọn hoa.
 - Responsive/PWA để dùng tốt trên mobile, tối ưu SEO.
 - Đa chi nhánh / đa khu vực giao hàng (nếu mở rộng kinh doanh).
-- Khi scale lớn: chuyển DB từ Neon sang VPS tự quản lý qua Docker, bật cron backup 2 ngày/lần lên R2 (tự xoá sau 1 tháng); cân nhắc tách `apps/client` và `apps/admin` thành 2 frontend riêng (xem [ARCHITECTURE.md §5.1](ARCHITECTURE.md)).
+- Khi scale lớn: chuyển DB từ Neon sang VPS tự quản lý qua Docker, bật cron backup 2 ngày/lần lên R2 (tự xoá sau 1 tháng); cân nhắc tách `apps/client` và `apps/admin` thành 2 frontend riêng (xem [ARCHITECTURE.md §6.1](ARCHITECTURE.md)).
 
 ---
 
@@ -304,7 +304,7 @@ Tất cả response theo chuẩn:
 | Auth | JWT + Cookie (httpOnly), bcrypt, Google OAuth, Magic link (Resend), bật/tắt phương thức qua SuperAdmin |
 | Lưu trữ file/ảnh | **Cloudflare R2** (S3-compatible, free tier), presigned upload, dedup + dọn file mồ côi định kỳ |
 | Thanh toán | VNPay/Momo (nội địa), Stripe (nếu cần quốc tế) |
-| Email | **Resend** |
+| Email | **Resend** (cần domain riêng đã verify DKIM/SPF) — fallback **Nodemailer + SMTP** nếu chưa có domain (dễ vào spam hơn) |
 | Realtime | Socket.io |
 | Deploy | Docker + Docker Compose (khi lên VPS); FE (Next.js) trên Vercel, BE trên Render/Railway/VPS |
 | Backup | `pg_dump` định kỳ 2 ngày/lần → Cloudflare R2, tự xoá bản backup cũ hơn 1 tháng |
