@@ -78,6 +78,7 @@ Xây dựng một cửa hàng hoa online cho phép khách:
   - Reset mật khẩu cho user → hệ thống tự sinh mật khẩu mới và **gửi qua email** (Resend).
   - Cập nhật role của user — **không được** tự đổi role chính mình, **không được** nâng bất kỳ ai (kể cả bản thân) lên `super_admin` qua UI.
 - **Cấu hình phương thức đăng nhập**: bật/tắt từng phương thức (Google OAuth / email-password / magic link); hệ thống **cảnh báo và chặn** nếu thao tác khiến không còn phương thức nào được bật.
+- **Quản lý role tuỳ ý**: tạo/sửa/xoá role ngoài 6 role mặc định (vd `accountant`, `marketing`), tick chọn permission cho từng role qua UI. Riêng các permission "restricted" (`users.manage`, `settings.manage`, `roles.manage`) **không hiện trong danh sách tick chọn** khi tạo role mới — chỉ tồn tại sẵn ở role hệ thống, tránh tạo ra "super_admin trá hình" — xem [DATABASE.md §2.1](DATABASE.md#21-vì-sao-cần-rbac-chi-tiết-cho-shop-hoa).
 - Cấu hình hệ thống, API key thanh toán/email.
 
 ### 2.4. Chức năng nền tảng (kỹ thuật)
@@ -208,6 +209,13 @@ PATCH  /api/superadmin/users/:id/role
 GET    /api/superadmin/login-methods
 PATCH  /api/superadmin/login-methods/:method      (bật/tắt, chặn nếu tắt hết)
 
+SuperAdmin — quản lý role tuỳ ý (chỉ super_admin)
+GET    /api/superadmin/roles
+POST   /api/superadmin/roles                      (tạo role mới, is_system=false)
+PATCH  /api/superadmin/roles/:id                  (đổi tên/mô tả/permission — chặn nếu is_system=true)
+DELETE /api/superadmin/roles/:id                  (chặn nếu is_system=true hoặc đang có user gán role)
+GET    /api/superadmin/permissions                ?assignable=true  (loại bỏ permission is_restricted khi tạo/sửa role thường)
+
 Files & tài nguyên
 POST   /api/files/presign                     (lấy presigned URL upload lên R2)
 POST   /api/files                             (lưu metadata sau khi upload xong)
@@ -273,7 +281,7 @@ Tất cả response theo chuẩn:
 - Tích hợp cổng thanh toán online (VNPay/Momo).
 - Theo dõi trạng thái đơn hàng + email thông báo (Resend).
 - Quản lý thiết bị & đăng xuất từ xa.
-- Khu vực SuperAdmin: quản lý user (block/unblock, reset password, đổi role), bật/tắt phương thức đăng nhập.
+- Khu vực SuperAdmin: quản lý user (block/unblock, reset password, đổi role), bật/tắt phương thức đăng nhập, tạo/sửa/xoá role tuỳ ý và gán permission.
 - Đánh giá sản phẩm, wishlist.
 - Sổ địa chỉ người nhận, thiệp chúc kèm đơn.
 

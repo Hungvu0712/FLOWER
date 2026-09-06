@@ -34,6 +34,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - **Quản lý user chỉ thuộc về `super_admin`** (permission `users.manage` chỉ gán cho role này) — service xử lý các API `PATCH /api/superadmin/users/:id/role`, `/block`, `/unblock`, `/reset-password` phải chặn cứng ở tầng service (không chỉ dựa vào middleware `authorize`), với 2 ràng buộc bắt buộc:
   1. `targetUserId !== req.user.id` — không tự đổi role chính mình.
   2. `newRole !== 'super_admin'` — không được nâng bất kỳ ai (kể cả chính mình) lên `super_admin` qua API; tài khoản `super_admin` chỉ tạo được qua seed hoặc thao tác thủ công trực tiếp trên DB.
+- **Leo thang quyền qua role tự tạo (shadow super_admin)**: hệ thống cho phép `super_admin` tạo role tuỳ ý — đây là điểm dễ bị lợi dụng nếu không chặn đúng chỗ. API `POST/PATCH /api/superadmin/roles` phải **luôn lọc bỏ** mọi permission có `is_restricted = true` (`users.manage`, `settings.manage`, `roles.manage`) khỏi payload trước khi ghi `role_permissions`, kể cả khi request cố tình gửi kèm — không chỉ ẩn ở UI. Việc kiểm tra này nằm ở tầng service, không tin payload từ client.
 - **Reset password bởi SuperAdmin**: sinh mật khẩu ngẫu nhiên đủ mạnh, hash trước khi lưu, gửi bản rõ **duy nhất một lần** qua email (Resend) — không log, không trả về trong response API, không hiển thị lại cho `super_admin`.
 - **Audit log** cho hành động nhạy cảm: đổi giá sản phẩm, xoá sản phẩm, đổi role user, block/unblock user, bật/tắt phương thức đăng nhập, hoàn tiền đơn hàng — ghi rõ ai (`changed_by`), khi nào, giá trị trước/sau.
 
@@ -134,7 +135,8 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 
 **Giai đoạn 3 — Tăng trưởng**
 - [ ] Giới hạn coupon per-user, chống race condition tồn kho
-- [ ] Audit log cho thao tác admin/superadmin (đổi role, block/unblock, reset password, bật/tắt auth method)
+- [ ] Audit log cho thao tác admin/superadmin (đổi role, block/unblock, reset password, bật/tắt auth method, tạo/sửa/xoá role)
+- [ ] API tạo/sửa role tuỳ ý luôn lọc bỏ permission `is_restricted` khỏi payload ở tầng service (test bằng cách cố tình gửi kèm `users.manage` trong request tạo role)
 - [ ] Cron job xoá file mồ côi (10 ngày/lần) chạy đúng, không xoá nhầm file mới upload
 - [ ] Cron backup DB → R2 (2 ngày/lần) + retention tự xoá sau 1 tháng hoạt động đúng
 - [ ] Trang chính sách bảo mật + cơ chế xoá dữ liệu cá nhân

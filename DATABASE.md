@@ -36,6 +36,13 @@ Chuẩn chung của dự án luôn có **tối thiểu 3 vai trò**: `super_admi
 - Không được cập nhật role của bất kỳ user nào (kể cả chính `super_admin` khác) thành `super_admin` qua API thông thường — tránh leo thang quyền hạn ngoài ý muốn; tạo `super_admin` mới chỉ qua seed/thao tác thủ công trực tiếp trên DB.
 - Reset password: `super_admin` bấm "reset" → hệ thống sinh mật khẩu ngẫu nhiên, hash và lưu, đồng thời gửi mật khẩu mới qua email (Resend) cho user — không hiển thị mật khẩu cho `super_admin` xem.
 
+**Role không cố định — `super_admin` tạo được role tuỳ ý:**
+
+6 role ở bảng trên chỉ là **seed mặc định**, không phải danh sách đóng cứng. `super_admin` có thể tạo thêm role mới (vd `accountant`, `marketing`) qua màn hình quản lý role, gán tự do bất kỳ tập permission nào cho role đó — vì `role_permissions` là bảng n-n độc lập, không có logic nào trong code gắn cứng theo `role.code` (middleware `authorize()` chỉ so khớp permission code, không quan tâm role tên gì). Tuy nhiên có 2 ràng buộc bắt buộc để tính năng này không mở lỗ hổng leo thang quyền:
+
+- **Permission "restricted"** (`users.manage`, `settings.manage` — xem cột `is_restricted` ở mục 2.2/2.3): chỉ được gán cho role có `is_system = true`, **không thể** gán qua UI "tạo/sửa role tuỳ ý" cho role thường. Nếu không chặn, ai đó có thể tạo 1 role mới, gán `users.manage` vào, rồi gán role đó cho một user khác → thực chất tạo ra "super_admin trá hình", phá vỡ quy tắc "chỉ super_admin duy nhất quản lý user" ở trên.
+- Role có `is_system = true` (`super_admin`, `admin`, `member` — 3 role nền tảng bắt buộc phải luôn tồn tại) **không xoá được**, không đổi được `code`; role tự tạo (`is_system = false`) thì xoá/sửa tự do, kèm cảnh báo nếu đang có user đang được gán role đó.
+
 ### 2.2. Bảng dữ liệu
 
 ```sql
@@ -52,6 +59,7 @@ permissions
   id            SERIAL PRIMARY KEY
   code          VARCHAR(100) UNIQUE NOT NULL   -- 'products.create', 'orders.view_all'...
   group_name    VARCHAR(50) NOT NULL           -- 'products', 'orders', 'reports'... (để gom nhóm trên UI)
+  is_restricted BOOLEAN DEFAULT false          -- true = chỉ gán được cho role is_system=true (chặn leo thang quyền qua role tự tạo)
   description   TEXT
 
 -- Gán quyền cho vai trò (n-n)
@@ -91,9 +99,12 @@ user_roles
 | reviews | `reviews.moderate` | Duyệt/ẩn đánh giá |
 | reports | `reports.view` | Xem thống kê doanh thu, báo cáo |
 | blog | `blog.manage` | Quản lý bài viết blog, banner |
-| users | `users.manage` | Block/unblock, reset password, đổi role user (**chỉ `super_admin`**, xem ràng buộc ở mục 2.1) |
-| settings | `settings.manage` | Cấu hình hệ thống, API key thanh toán/email, **bật/tắt phương thức đăng nhập** (chỉ `super_admin`) |
+| users | `users.manage` 🔒 | Block/unblock, reset password, đổi role user (**chỉ `super_admin`**, xem ràng buộc ở mục 2.1) |
+| settings | `settings.manage` 🔒 | Cấu hình hệ thống, API key thanh toán/email, **bật/tắt phương thức đăng nhập** (chỉ `super_admin`) |
+| roles | `roles.manage` 🔒 | Tạo/sửa/xoá role tuỳ ý, gán permission cho role (chỉ `super_admin`) |
 | files | `files.manage` | Xem/xoá file trong màn hình quản lý tài nguyên (folder, ảnh mồ côi...) |
+
+🔒 = `is_restricted = true` — permission này chỉ được seed sẵn cho role `is_system = true` (mặc định chỉ `super_admin`), không thể gán qua UI tạo/sửa role tuỳ ý.
 
 ### 2.4. Ma trận Vai trò × Quyền (mặc định seed)
 
@@ -117,6 +128,7 @@ user_roles
 | files.manage | ✅ | ✅ | – | – | – | – |
 | users.manage | ✅ | – | – | – | – | – |
 | settings.manage | ✅ | – | – | – | – | – |
+| roles.manage | ✅ | – | – | – | – | – |
 
 > Ma trận này sẽ là dữ liệu **seed** ban đầu cho `role_permissions`. `super_admin` có thể chỉnh sửa quyền cho từng vai trò trực tiếp qua UI ở giai đoạn 4 (Advanced), không cần sửa code. Lưu ý: chỉnh sửa `role_permissions` khác với chỉnh sửa **role của một user** (mục 2.1) — thao tác sau chỉ `super_admin` được làm và có các ràng buộc chống leo thang quyền.
 
@@ -287,10 +299,11 @@ model Role {
 }
 
 model Permission {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique
-  groupName String
-  roles     RolePermission[]
+  id           Int      @id @default(autoincrement())
+  code         String   @unique
+  groupName    String
+  isRestricted Boolean  @default(false) // chỉ gán được cho role isSystem = true
+  roles        RolePermission[]
 }
 
 model RolePermission {
