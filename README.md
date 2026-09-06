@@ -6,9 +6,11 @@ Kế hoạch chi tiết cho website thương mại điện tử bán hoa, hướ
 - **Backend:** Node.js + Express (modular + MVC)
 - **Database:** PostgreSQL (Neon lúc dev, tự quản lý qua Docker trên VPS khi scale) + Prisma ORM
 - **File/ảnh:** Cloudflare R2
-- **Email:** Resend (cần domain riêng đã xác minh) — fallback Nodemailer + SMTP nếu chưa có domain, xem [ARCHITECTURE.md §5](ARCHITECTURE.md)
+- **Email:** Resend (cần domain riêng đã xác minh) — fallback Nodemailer + SMTP nếu chưa có domain, xem [ARCHITECTURE.md §6](ARCHITECTURE.md)
 
 > Xem chuẩn kiến trúc backend/frontend & quy ước package tại **[ARCHITECTURE.md](ARCHITECTURE.md)**, schema & RBAC tại **[DATABASE.md](DATABASE.md)**, bảo mật tại **[SECURITY.md](SECURITY.md)**.
+
+> 🔧🌸 Repo này được tổ chức thành 2 lớp: **core** (auth, RBAC, quản lý file, email, routing nền tảng — dùng lại được cho các dự án PERN khác) và **domain** (nghiệp vụ shop hoa). Xem chiến lược tái sử dụng ở [ARCHITECTURE.md §2](ARCHITECTURE.md#2-chiến-lược-tái-sử-dụng--core-vs-domain).
 
 ---
 
@@ -81,15 +83,15 @@ Xây dựng một cửa hàng hoa online cho phép khách:
 - **Cấu hình phương thức đăng nhập**: bật/tắt từng phương thức (Google OAuth / email-password / magic link); hệ thống **cảnh báo và chặn** nếu thao tác khiến không còn phương thức nào được bật.
 - **Quản lý role tuỳ ý**: tạo/sửa/xoá Custom Role ngoài 3 System Role bắt buộc (`super_admin`/`admin`/`member`, không xoá được), tick chọn permission cho từng role qua UI.
 - **Quản lý permission tuỳ ý**: tạo/sửa/xoá permission (ngoài catalog permission hệ thống seed sẵn), gán cho role. *Lưu ý*: permission tự tạo chỉ thật sự có tác dụng khi có route được lập trình kiểm tra permission đó — tạo qua UI mà chưa nối vào code thì permission chỉ dùng để tổ chức, chưa chặn được gì.
-  - Riêng các permission "restricted" (`users.manage`, `settings.manage`, `roles.manage`) **không hiện trong danh sách tick chọn** khi tạo/sửa role thường — chỉ tồn tại sẵn ở 3 System Role, tránh tạo ra "super_admin trá hình" — xem [DATABASE.md §2.1](DATABASE.md#21-vì-sao-cần-rbac-chi-tiết-cho-shop-hoa).
+  - Riêng các permission "restricted" (`users.manage`, `settings.manage`, `roles.manage`, `permissions.manage`) **không hiện trong danh sách tick chọn** khi tạo/sửa role thường — chỉ tồn tại sẵn ở 3 System Role, tránh tạo ra "super_admin trá hình" — xem [DATABASE.md §2.1](DATABASE.md#21-vì-sao-cần-rbac-chi-tiết-cho-shop-hoa).
 - Cấu hình hệ thống, API key thanh toán/email.
-- **Mọi thao tác trên đều ghi Audit Log** (ai, khi nào, giá trị trước/sau).
+- **Mọi thao tác trên đều ghi Audit Log** (ai, khi nào, giá trị trước/sau) — có màn hình riêng để `super_admin` tra cứu, lọc theo người thực hiện/đối tượng/thời gian.
 
 ### 2.4. Chức năng nền tảng (kỹ thuật)
 
 - **Xác thực**: 3 phương thức (email/password, Google OAuth, magic link qua email dùng 1 lần), quản lý phiên qua JWT + Cookie httpOnly, refresh token rotation, quản lý thiết bị/đăng xuất từ xa — chi tiết schema tại [DATABASE.md §3.2](DATABASE.md).
 - Upload ảnh & lưu trữ file: **Cloudflare R2**, có cơ chế đánh dấu tái sử dụng ảnh cũ và dọn dẹp tài nguyên mồ côi định kỳ (10 ngày/lần).
-- Email service: **Resend** (production, sau khi đã xác minh domain riêng — không gửi được bằng địa chỉ Gmail cá nhân) hoặc **Nodemailer + SMTP** (tạm thời khi chưa có domain, lưu ý dễ vào spam) — gửi xác nhận đơn hàng, magic link, reset password, nhắc lịch, khuyến mãi. Đổi qua lại giữa 2 phương án chỉ qua biến môi trường, xem [ARCHITECTURE.md §5](ARCHITECTURE.md).
+- Email service: **Resend** (production, sau khi đã xác minh domain riêng — không gửi được bằng địa chỉ Gmail cá nhân) hoặc **Nodemailer + SMTP** (tạm thời khi chưa có domain, lưu ý dễ vào spam) — gửi xác nhận đơn hàng, magic link, reset password, nhắc lịch, khuyến mãi. Đổi qua lại giữa 2 phương án chỉ qua biến môi trường, xem [ARCHITECTURE.md §6](ARCHITECTURE.md).
 - Thông báo real-time trạng thái đơn hàng: Socket.io.
 - Thanh toán: tích hợp cổng thanh toán VN (VNPay/Momo) và/hoặc Stripe.
 - Cache/session: Redis (giỏ hàng, rate limiting).
@@ -120,42 +122,57 @@ Xây dựng một cửa hàng hoa online cho phép khách:
 
 ## 4. Cấu trúc thư mục dự kiến
 
+Cấu trúc dưới đây tách rõ **core** (🔧 tái sử dụng nguyên vẹn khi bắt đầu dự án PERN khác) và **domain** (🌸 đặc thù nghiệp vụ shop hoa) — chi tiết chiến lược tại [ARCHITECTURE.md §2](ARCHITECTURE.md#2-chiến-lược-tái-sử-dụng--core-vs-domain).
+
 ```
 FLOWER/
 ├── frontend/                # Next.js app (App Router, TypeScript)
 │   ├── src/
 │   │   ├── app/             # routes: page.tsx, layout.tsx theo file-system routing
-│   │   │   ├── (storefront)/    # PUBLIC: /, /products/[slug], /cart, /checkout...
-│   │   │   ├── (account)/       # PROTECTED: /profile, /orders, /devices (cần đăng nhập)
-│   │   │   ├── admin/           # PRIVATE (role admin+): /admin/products, /admin/orders...
-│   │   │   └── superadmin/      # PRIVATE (chỉ super_admin): /superadmin/users, /superadmin/auth-settings
+│   │   │   ├── (storefront)/    # 🌸 PUBLIC: /, /products/[slug], /cart, /checkout...
+│   │   │   ├── (account)/       # 🔧 PROTECTED: /profile, /orders, /devices (cần đăng nhập)
+│   │   │   ├── admin/           # 🔧 khung + 🌸 nội dung menu: /admin/products, /admin/orders...
+│   │   │   └── superadmin/      # 🔧 PRIVATE (chỉ super_admin): /superadmin/users, /roles, /permissions, /audit-log
 │   │   ├── components/      # UI dùng chung (Button, Card, Modal...)
-│   │   ├── features/        # theo domain: auth, cart, orders, products
+│   │   ├── features/
+│   │   │   ├── core/         # 🔧 auth, account, admin-users, admin-roles, admin-permissions, file-manager
+│   │   │   └── domain/       # 🌸 products, cart, orders, promotions, blog
 │   │   ├── hooks/           # custom hook gọi API (useProducts, useCreateOrder...)
 │   │   ├── services/        # gọi API (axios instances tới backend Express)
 │   │   ├── store/           # Zustand — global client state
-│   │   └── middleware.ts    # bảo vệ route /admin, /superadmin, /account ở edge
+│   │   └── middleware.ts    # 🔧 bảo vệ route /admin, /superadmin, /account ở edge
 │   └── package.json
 │
 ├── backend/                 # Node.js + Express API (modular + MVC, xem ARCHITECTURE.md)
 │   ├── src/
-│   │   ├── config/          # env, prisma client, r2 client, resend client
+│   │   ├── config/          # 🔧 env, prisma client, r2 client, resend client
 │   │   ├── modules/
-│   │   │   ├── auth/         # login (3 phương thức), refresh, logout, magic-link, sessions
-│   │   │   ├── users/        # profile, đổi mật khẩu; users.manage (superadmin) riêng
-│   │   │   ├── products/
-│   │   │   ├── categories/
-│   │   │   ├── cart/
-│   │   │   ├── orders/
-│   │   │   ├── payments/
-│   │   │   ├── reviews/
-│   │   │   ├── promotions/
-│   │   │   └── files/         # upload R2, quản lý folder, dọn file mồ côi
-│   │   ├── middlewares/     # authenticate, authorize, errorHandler, asyncHandler, validate
-│   │   ├── lib/              # AppError, logger
-│   │   ├── jobs/             # cron: backup DB, xoá file mồ côi, xoá backup cũ
+│   │   │   ├── core/          # 🔧 copy nguyên khi sang dự án mới
+│   │   │   │   ├── auth/       # login (3 phương thức), refresh, logout, magic-link, sessions
+│   │   │   │   ├── users/      # profile, đổi mật khẩu, quản lý thiết bị (self-service)
+│   │   │   │   ├── roles/      # CRUD Custom Role (superadmin)
+│   │   │   │   ├── permissions/ # CRUD Permission (superadmin)
+│   │   │   │   ├── files/      # upload R2, quản lý folder, dọn file mồ côi
+│   │   │   │   ├── email/      # abstraction Resend/SMTP
+│   │   │   │   └── audit-log/
+│   │   │   └── domain/        # 🌸 viết mới cho từng dự án
+│   │   │       ├── products/
+│   │   │       ├── categories/
+│   │   │       ├── cart/
+│   │   │       ├── orders/
+│   │   │       ├── payments/
+│   │   │       ├── reviews/
+│   │   │       └── promotions/
+│   │   ├── middlewares/     # 🔧 authenticate, authorize, errorHandler, asyncHandler, validate
+│   │   ├── lib/              # 🔧 AppError, logger
+│   │   ├── jobs/             # 🔧 cron: backup DB, xoá file mồ côi, xoá backup cũ
 │   │   └── app.js
-│   ├── prisma/               # schema.prisma, migrations/, seed.ts
+│   ├── prisma/
+│   │   ├── schema.prisma     # model core ở đầu file, model domain ở cuối (banner comment phân tách)
+│   │   ├── migrations/
+│   │   └── seed/
+│   │       ├── core.seed.ts   # 🔧 3 System Role, permission core, login_method_settings, super_admin mặc định
+│   │       └── domain.seed.ts # 🌸 sales_staff/florist/shipper, permission products.*/orders.*..., danh mục mẫu
 │   └── package.json
 │
 ├── docs/                    # tài liệu API, sơ đồ DB
@@ -225,6 +242,9 @@ GET    /api/superadmin/permissions                ?assignable=true  (loại bỏ
 POST   /api/superadmin/permissions                (tạo permission mới, is_system=false — chỉ có tác dụng khi có route wire authorize() vào code)
 PATCH  /api/superadmin/permissions/:id            (đổi mô tả/nhóm; đổi code chặn nếu is_system=true)
 DELETE /api/superadmin/permissions/:id            (chặn nếu is_system=true hoặc đang gán cho role nào)
+
+SuperAdmin — audit log (chỉ super_admin)
+GET    /api/superadmin/audit-logs                 ?actorId=&entityType=&from=&to=&page=
 
 Files & tài nguyên
 POST   /api/files/presign                     (lấy presigned URL upload lên R2)
@@ -307,7 +327,7 @@ Tất cả response theo chuẩn:
 - Chat hỗ trợ / chatbot tư vấn chọn hoa.
 - Responsive/PWA để dùng tốt trên mobile, tối ưu SEO.
 - Đa chi nhánh / đa khu vực giao hàng (nếu mở rộng kinh doanh).
-- Khi scale lớn: chuyển DB từ Neon sang VPS tự quản lý qua Docker, bật cron backup 2 ngày/lần lên R2 (tự xoá sau 1 tháng); cân nhắc tách `apps/client` và `apps/admin` thành 2 frontend riêng (xem [ARCHITECTURE.md §6.1](ARCHITECTURE.md)).
+- Khi scale lớn: chuyển DB từ Neon sang VPS tự quản lý qua Docker, bật cron backup 2 ngày/lần lên R2 (tự xoá sau 1 tháng); cân nhắc tách `apps/client` và `apps/admin` thành 2 frontend riêng (xem [ARCHITECTURE.md §7.1](ARCHITECTURE.md)).
 
 ---
 

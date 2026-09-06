@@ -1,6 +1,6 @@
 # 🏗️ Kiến trúc & Quy ước dự án
 
-Tài liệu này là chuẩn kỹ thuật chung áp dụng cho toàn bộ dự án (không riêng nghiệp vụ hoa) — kiến trúc backend, stack frontend, package quy ước, và cấu trúc routing. Đọc cùng [README.md](README.md) (chức năng), [DATABASE.md](DATABASE.md) (schema & RBAC), [SECURITY.md](SECURITY.md) (bảo mật).
+Tài liệu này là chuẩn kỹ thuật chung áp dụng cho toàn bộ dự án — kiến trúc backend, stack frontend, package quy ước, cấu trúc routing, và chiến lược để repo này đóng vai trò **source base tái sử dụng được cho các dự án PERN khác** (nhỏ → vừa), không chỉ riêng nghiệp vụ shop hoa. Đọc cùng [README.md](README.md) (chức năng), [DATABASE.md](DATABASE.md) (schema & RBAC), [SECURITY.md](SECURITY.md) (bảo mật).
 
 ---
 
@@ -12,37 +12,81 @@ Tài liệu này là chuẩn kỹ thuật chung áp dụng cho toàn bộ dự �
 
 ---
 
-## 2. Kiến trúc Backend (Node.js + Express)
+## 2. Chiến lược tái sử dụng — Core vs Domain
 
-### 2.1. Modular kết hợp MVC
+Mọi module (backend lẫn frontend) được gắn nhãn rõ 1 trong 2 loại:
 
-Mỗi domain nghiệp vụ là 1 **module** độc lập, bên trong module tổ chức theo MVC (Route → Controller → Service → Model/Repository):
+| Loại | Định nghĩa | Ví dụ trong dự án Flower Shop |
+|---|---|---|
+| **Core** | Không phụ thuộc nghiệp vụ cụ thể — giữ nguyên khi copy sang dự án PERN khác | Auth (3 phương thức), quản lý user/role/permission, quản lý file/ảnh (R2), email service, audit log, routing skeleton (admin/superadmin/protected) |
+| **Domain** | Đặc thù nghiệp vụ của dự án hiện tại — viết mới hoàn toàn cho mỗi dự án | Products, categories, occasions, cart, orders, payments, reviews, promotions, blog |
+
+Quyết định (theo [thảo luận chọn chiến lược](README.md)): **giữ 1 repo duy nhất**, không tách repo/monorepo tooling riêng — chỉ tổ chức thư mục để ranh giới core/domain rõ ràng, sao cho việc bắt đầu 1 dự án mới chỉ cần **copy phần core**, xoá/thay phần domain.
+
+### 2.1. Backend
 
 ```
-backend/
-├── src/
-│   ├── modules/
-│   │   ├── auth/
-│   │   │   ├── auth.routes.js
-│   │   │   ├── auth.controller.js     # nhận request, gọi service, trả response
-│   │   │   ├── auth.service.js        # business logic (không biết gì về req/res)
-│   │   │   ├── auth.validation.js     # zod schema cho input
-│   │   │   └── auth.repository.js     # truy vấn Prisma (tách khỏi service để dễ test/mock)
-│   │   ├── users/
-│   │   ├── products/
-│   │   ├── orders/
-│   │   ├── files/                     # quản lý file/ảnh qua R2
-│   │   └── ...
-│   ├── middlewares/
-│   │   ├── authenticate.js            # verify JWT/cookie session
-│   │   ├── authorize.js               # kiểm tra permission/role
-│   │   ├── errorHandler.js            # centralized error handler (cuối middleware chain)
-│   │   ├── asyncHandler.js            # bọc async controller, tự next(err)
-│   │   └── validate.js                # middleware chạy zod schema
-│   ├── config/                        # env, prisma client, r2 client, resend client
-│   ├── lib/                           # AppError, logger, helpers dùng chung toàn app
-│   ├── jobs/                          # cron: backup DB, xoá file mồ côi, xoá backup cũ
-│   └── app.js
+backend/src/modules/
+├── core/                # copy nguyên khi sang dự án mới
+│   ├── auth/             # login (3 phương thức), refresh, logout, magic-link, sessions
+│   ├── users/             # profile, đổi mật khẩu, quản lý thiết bị (self-service)
+│   ├── roles/             # CRUD Custom Role (superadmin)
+│   ├── permissions/       # CRUD Permission (superadmin)
+│   ├── files/              # upload R2, folder, dọn tài nguyên mồ côi
+│   ├── email/              # abstraction Resend/SMTP
+│   └── audit-log/
+└── domain/               # viết mới cho từng dự án
+    ├── products/
+    ├── categories/
+    ├── orders/
+    ├── cart/
+    ├── payments/
+    ├── reviews/
+    └── promotions/
+```
+
+`middlewares/`, `config/`, `lib/`, `jobs/` (cron backup, dọn file mồ côi) đều thuộc **core** — không đặc thù nghiệp vụ.
+
+### 2.2. Frontend
+
+```
+frontend/src/features/
+├── core/                 # auth, account (profile/devices), admin-users, admin-roles,
+│                          # admin-permissions, admin-login-methods, file-manager
+└── domain/                # products, cart, orders, promotions, blog, wishlist
+```
+
+Route group `(account)/`, `admin/`, `superadmin/` (mục 8.1) là **khung sườn core** — khi sang dự án mới giữ nguyên cấu trúc, chỉ đổi nội dung menu/route con thuộc domain.
+
+### 2.3. Database & seed
+
+- Bảng **core** (không đổi khi sang dự án khác): `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `auth_accounts`, `sessions`, `magic_link_tokens`, `password_reset_tokens`, `login_method_settings`, `folders`, `files`, `file_usages`, `audit_logs`, `email_logs` — xem [DATABASE.md §3.1-3.3](DATABASE.md).
+- Bảng **domain** (viết mới theo từng dự án): `products`, `categories`, `occasions`, `orders`... — xem [DATABASE.md §3.4-3.6](DATABASE.md).
+- Trong `schema.prisma`, gom model core lên đầu file dưới banner comment `// ===== CORE (reusable) =====`, model domain dưới banner `// ===== DOMAIN (flower shop specific) =====` — dễ nhận diện khi copy sang dự án mới. Nếu bản Prisma đang dùng hỗ trợ multi-file schema (thư mục `prisma/schema/`), có thể tách hẳn `prisma/schema/core/*.prisma` và `prisma/schema/domain/*.prisma` — kiểm tra version đang dùng có hỗ trợ trước khi áp dụng.
+- Seed cũng tách 2 file: `prisma/seed/core.seed.ts` (3 System Role, permission core, `login_method_settings`, tài khoản `super_admin` mặc định — chạy giống nhau ở mọi dự án) và `prisma/seed/domain.seed.ts` (role `sales_staff`/`florist`/`shipper`, permission `products.*`/`orders.*`..., danh mục/dịp lễ mẫu — viết riêng cho shop hoa).
+
+### 2.4. Khi bắt đầu 1 dự án mới từ source base này
+
+1. Copy `backend/src/modules/core/`, `middlewares/`, `config/`, `lib/`, `jobs/`, `prisma/seed/core.seed.ts`, và phần model core trong `schema.prisma`.
+2. Copy `frontend/src/features/core/`, route group `(account)/`, `admin/`, `superadmin/`, `(auth)/`, `middleware.ts`.
+3. Xoá toàn bộ `modules/domain/` và `features/domain/` mẫu, viết domain mới theo nghiệp vụ dự án đó.
+4. Đổi `.env` (DB Neon mới, bucket R2 mới, domain Resend mới nếu có) — không phần nào của core cần sửa code.
+
+---
+
+## 3. Kiến trúc Backend (Node.js + Express)
+
+### 3.1. Modular kết hợp MVC
+
+Mỗi module (core hoặc domain) tổ chức theo MVC (Route → Controller → Service → Model/Repository):
+
+```
+backend/src/modules/core/auth/
+├── auth.routes.js
+├── auth.controller.js     # nhận request, gọi service, trả response
+├── auth.service.js        # business logic (không biết gì về req/res)
+├── auth.validation.js     # zod schema cho input
+└── auth.repository.js     # truy vấn Prisma (tách khỏi service để dễ test/mock)
 ```
 
 - **Route** chỉ khai báo path + middleware + gọi controller, không chứa logic.
@@ -50,7 +94,7 @@ backend/
 - **Service** chứa toàn bộ business logic, không phụ thuộc Express (`req`/`res`) → dễ test đơn vị, dễ tái sử dụng (vd gọi từ cron job).
 - **Repository** (khi cần) tách các lời gọi Prisma phức tạp ra khỏi service, tránh service phình to — áp dụng khi query nhiều nơi dùng lại, không bắt buộc cho query đơn giản (giữ KISS).
 
-### 2.2. Error handling sạch sẽ
+### 3.2. Error handling sạch sẽ
 
 Một class lỗi chuẩn + một error handler duy nhất, không try/catch rải rác khắp controller:
 
@@ -83,7 +127,7 @@ function errorHandler(err, req, res, next) {
 ```
 
 ```js
-// modules/orders/orders.controller.js
+// modules/domain/orders/orders.controller.js
 const getOrder = asyncHandler(async (req, res) => {
   const order = await ordersService.getById(req.params.id, req.user);
   res.json({ success: true, data: order });
@@ -99,7 +143,7 @@ if (order.userId !== user.id && !user.permissions.includes('orders.view_all')) {
 
 Nguyên tắc: **không bao giờ để Promise reject không bắt** (mọi controller async đều bọc `asyncHandler`), **không throw string**, **không nuốt lỗi bằng catch rỗng**.
 
-### 2.3. Response chuẩn
+### 3.3. Response chuẩn
 
 ```json
 { "success": true, "data": {...}, "message": "..." }
@@ -108,7 +152,7 @@ Nguyên tắc: **không bao giờ để Promise reject không bắt** (mọi con
 
 ---
 
-## 3. Hạ tầng & Môi trường
+## 4. Hạ tầng & Môi trường
 
 | Môi trường | Database | File storage | Ghi chú |
 |---|---|---|---|
@@ -121,26 +165,26 @@ Nguyên tắc: **không bao giờ để Promise reject không bắt** (mọi con
 
 ---
 
-## 4. Lưu trữ file & ảnh (Cloudflare R2)
+## 5. Lưu trữ file & ảnh (Cloudflare R2)
 
 - Toàn bộ ảnh sản phẩm, avatar, file đính kèm blog... lưu trên **Cloudflare R2** (S3-compatible, free tier hào phóng, không phí egress).
 - Upload qua **presigned URL** (backend cấp URL tạm, frontend upload thẳng lên R2) để không tốn băng thông qua server Express.
 - Bucket **private**, truy cập ảnh qua URL public tĩnh (custom domain trỏ tới R2) hoặc signed URL nếu cần giới hạn thời gian truy cập.
-- Schema quản lý file (đánh dấu tái sử dụng, phát hiện file mồ côi) — xem [DATABASE.md §3.7](DATABASE.md).
+- Schema quản lý file (đánh dấu tái sử dụng, phát hiện file mồ côi) — xem [DATABASE.md §3.3](DATABASE.md).
 
 ---
 
-## 5. Email service
+## 6. Email service
 
 | Phương án | Khi dùng | Điều kiện | Nhược điểm |
 |---|---|---|---|
 | **Resend** (khuyến nghị, production) | Đã có domain riêng | Bắt buộc **xác minh domain** (cấu hình DKIM/SPF/DMARC trỏ về domain) trước khi gửi được — **không gửi được** bằng địa chỉ Gmail/Yahoo cá nhân | Cần sở hữu + cấu hình DNS cho 1 domain |
 | **Nodemailer + SMTP** (tạm thời) | Chưa có domain riêng (mới bắt đầu dự án, môi trường dev/test) | Dùng SMTP của Gmail hoặc nhà cung cấp SMTP khác | Không có DKIM/domain reputation riêng → **thư rất dễ rơi vào mục Spam**; Gmail SMTP còn giới hạn số lượng gửi/ngày (~500) nên không phù hợp production lâu dài |
 
-**Cách tổ chức để đổi qua lại không phải sửa code nghiệp vụ**: bọc việc gửi email sau 1 interface chung trong module `modules/email/`, chọn implementation qua biến môi trường:
+**Cách tổ chức để đổi qua lại không phải sửa code nghiệp vụ**: bọc việc gửi email sau 1 interface chung trong `modules/core/email/`, chọn implementation qua biến môi trường:
 
 ```js
-// modules/email/email.service.js
+// modules/core/email/email.service.js
 const provider = process.env.EMAIL_PROVIDER === 'smtp'
   ? require('./providers/nodemailer.provider')
   : require('./providers/resend.provider');
@@ -156,19 +200,19 @@ module.exports = { sendEmail };
 
 ---
 
-## 6. Frontend — stack & quy ước
+## 7. Frontend — stack & quy ước
 
-### 5.1. Chọn Next.js hay React thuần
+### 7.1. Chọn Next.js hay React thuần
 
 | Loại app | Công nghệ | Lý do |
 |---|---|---|
 | App hướng SEO, public-facing (storefront khách hàng) | **Next.js + TypeScript** | Cần SSR/SSG cho Google index tốt (trang chủ, danh mục, chi tiết sản phẩm) |
 | App nội bộ (admin dashboard, tool quản trị) | **React (Vite) + TypeScript** hoặc Next.js tuỳ quy mô | Không cần SEO, ưu tiên tốc độ dev, có thể dùng CSR thuần |
 
-- Với dự án **lớn**, tách `apps/client` (Next.js — storefront) và `apps/admin` (React/Next.js — quản trị) thành 2 app frontend riêng biệt, dùng chung 1 backend API và có thể chung 1 package UI/types (monorepo qua Turborepo/Nx nếu cần).
-- Với dự án **nhỏ/vừa** (giai đoạn đầu của Flower Shop): 1 app Next.js duy nhất, tách route `/admin/*` bằng route group + middleware bảo vệ (xem mục 7).
+- Với dự án **lớn**, tách `apps/client` (Next.js — storefront) và `apps/admin` (React/Next.js — quản trị) thành 2 app frontend riêng biệt, dùng chung 1 backend API và có thể chung 1 package UI/types (monorepo qua Turborepo/Nx nếu cần) — cân nhắc lại chiến lược ở mục 2 khi tới quy mô này.
+- Với dự án **nhỏ/vừa** (giai đoạn đầu của Flower Shop): 1 app Next.js duy nhất, tách route `/admin/*`, `/superadmin/*` bằng route group + middleware bảo vệ (xem mục 8.1).
 
-### 5.2. Package chuẩn & quy ước code
+### 7.2. Package chuẩn & quy ước code
 
 | Nhu cầu | Package | Quy ước |
 |---|---|---|
@@ -176,14 +220,14 @@ module.exports = { sendEmail };
 | Form | `react-hook-form` + `@hookform/resolvers/zod` | Validate từng field theo schema zod, hiển thị lỗi ngay dưới field |
 | Data fetching / server state | `@tanstack/react-query` + `axios` | Không tự quản lý loading/error state thủ công bằng `useState`; cache, refetch, invalidate qua React Query |
 | Global client state (UI state, không phải server data) | `zustand` | Chỉ dùng cho state thật sự cần chia sẻ toàn cục (vd: user session, cart badge, sidebar mở/đóng) — không lạm dụng để lưu server data (đó là việc của React Query) |
-| Styling | `TailwindCSS` | Ưu tiên Tailwind thay vì thư viện UI dựng sẵn (MUI, AntD) để dễ tuỳ biến theo brand hoa; có thể dùng Radix UI (headless, không kèm style) cho các component phức tạp (Dialog, Dropdown) rồi tự style bằng Tailwind |
+| Styling | `TailwindCSS` | Ưu tiên Tailwind thay vì thư viện UI dựng sẵn (MUI, AntD) để dễ tuỳ biến theo brand từng dự án; có thể dùng Radix UI (headless, không kèm style) cho các component phức tạp (Dialog, Dropdown) rồi tự style bằng Tailwind |
 
-### 5.3. Custom hook — tách logic khỏi UI
+### 7.3. Custom hook — tách logic khỏi UI
 
 Mọi lời gọi API phải đi qua custom hook, component chỉ lo render:
 
 ```ts
-// features/products/hooks/useProducts.ts
+// features/domain/products/hooks/useProducts.ts
 export function useProducts(filters: ProductFilters) {
   return useQuery({
     queryKey: ['products', filters],
@@ -213,25 +257,25 @@ function ProductList({ filters }: Props) {
 
 ---
 
-## 7. Routing sạch sẽ
+## 8. Routing sạch sẽ
 
-### 6.1. Frontend (Next.js App Router)
+### 8.1. Frontend (Next.js App Router)
 
 ```
 app/
-├── (storefront)/           # PUBLIC — ai cũng vào được
+├── (storefront)/           # PUBLIC — domain, ai cũng vào được
 │   ├── page.tsx
 │   └── products/[slug]/page.tsx
-├── (account)/               # PROTECTED — cần đăng nhập (bất kỳ role nào)
+├── (account)/               # PROTECTED — core, cần đăng nhập (bất kỳ role nào)
 │   ├── layout.tsx           # redirect '/login' nếu chưa auth
 │   └── profile/page.tsx
-├── admin/                   # PRIVATE — cần role admin/super_admin
+├── admin/                   # PRIVATE — core (khung) + domain (nội dung menu) — role admin/super_admin
 │   ├── layout.tsx           # kiểm tra permission, redirect 403 nếu member thường
 │   └── products/page.tsx
-├── superadmin/               # PRIVATE — chỉ super_admin (quản lý user, bật/tắt auth method)
+├── superadmin/               # PRIVATE — core, chỉ super_admin (quản lý user/role/permission, bật/tắt auth method)
 │   ├── layout.tsx
 │   └── users/page.tsx
-└── (auth)/                  # PUBLIC — trang login/register, redirect nếu đã đăng nhập
+└── (auth)/                  # PUBLIC — core, trang login/register, redirect nếu đã đăng nhập
     ├── login/page.tsx
     └── register/page.tsx
 ```
@@ -240,7 +284,7 @@ app/
 - Kiểm tra **role/permission chi tiết** (không chỉ "đã đăng nhập") thực hiện trong `layout.tsx` của từng nhóm route (Server Component, đọc session từ cookie, gọi API `/me` hoặc decode JWT).
 - Route `(auth)` (login/register) tự redirect về trang chủ nếu người dùng đã có session — tránh vào lại trang login khi đã đăng nhập.
 
-### 6.2. Backend (Express)
+### 8.2. Backend (Express)
 
 ```js
 // routes chia theo mức độ truy cập, không trộn lẫn
@@ -256,11 +300,12 @@ router.use('/api/superadmin', authenticate, authorize('superadmin_only'), superA
 
 ---
 
-## 8. Checklist khi tạo module backend mới
+## 9. Checklist khi tạo module backend mới
 
-1. Tạo folder `modules/<domain>/` với `routes` → `controller` → `service` → (`repository` nếu cần).
-2. Định nghĩa zod schema trong `<domain>.validation.js`, áp middleware `validate()` vào route.
-3. Mọi controller async bọc `asyncHandler`.
-4. Lỗi nghiệp vụ throw `AppError`, không tự trả `res.status(...)` rải rác trong service.
-5. Nếu route cần quyền → thêm `authorize('permission.code')`, thêm permission mới vào seed nếu chưa có (xem [DATABASE.md §2.3](DATABASE.md)).
-6. Viết service dạng pure function (nhận tham số rõ ràng, không đọc `req` trực tiếp) để dễ test/tái sử dụng.
+1. **Xác định module thuộc `core` (tái sử dụng được cho dự án khác) hay `domain` (đặc thù dự án này)** trước khi tạo, đặt đúng `modules/core/` hoặc `modules/domain/` — xem mục 2.
+2. Tạo folder `modules/<core|domain>/<tên>/` với `routes` → `controller` → `service` → (`repository` nếu cần).
+3. Định nghĩa zod schema trong `<tên>.validation.js`, áp middleware `validate()` vào route.
+4. Mọi controller async bọc `asyncHandler`.
+5. Lỗi nghiệp vụ throw `AppError`, không tự trả `res.status(...)` rải rác trong service.
+6. Nếu route cần quyền → thêm `authorize('permission.code')`, thêm permission mới vào seed nếu chưa có (core → `core.seed.ts`, domain → `domain.seed.ts`, xem [DATABASE.md §2.3](DATABASE.md)).
+7. Viết service dạng pure function (nhận tham số rõ ràng, không đọc `req` trực tiếp) để dễ test/tái sử dụng.

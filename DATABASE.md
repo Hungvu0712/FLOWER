@@ -2,6 +2,8 @@
 
 Tài liệu này mô tả chi tiết schema database và hệ thống phân quyền (Role-Based Access Control) cho dự án Flower Shop. Xem tổng quan chức năng tại [README.md](README.md), chuẩn kiến trúc backend/frontend tại [ARCHITECTURE.md](ARCHITECTURE.md), bảo mật tại [SECURITY.md](SECURITY.md).
 
+> Schema này chia 2 phần theo chiến lược tái sử dụng ở [ARCHITECTURE.md §2](ARCHITECTURE.md#2-chiến-lược-tái-sử-dụng--core-vs-domain): **Core** (§3.1–3.3 — giữ nguyên khi copy sang dự án PERN khác) và **Domain** (§3.4–3.6 — đặc thù nghiệp vụ shop hoa, viết mới cho từng dự án).
+
 ---
 
 ## 1. Nguyên tắc thiết kế
@@ -18,16 +20,18 @@ Tài liệu này mô tả chi tiết schema database và hệ thống phân quy�
 
 ### 2.1. Vì sao cần RBAC chi tiết cho shop hoa
 
-Chuẩn chung của dự án luôn có **tối thiểu 3 vai trò**: `super_admin`, `admin`, `member`. Một shop hoa vận hành thật cần thêm vài vai trò vận hành nội bộ nằm giữa `admin` và `member`:
+Chuẩn chung của dự án (**core** — giữ nguyên ở mọi dự án) luôn có **tối thiểu 3 System Role**: `super_admin`, `admin`, `member`. Một shop hoa vận hành thật cần thêm vài vai trò vận hành nội bộ (**domain** — seed riêng cho dự án này) nằm giữa `admin` và `member`:
 
-| Vai trò | Mô tả | Ai dùng |
-|---|---|---|
-| `super_admin` | Toàn quyền hệ thống: **là người duy nhất quản lý tài khoản người dùng** (block/unblock, reset password, đổi role), cấu hình thanh toán/API keys, bật/tắt phương thức đăng nhập, xem mọi báo cáo | Chủ shop / chủ hệ thống |
-| `admin` | Quản lý sản phẩm, danh mục, khuyến mãi, xem báo cáo doanh thu. KHÔNG quản lý được tài khoản người dùng khác (đặc quyền riêng của `super_admin`) | Quản lý cửa hàng |
-| `sales_staff` | Xử lý đơn hàng, chăm sóc khách hàng, xem/cập nhật trạng thái đơn, KHÔNG xoá sản phẩm, KHÔNG xem báo cáo tài chính | Nhân viên bán hàng/CSKH |
-| `florist` | Xem danh sách đơn cần chuẩn bị hoa, cập nhật trạng thái "đã soạn xong", KHÔNG truy cập thông tin thanh toán | Nhân viên cắm hoa |
-| `shipper` | Xem đơn được phân công giao, cập nhật trạng thái giao hàng (đang giao/đã giao/giao thất bại) | Người giao hàng |
-| `member` | Vai trò mặc định của người dùng đăng ký — chỉ thao tác trên dữ liệu của chính mình (đơn hàng, địa chỉ, wishlist, review) | Khách hàng |
+| Vai trò | Phạm vi | Mô tả | Ai dùng |
+|---|---|---|---|
+| `super_admin` | 🔧 Core | Toàn quyền hệ thống: **là người duy nhất quản lý tài khoản người dùng** (block/unblock, reset password, đổi role), cấu hình thanh toán/API keys, bật/tắt phương thức đăng nhập, xem mọi báo cáo | Chủ shop / chủ hệ thống |
+| `admin` | 🔧 Core | Quản lý sản phẩm, danh mục, khuyến mãi, xem báo cáo doanh thu. KHÔNG quản lý được tài khoản người dùng khác (đặc quyền riêng của `super_admin`) | Quản lý cửa hàng |
+| `sales_staff` | 🌸 Domain | Xử lý đơn hàng, chăm sóc khách hàng, xem/cập nhật trạng thái đơn, KHÔNG xoá sản phẩm, KHÔNG xem báo cáo tài chính | Nhân viên bán hàng/CSKH |
+| `florist` | 🌸 Domain | Xem danh sách đơn cần chuẩn bị hoa, cập nhật trạng thái "đã soạn xong", KHÔNG truy cập thông tin thanh toán | Nhân viên cắm hoa |
+| `shipper` | 🌸 Domain | Xem đơn được phân công giao, cập nhật trạng thái giao hàng (đang giao/đã giao/giao thất bại) | Người giao hàng |
+| `member` | 🔧 Core | Vai trò mặc định của người dùng đăng ký — chỉ thao tác trên dữ liệu của chính mình (đơn hàng, địa chỉ, wishlist, review) | Khách hàng |
+
+> Cả 6 role đều seed sẵn `is_system = true` trong dự án này (kể cả 3 role domain) để bảo vệ khỏi bị xoá nhầm khi vận hành — nhưng khi copy sang dự án khác, chỉ mang theo `super_admin`/`admin`/`member` (đặt trong `core.seed.ts`); `sales_staff`/`florist`/`shipper` thuộc `domain.seed.ts`, dự án mới tự định nghĩa vai trò domain riêng (không nhất thiết `is_system = true`, có thể để `super_admin` tạo qua UI như Custom Role thường).
 
 > Thiết kế permission theo **code dạng chuỗi** (`orders.update_status`) thay vì hard-code role trong logic nghiệp vụ, để khi thêm vai trò mới chỉ cần cấu hình lại bảng `role_permissions`, không phải sửa code.
 
@@ -53,7 +57,7 @@ Chuẩn chung của dự án luôn có **tối thiểu 3 vai trò**: `super_admi
 Để tránh phá vỡ các route đang hoạt động, `permissions` cũng có cờ `is_system` (song song với `is_restricted`):
 - Permission **do hệ thống seed sẵn** (đã có `authorize()` tham chiếu trong code, vd `orders.update_status`) → `is_system = true`: chỉ sửa được `description`/`group_name`, **không đổi được `code`, không xoá được** — đổi/xoá sẽ làm route liên quan mất kiểm soát quyền (authorize luôn fail hoặc luôn pass tuỳ cách code xử lý permission không tồn tại).
 - Permission `super_admin` **tự tạo mới** → `is_system = false`: sửa/xoá tự do, kèm cảnh báo nếu đang gán cho role nào.
-- Permission "restricted" (`users.manage`, `settings.manage`, `roles.manage`) luôn có cả `is_system = true` **và** `is_restricted = true`.
+- Permission "restricted" (`users.manage`, `settings.manage`, `roles.manage`, `permissions.manage`) luôn có cả `is_system = true` **và** `is_restricted = true`.
 
 ### 2.2. Bảng dữ liệu
 
@@ -94,32 +98,34 @@ user_roles
 
 Toàn bộ permission dưới đây được seed sẵn với `is_system = true` (đã có `authorize()` tham chiếu trong route tương ứng ở backend) — `super_admin` chỉnh được mô tả nhưng không đổi `code`/xoá qua UI. Permission `super_admin` tự tạo thêm sau này mặc định `is_system = false`.
 
-| Nhóm | Permission code | Ý nghĩa |
-|---|---|---|
-| products | `products.view` | Xem danh sách/chi tiết sản phẩm (admin panel) |
-| products | `products.create` | Thêm sản phẩm mới |
-| products | `products.update` | Sửa sản phẩm, tồn kho |
-| products | `products.delete` | Xoá/ẩn sản phẩm |
-| categories | `categories.manage` | Thêm/sửa/xoá danh mục, dịp lễ |
-| orders | `orders.view_own` | Khách xem đơn của chính mình |
-| orders | `orders.view_all` | Xem toàn bộ đơn hàng hệ thống |
-| orders | `orders.update_status` | Cập nhật trạng thái đơn (chuẩn bị/giao/hoàn tất) |
-| orders | `orders.assign_shipper` | Phân công người giao hàng |
-| orders | `orders.cancel` | Huỷ đơn hàng |
-| orders | `orders.view_delivery_queue` | Xem hàng đợi cần soạn hoa (florist) |
-| orders | `orders.view_shipping_queue` | Xem đơn cần giao (shipper) |
-| customers | `customers.view` | Xem thông tin khách hàng |
-| customers | `customers.manage` | Sửa/khoá tài khoản khách hàng |
-| promotions | `promotions.manage` | Tạo/sửa mã giảm giá, chương trình sale |
-| reviews | `reviews.moderate` | Duyệt/ẩn đánh giá |
-| reports | `reports.view` | Xem thống kê doanh thu, báo cáo |
-| blog | `blog.manage` | Quản lý bài viết blog, banner |
-| users | `users.manage` 🔒 | Block/unblock, reset password, đổi role user (**chỉ `super_admin`**, xem ràng buộc ở mục 2.1) |
-| settings | `settings.manage` 🔒 | Cấu hình hệ thống, API key thanh toán/email, **bật/tắt phương thức đăng nhập** (chỉ `super_admin`) |
-| roles | `roles.manage` 🔒 | Tạo/sửa/xoá role tuỳ ý, gán permission cho role (chỉ `super_admin`) |
-| files | `files.manage` | Xem/xoá file trong màn hình quản lý tài nguyên (folder, ảnh mồ côi...) |
+| Phạm vi | Nhóm | Permission code | Ý nghĩa |
+|---|---|---|---|
+| 🌸 Domain | products | `products.view` | Xem danh sách/chi tiết sản phẩm (admin panel) |
+| 🌸 Domain | products | `products.create` | Thêm sản phẩm mới |
+| 🌸 Domain | products | `products.update` | Sửa sản phẩm, tồn kho |
+| 🌸 Domain | products | `products.delete` | Xoá/ẩn sản phẩm |
+| 🌸 Domain | categories | `categories.manage` | Thêm/sửa/xoá danh mục, dịp lễ |
+| 🌸 Domain | orders | `orders.view_own` | Khách xem đơn của chính mình |
+| 🌸 Domain | orders | `orders.view_all` | Xem toàn bộ đơn hàng hệ thống |
+| 🌸 Domain | orders | `orders.update_status` | Cập nhật trạng thái đơn (chuẩn bị/giao/hoàn tất) |
+| 🌸 Domain | orders | `orders.assign_shipper` | Phân công người giao hàng |
+| 🌸 Domain | orders | `orders.cancel` | Huỷ đơn hàng |
+| 🌸 Domain | orders | `orders.view_delivery_queue` | Xem hàng đợi cần soạn hoa (florist) |
+| 🌸 Domain | orders | `orders.view_shipping_queue` | Xem đơn cần giao (shipper) |
+| 🌸 Domain | customers | `customers.view` | Xem thông tin khách hàng |
+| 🌸 Domain | customers | `customers.manage` | Sửa/khoá tài khoản khách hàng |
+| 🌸 Domain | promotions | `promotions.manage` | Tạo/sửa mã giảm giá, chương trình sale |
+| 🌸 Domain | reviews | `reviews.moderate` | Duyệt/ẩn đánh giá |
+| 🌸 Domain | reports | `reports.view` | Xem thống kê doanh thu, báo cáo |
+| 🌸 Domain | blog | `blog.manage` | Quản lý bài viết blog, banner |
+| 🔧 Core | users | `users.manage` 🔒 | Block/unblock, reset password, đổi role user (**chỉ `super_admin`**, xem ràng buộc ở mục 2.1) |
+| 🔧 Core | settings | `settings.manage` 🔒 | Cấu hình hệ thống, API key thanh toán/email, **bật/tắt phương thức đăng nhập** (chỉ `super_admin`) |
+| 🔧 Core | roles | `roles.manage` 🔒 | Tạo/sửa/xoá role tuỳ ý, gán permission cho role (chỉ `super_admin`) |
+| 🔧 Core | permissions | `permissions.manage` 🔒 | Tạo/sửa/xoá permission (chỉ `super_admin`) |
+| 🔧 Core | files | `files.manage` | Xem/xoá file trong màn hình quản lý tài nguyên (folder, ảnh mồ côi...) |
+| 🔧 Core | audit | `audit.view` | Xem nhật ký Audit Log |
 
-🔒 = `is_restricted = true` — permission này chỉ được seed sẵn cho role `is_system = true` (mặc định chỉ `super_admin`), không thể gán qua UI tạo/sửa role tuỳ ý.
+🔒 = `is_restricted = true` — permission này chỉ được seed sẵn cho role `is_system = true` (mặc định chỉ `super_admin`), không thể gán qua UI tạo/sửa role tuỳ ý. Cột **Phạm vi** map trực tiếp với [ARCHITECTURE.md §2](ARCHITECTURE.md#2-chiến-lược-tái-sử-dụng--core-vs-domain): permission 🔧 Core giữ nguyên khi copy sang dự án khác, permission 🌸 Domain viết mới theo nghiệp vụ từng dự án.
 
 ### 2.4. Ma trận Vai trò × Quyền (mặc định seed)
 
@@ -144,6 +150,8 @@ Toàn bộ permission dưới đây được seed sẵn với `is_system = true`
 | users.manage | ✅ | – | – | – | – | – |
 | settings.manage | ✅ | – | – | – | – | – |
 | roles.manage | ✅ | – | – | – | – | – |
+| permissions.manage | ✅ | – | – | – | – | – |
+| audit.view | ✅ | – | – | – | – | – |
 
 > Ma trận này sẽ là dữ liệu **seed** ban đầu cho `role_permissions`. `super_admin` có thể chỉnh sửa quyền cho từng vai trò trực tiếp qua UI ở giai đoạn 4 (Advanced), không cần sửa code. Lưu ý: chỉnh sửa `role_permissions` khác với chỉnh sửa **role của một user** (mục 2.1) — thao tác sau chỉ `super_admin` được làm và có các ràng buộc chống leo thang quyền.
 
@@ -184,15 +192,16 @@ router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_st
 
 ## 3. Schema Database đầy đủ
 
-### 3.1. Nhóm Người dùng & Phân quyền
+### 3.1. Nhóm Người dùng, Phân quyền & Audit
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
 | `users` | id, full_name, email, password_hash (**nullable** — user chỉ dùng Google/magic link thì không có), phone, avatar_file_id (FK → `files`), status (active/blocked), email_verified_at, created_at, updated_at, deleted_at | `deleted_at` set khi `super_admin` "xoá" user (soft delete) |
 | `roles` | id, code, name, description, is_system | Xem mục 2.2 |
-| `permissions` | id, code, group_name, description | Xem mục 2.2 |
+| `permissions` | id, code, group_name, is_system, is_restricted, description | Xem mục 2.2/2.3 |
 | `role_permissions` | role_id, permission_id | |
 | `user_roles` | user_id, role_id | |
+| `audit_logs` | id, actor_id (FK → users, nullable nếu hệ thống tự động), action (`user.block`, `role.create`, `permission.delete`...), entity_type, entity_id, before (JSONB), after (JSONB), ip_address, created_at | Ghi mọi thao tác nhạy cảm — xem [SECURITY.md §2](SECURITY.md) |
 | `addresses` | id, user_id, recipient_name, phone, address_line, ward, district, city, is_default | Sổ địa chỉ người nhận |
 | `special_dates` | id, user_id, label, date, remind_days_before | Nhắc lịch sinh nhật/kỷ niệm |
 
@@ -219,7 +228,7 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 | `file_usages` | id, file_id, entity_type (`product`, `user_avatar`, `blog_post`...), entity_id, created_at | 1 file được gắn vào nhiều nơi → **tái sử dụng ảnh cũ** thay vì upload trùng; `UNIQUE(file_id, entity_type, entity_id)` |
 
 - File được coi là **mồ côi (orphan)** khi không còn dòng nào trong `file_usages` trỏ tới, và đã tạo quá một ngưỡng an toàn (vd 24h, để không xoá nhầm ảnh vừa upload nhưng form chưa submit xong).
-- Cron job **10 ngày/lần**: quét file mồ côi → xoá trên R2 + xoá record `files` (xem thêm [ARCHITECTURE.md §4](ARCHITECTURE.md), [SECURITY.md](SECURITY.md)).
+- Cron job **10 ngày/lần**: quét file mồ côi → xoá trên R2 + xoá record `files` (xem thêm [ARCHITECTURE.md §5](ARCHITECTURE.md), [SECURITY.md](SECURITY.md)).
 
 ### 3.4. Nhóm Sản phẩm
 
@@ -262,6 +271,7 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 users ──< user_roles >── roles ──< role_permissions >── permissions
 users ──< auth_accounts
 users ──< sessions
+users ──< audit_logs (actor_id)
 users ──< addresses
 users ──< special_dates
 users ──< orders ──< order_items >── products ──< product_variants
@@ -287,17 +297,25 @@ folders ──< files
 - `sessions(user_id)`, `sessions(refresh_token_hash)` unique — tra cứu phiên nhanh lúc verify refresh token.
 - `magic_link_tokens(token_hash)` unique, `password_reset_tokens(token_hash)` unique.
 - `file_usages(entity_type, entity_id)` — tìm nhanh ảnh đang gắn với 1 sản phẩm/user cụ thể; `files(deleted_at)` — phục vụ job quét file mồ côi.
+- `audit_logs(actor_id)`, `audit_logs(entity_type, entity_id)`, `audit_logs(created_at)` — tra cứu lịch sử theo người thực hiện, theo đối tượng bị tác động, hoặc theo mốc thời gian.
 
 ---
 
 ## 4. Seed dữ liệu ban đầu
 
-Khi khởi tạo DB, cần seed sẵn:
-1. 6 `roles` ở mục 2.1: `super_admin`, `admin`, `sales_staff`, `florist`, `shipper`, `member`.
-2. Toàn bộ `permissions` ở mục 2.3.
-3. Ma trận `role_permissions` theo mục 2.4.
-4. 1 tài khoản `super_admin` mặc định (đổi mật khẩu ngay sau lần đăng nhập đầu).
-5. `login_method_settings`: cả 3 phương thức (`google_oauth`, `email_password`, `magic_link`) mặc định `is_enabled = true`.
+Khi khởi tạo DB, cần seed sẵn (chia 2 file theo [ARCHITECTURE.md §2.3](ARCHITECTURE.md#23-database--seed): `core.seed.ts` chạy giống nhau ở mọi dự án, `domain.seed.ts` viết riêng cho shop hoa):
+
+**`core.seed.ts`**
+1. 3 System Role: `super_admin`, `admin`, `member`.
+2. Permission 🔧 Core ở mục 2.3 (`users.manage`, `settings.manage`, `roles.manage`, `permissions.manage`, `files.manage`, `audit.view`).
+3. 1 tài khoản `super_admin` mặc định (đổi mật khẩu ngay sau lần đăng nhập đầu).
+4. `login_method_settings`: cả 3 phương thức (`google_oauth`, `email_password`, `magic_link`) mặc định `is_enabled = true`.
+
+**`domain.seed.ts`** (shop hoa)
+5. Role `sales_staff`, `florist`, `shipper`.
+6. Permission 🌸 Domain ở mục 2.3 (`products.*`, `orders.*`, `categories.manage`...).
+7. Ma trận `role_permissions` theo mục 2.4 (gộp cả permission core lẫn domain).
+8. Danh mục/dịp lễ mẫu (`categories`, `occasions`) nếu muốn có sẵn dữ liệu demo.
 
 ---
 
@@ -360,6 +378,22 @@ model LoginMethodSetting {
   isEnabled Boolean  @default(true)
   updatedBy String?
   updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  action     String   // 'user.block', 'role.create', 'permission.delete'...
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 ```
 
