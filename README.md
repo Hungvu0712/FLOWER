@@ -2,7 +2,7 @@
 
 Kế hoạch chi tiết cho website thương mại điện tử bán hoa, hướng đến người dùng thật (đặt hoa sinh nhật, cưới hỏi, khai trương, chia buồn, quà tặng...).
 
-- **Frontend:** Next.js (React, App Router)
+- **Frontend:** Next.js (React, App Router, TypeScript)
 - **Backend:** Node.js + Express
 - **Database:** PostgreSQL
 
@@ -99,9 +99,9 @@ Xây dựng một cửa hàng hoa online cho phép khách:
 
 ```
 FLOWER/
-├── frontend/                # Next.js app (App Router)
+├── frontend/                # Next.js app (App Router, TypeScript)
 │   ├── src/
-│   │   ├── app/             # routes: page.js, layout.js theo file-system routing
+│   │   ├── app/             # routes: page.tsx, layout.tsx theo file-system routing
 │   │   │   ├── (storefront)/    # nhóm route công khai: /, /products/[slug], /cart, /checkout...
 │   │   │   └── admin/           # route quản trị: /admin/products, /admin/orders...
 │   │   ├── components/      # UI dùng chung (Button, Card, Modal...)
@@ -240,7 +240,7 @@ Tất cả response theo chuẩn:
 
 | Hạng mục | Công nghệ |
 |---|---|
-| Frontend | Next.js (App Router, React 19), React Query/TanStack Query, Zustand hoặc Redux Toolkit, TailwindCSS |
+| Frontend | Next.js (App Router, React 19, TypeScript), React Query/TanStack Query, Zustand hoặc Redux Toolkit, TailwindCSS |
 | Backend | Node.js, Express, Prisma ORM |
 | Database | PostgreSQL |
 | Cache/Session | Redis |

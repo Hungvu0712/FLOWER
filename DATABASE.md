@@ -143,7 +143,7 @@ router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_st
 ### 2.6. Áp dụng ở tầng Frontend (Next.js)
 
 - Lưu danh sách `permissions` của user trong store (Zustand/Redux) sau khi đăng nhập, hoặc đọc từ session (cookie httpOnly) trong Server Component cho các route `/admin/*`.
-- Route protection cho khu vực quản trị: dùng `middleware.js` (Next.js Middleware) để chặn truy cập `/admin/*` ngay ở edge nếu chưa đăng nhập/không đủ quyền, kết hợp kiểm tra permission trong layout của từng nhóm route (`app/admin/layout.js`).
+- Route protection cho khu vực quản trị: dùng `middleware.ts` (Next.js Middleware) để chặn truy cập `/admin/*` ngay ở edge nếu chưa đăng nhập/không đủ quyền, kết hợp kiểm tra permission trong layout của từng nhóm route (`app/admin/layout.tsx`).
 - Ẩn nút/thao tác trên UI theo permission (vd nút "Xoá sản phẩm" chỉ hiện với `products.delete`), nhưng **backend (Express API) vẫn phải kiểm tra lại** — không tin tưởng riêng phía client.
 
 ---
