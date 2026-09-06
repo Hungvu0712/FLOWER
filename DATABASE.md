@@ -31,17 +31,29 @@ Chuẩn chung của dự án luôn có **tối thiểu 3 vai trò**: `super_admi
 
 > Thiết kế permission theo **code dạng chuỗi** (`orders.update_status`) thay vì hard-code role trong logic nghiệp vụ, để khi thêm vai trò mới chỉ cần cấu hình lại bảng `role_permissions`, không phải sửa code.
 
-**Quy tắc bất biến khi quản lý user (chỉ `super_admin` được gọi các API này):**
-- Không được tự đổi role của chính mình (`targetUserId === req.user.id` → chặn).
-- Không được cập nhật role của bất kỳ user nào (kể cả chính `super_admin` khác) thành `super_admin` qua API thông thường — tránh leo thang quyền hạn ngoài ý muốn; tạo `super_admin` mới chỉ qua seed/thao tác thủ công trực tiếp trên DB.
-- Reset password: `super_admin` bấm "reset" → hệ thống sinh mật khẩu ngẫu nhiên, hash và lưu, đồng thời gửi mật khẩu mới qua email (Resend) cho user — không hiển thị mật khẩu cho `super_admin` xem.
+#### RBAC — Role & Permission
 
-**Role không cố định — `super_admin` tạo được role tuỳ ý:**
+- Luôn có tối thiểu **3 System Role**: `super_admin`, `admin`, `member` (`is_system = true`, không xoá được, không đổi được `code`).
+- `super_admin` tạo/sửa/xoá **Custom Role** tuỳ ý (`is_system = false`, vd `accountant`, `marketing`) và gán permission cho bất kỳ role nào — vì `role_permissions` là bảng n-n độc lập, `authorize()` chỉ so khớp permission code, không hard-code theo tên role.
+- `super_admin` cũng tạo/sửa/xoá được **Permission** (bảng `permissions`), không chỉ gán permission có sẵn — xem quy tắc riêng ở mục "Permission tự tạo" bên dưới.
+- **Không được xoá 3 System Role**, và **không được tạo permission/role để bypass lên `super_admin`** — thực thi qua cột `is_restricted` (xem bên dưới): permission "restricted" chỉ tồn tại ở role hệ thống, không role tự tạo nào gán được.
 
-6 role ở bảng trên chỉ là **seed mặc định**, không phải danh sách đóng cứng. `super_admin` có thể tạo thêm role mới (vd `accountant`, `marketing`) qua màn hình quản lý role, gán tự do bất kỳ tập permission nào cho role đó — vì `role_permissions` là bảng n-n độc lập, không có logic nào trong code gắn cứng theo `role.code` (middleware `authorize()` chỉ so khớp permission code, không quan tâm role tên gì). Tuy nhiên có 2 ràng buộc bắt buộc để tính năng này không mở lỗ hổng leo thang quyền:
+#### SuperAdmin — User Management
 
-- **Permission "restricted"** (`users.manage`, `settings.manage` — xem cột `is_restricted` ở mục 2.2/2.3): chỉ được gán cho role có `is_system = true`, **không thể** gán qua UI "tạo/sửa role tuỳ ý" cho role thường. Nếu không chặn, ai đó có thể tạo 1 role mới, gán `users.manage` vào, rồi gán role đó cho một user khác → thực chất tạo ra "super_admin trá hình", phá vỡ quy tắc "chỉ super_admin duy nhất quản lý user" ở trên.
-- Role có `is_system = true` (`super_admin`, `admin`, `member` — 3 role nền tảng bắt buộc phải luôn tồn tại) **không xoá được**, không đổi được `code`; role tự tạo (`is_system = false`) thì xoá/sửa tự do, kèm cảnh báo nếu đang có user đang được gán role đó.
+- Chỉ `super_admin` được quản lý user: **block/unblock**, **reset password**, **xoá (soft delete)**, **quản lý & gán role**.
+- **Không được tự đổi role / block / xoá chính mình** (`targetUserId === req.user.id` → chặn ở tầng service cho cả 3 hành động).
+- **Không được gán hoặc tạo thêm `super_admin`** thông qua các chức năng thông thường (`PATCH .../role` luôn từ chối `newRole === 'super_admin'`) — tài khoản `super_admin` chỉ tạo được qua seed/thao tác thủ công trực tiếp trên DB.
+- Reset password: `super_admin` bấm "reset" → hệ thống sinh mật khẩu ngẫu nhiên, hash và lưu, gửi mật khẩu mới qua email (Resend) cho user — không hiển thị mật khẩu cho `super_admin` xem.
+- **Mọi thao tác nhạy cảm đều ghi Audit Log** (ai, khi nào, giá trị trước/sau): block/unblock/xoá user, đổi role, gán role, reset password, tạo/sửa/xoá Custom Role, tạo/sửa/xoá Permission, gán Permission cho Role, bật/tắt phương thức đăng nhập.
+
+#### Permission tự tạo — vẫn cần code enforce
+
+`super_admin` tạo được permission mới (code, group_name, description) qua UI, nhưng **1 permission chỉ thật sự có tác dụng khi có route nào đó gọi `authorize('code-đó')` trong code** — tạo permission mới qua UI mà chưa có developer wire vào route thì permission đó chỉ nằm im (dùng để tổ chức/gán vào role, không chặn được gì). Đây không phải giới hạn có thể "sửa bằng UI" — nó là bản chất của mô hình permission thực thi trong code, cần nêu rõ cho `super_admin` biết khi tạo permission mới.
+
+Để tránh phá vỡ các route đang hoạt động, `permissions` cũng có cờ `is_system` (song song với `is_restricted`):
+- Permission **do hệ thống seed sẵn** (đã có `authorize()` tham chiếu trong code, vd `orders.update_status`) → `is_system = true`: chỉ sửa được `description`/`group_name`, **không đổi được `code`, không xoá được** — đổi/xoá sẽ làm route liên quan mất kiểm soát quyền (authorize luôn fail hoặc luôn pass tuỳ cách code xử lý permission không tồn tại).
+- Permission `super_admin` **tự tạo mới** → `is_system = false`: sửa/xoá tự do, kèm cảnh báo nếu đang gán cho role nào.
+- Permission "restricted" (`users.manage`, `settings.manage`, `roles.manage`) luôn có cả `is_system = true` **và** `is_restricted = true`.
 
 ### 2.2. Bảng dữ liệu
 
@@ -59,6 +71,7 @@ permissions
   id            SERIAL PRIMARY KEY
   code          VARCHAR(100) UNIQUE NOT NULL   -- 'products.create', 'orders.view_all'...
   group_name    VARCHAR(50) NOT NULL           -- 'products', 'orders', 'reports'... (để gom nhóm trên UI)
+  is_system     BOOLEAN DEFAULT false          -- true = do code seed sẵn, có authorize() tham chiếu trong route → không cho đổi code/xoá qua UI
   is_restricted BOOLEAN DEFAULT false          -- true = chỉ gán được cho role is_system=true (chặn leo thang quyền qua role tự tạo)
   description   TEXT
 
@@ -78,6 +91,8 @@ user_roles
 > Với shop quy mô nhỏ có thể đơn giản hoá bằng cách thêm cột `role_id` trực tiếp vào `users` (1 user = 1 role). Thiết kế `user_roles` many-to-many ở trên chỉ nên dùng nếu dự tính nhân viên có thể kiêm nhiệm nhiều vai trò.
 
 ### 2.3. Danh sách permission đề xuất
+
+Toàn bộ permission dưới đây được seed sẵn với `is_system = true` (đã có `authorize()` tham chiếu trong route tương ứng ở backend) — `super_admin` chỉnh được mô tả nhưng không đổi `code`/xoá qua UI. Permission `super_admin` tự tạo thêm sau này mặc định `is_system = false`.
 
 | Nhóm | Permission code | Ý nghĩa |
 |---|---|---|
@@ -173,7 +188,7 @@ router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_st
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
-| `users` | id, full_name, email, password_hash (**nullable** — user chỉ dùng Google/magic link thì không có), phone, avatar_file_id (FK → `files`), status (active/blocked), email_verified_at, created_at, updated_at, deleted_at | |
+| `users` | id, full_name, email, password_hash (**nullable** — user chỉ dùng Google/magic link thì không có), phone, avatar_file_id (FK → `files`), status (active/blocked), email_verified_at, created_at, updated_at, deleted_at | `deleted_at` set khi `super_admin` "xoá" user (soft delete) |
 | `roles` | id, code, name, description, is_system | Xem mục 2.2 |
 | `permissions` | id, code, group_name, description | Xem mục 2.2 |
 | `role_permissions` | role_id, permission_id | |
@@ -302,6 +317,7 @@ model Permission {
   id           Int      @id @default(autoincrement())
   code         String   @unique
   groupName    String
+  isSystem     Boolean  @default(false) // seed sẵn, có authorize() tham chiếu trong code -> khoá đổi code/xoá
   isRestricted Boolean  @default(false) // chỉ gán được cho role isSystem = true
   roles        RolePermission[]
 }

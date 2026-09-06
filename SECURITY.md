@@ -31,12 +31,15 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - **Chống IDOR (Insecure Direct Object Reference)**: khi truy vấn `GET /api/orders/:id`, phải kiểm tra `orders.user_id === req.user.id` (trừ khi user có `orders.view_all`) — không chỉ dựa vào việc "biết ID" là được xem.
 - **Row-level check cho nhân viên vận hành**: `shipper` chỉ được cập nhật đơn có `order_deliveries.shipper_id = req.user.id`; `florist` chỉ được sửa đơn đang ở trạng thái "đang chuẩn bị".
 - **Nguyên tắc đặc quyền tối thiểu (least privilege)**: tài khoản `sales_staff` mặc định không có `products.delete`, `settings.manage`.
-- **Quản lý user chỉ thuộc về `super_admin`** (permission `users.manage` chỉ gán cho role này) — service xử lý các API `PATCH /api/superadmin/users/:id/role`, `/block`, `/unblock`, `/reset-password` phải chặn cứng ở tầng service (không chỉ dựa vào middleware `authorize`), với 2 ràng buộc bắt buộc:
-  1. `targetUserId !== req.user.id` — không tự đổi role chính mình.
-  2. `newRole !== 'super_admin'` — không được nâng bất kỳ ai (kể cả chính mình) lên `super_admin` qua API; tài khoản `super_admin` chỉ tạo được qua seed hoặc thao tác thủ công trực tiếp trên DB.
-- **Leo thang quyền qua role tự tạo (shadow super_admin)**: hệ thống cho phép `super_admin` tạo role tuỳ ý — đây là điểm dễ bị lợi dụng nếu không chặn đúng chỗ. API `POST/PATCH /api/superadmin/roles` phải **luôn lọc bỏ** mọi permission có `is_restricted = true` (`users.manage`, `settings.manage`, `roles.manage`) khỏi payload trước khi ghi `role_permissions`, kể cả khi request cố tình gửi kèm — không chỉ ẩn ở UI. Việc kiểm tra này nằm ở tầng service, không tin payload từ client.
+- **Quản lý user chỉ thuộc về `super_admin`** (permission `users.manage` chỉ gán cho role này) — service xử lý các API `PATCH /api/superadmin/users/:id/role`, `/block`, `/unblock`, `DELETE /api/superadmin/users/:id`, `/reset-password` phải chặn cứng ở tầng service (không chỉ dựa vào middleware `authorize`), với các ràng buộc bắt buộc:
+  1. `targetUserId !== req.user.id` — không tự đổi role, **không tự block, không tự xoá** chính mình (áp dụng đồng nhất cho cả 3 hành động, không chỉ riêng đổi role).
+  2. `newRole !== 'super_admin'` — không được gán hoặc nâng bất kỳ ai (kể cả chính mình) lên `super_admin` qua API; tài khoản `super_admin` chỉ tạo được qua seed hoặc thao tác thủ công trực tiếp trên DB.
+- **Leo thang quyền qua Custom Role (shadow super_admin)**: hệ thống cho phép `super_admin` tạo role tuỳ ý — đây là điểm dễ bị lợi dụng nếu không chặn đúng chỗ. API `POST/PATCH /api/superadmin/roles` phải **luôn lọc bỏ** mọi permission có `is_restricted = true` (`users.manage`, `settings.manage`, `roles.manage`) khỏi payload trước khi ghi `role_permissions`, kể cả khi request cố tình gửi kèm — không chỉ ẩn ở UI. Việc kiểm tra này nằm ở tầng service, không tin payload từ client.
+- **Rủi ro khi cho phép tạo Permission tuỳ ý**: 2 hướng cần chặn riêng —
+  1. *Phá route đang chạy*: permission `is_system = true` (đã có `authorize('code')` tham chiếu trong code) không cho đổi `code` hoặc xoá qua API `PATCH/DELETE /api/superadmin/permissions/:id` — nếu không, route liên quan sẽ mất kiểm soát quyền (tuỳ cách code xử lý permission không tồn tại: có thể *fail-open* cho qua hết, hoặc *fail-closed* chặn hết người dùng hợp lệ).
+  2. *Permission mới không có tác dụng thật*: vì `authorize()` chỉ kiểm tra permission mà route đã khai báo, permission `super_admin` tự tạo qua UI **không tự động chặn được gì** cho tới khi developer thêm `authorize('permission-mới')` vào route tương ứng trong code — cần hiển thị rõ cảnh báo này trên UI để `super_admin` không hiểu nhầm là "tạo xong là có hiệu lực ngay".
 - **Reset password bởi SuperAdmin**: sinh mật khẩu ngẫu nhiên đủ mạnh, hash trước khi lưu, gửi bản rõ **duy nhất một lần** qua email (Resend) — không log, không trả về trong response API, không hiển thị lại cho `super_admin`.
-- **Audit log** cho hành động nhạy cảm: đổi giá sản phẩm, xoá sản phẩm, đổi role user, block/unblock user, bật/tắt phương thức đăng nhập, hoàn tiền đơn hàng — ghi rõ ai (`changed_by`), khi nào, giá trị trước/sau.
+- **Audit log cho mọi thao tác nhạy cảm** (ghi rõ ai — `changed_by`, khi nào, giá trị trước/sau): đổi giá sản phẩm, xoá sản phẩm, đổi role user, gán role, block/unblock/xoá user, reset password, tạo/sửa/xoá Custom Role, tạo/sửa/xoá Permission, gán Permission cho Role, bật/tắt phương thức đăng nhập, hoàn tiền đơn hàng.
 
 ---
 
@@ -135,8 +138,10 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 
 **Giai đoạn 3 — Tăng trưởng**
 - [ ] Giới hạn coupon per-user, chống race condition tồn kho
-- [ ] Audit log cho thao tác admin/superadmin (đổi role, block/unblock, reset password, bật/tắt auth method, tạo/sửa/xoá role)
+- [ ] Audit log cho thao tác admin/superadmin (đổi role, gán role, block/unblock/xoá user, reset password, bật/tắt auth method, tạo/sửa/xoá Custom Role, tạo/sửa/xoá Permission)
 - [ ] API tạo/sửa role tuỳ ý luôn lọc bỏ permission `is_restricted` khỏi payload ở tầng service (test bằng cách cố tình gửi kèm `users.manage` trong request tạo role)
+- [ ] API tạo/sửa/xoá permission chặn đúng permission `is_system = true` (không đổi được `code`, không xoá được)
+- [ ] Test tự block/tự xoá/tự đổi role chính mình đều bị chặn (không chỉ test riêng đổi role)
 - [ ] Cron job xoá file mồ côi (10 ngày/lần) chạy đúng, không xoá nhầm file mới upload
 - [ ] Cron backup DB → R2 (2 ngày/lần) + retention tự xoá sau 1 tháng hoạt động đúng
 - [ ] Trang chính sách bảo mật + cơ chế xoá dữ liệu cá nhân

@@ -74,12 +74,16 @@ Xây dựng một cửa hàng hoa online cho phép khách:
 
 - **Quản lý người dùng** (đặc quyền tuyệt đối, chỉ `super_admin` truy cập được):
   - Xem danh sách toàn bộ user, lọc theo role/trạng thái.
-  - Block/unblock tài khoản.
+  - Block/unblock, **xoá (soft delete)** tài khoản.
   - Reset mật khẩu cho user → hệ thống tự sinh mật khẩu mới và **gửi qua email** (Resend).
-  - Cập nhật role của user — **không được** tự đổi role chính mình, **không được** nâng bất kỳ ai (kể cả bản thân) lên `super_admin` qua UI.
+  - Cập nhật role của user, gán role cho user.
+  - **Không được tự đổi role / tự block / tự xoá chính mình**, **không được** gán hoặc tạo thêm `super_admin` qua các chức năng thông thường.
 - **Cấu hình phương thức đăng nhập**: bật/tắt từng phương thức (Google OAuth / email-password / magic link); hệ thống **cảnh báo và chặn** nếu thao tác khiến không còn phương thức nào được bật.
-- **Quản lý role tuỳ ý**: tạo/sửa/xoá role ngoài 6 role mặc định (vd `accountant`, `marketing`), tick chọn permission cho từng role qua UI. Riêng các permission "restricted" (`users.manage`, `settings.manage`, `roles.manage`) **không hiện trong danh sách tick chọn** khi tạo role mới — chỉ tồn tại sẵn ở role hệ thống, tránh tạo ra "super_admin trá hình" — xem [DATABASE.md §2.1](DATABASE.md#21-vì-sao-cần-rbac-chi-tiết-cho-shop-hoa).
+- **Quản lý role tuỳ ý**: tạo/sửa/xoá Custom Role ngoài 3 System Role bắt buộc (`super_admin`/`admin`/`member`, không xoá được), tick chọn permission cho từng role qua UI.
+- **Quản lý permission tuỳ ý**: tạo/sửa/xoá permission (ngoài catalog permission hệ thống seed sẵn), gán cho role. *Lưu ý*: permission tự tạo chỉ thật sự có tác dụng khi có route được lập trình kiểm tra permission đó — tạo qua UI mà chưa nối vào code thì permission chỉ dùng để tổ chức, chưa chặn được gì.
+  - Riêng các permission "restricted" (`users.manage`, `settings.manage`, `roles.manage`) **không hiện trong danh sách tick chọn** khi tạo/sửa role thường — chỉ tồn tại sẵn ở 3 System Role, tránh tạo ra "super_admin trá hình" — xem [DATABASE.md §2.1](DATABASE.md#21-vì-sao-cần-rbac-chi-tiết-cho-shop-hoa).
 - Cấu hình hệ thống, API key thanh toán/email.
+- **Mọi thao tác trên đều ghi Audit Log** (ai, khi nào, giá trị trước/sau).
 
 ### 2.4. Chức năng nền tảng (kỹ thuật)
 
@@ -202,19 +206,25 @@ DELETE /api/account/sessions                  (đăng xuất tất cả thiết 
 
 SuperAdmin — quản lý user (chỉ super_admin)
 GET    /api/superadmin/users
-PATCH  /api/superadmin/users/:id/block
+PATCH  /api/superadmin/users/:id/block            (chặn nếu :id === chính super_admin đang gọi)
 PATCH  /api/superadmin/users/:id/unblock
+DELETE /api/superadmin/users/:id                  (soft delete — chặn nếu :id === chính super_admin đang gọi)
 POST   /api/superadmin/users/:id/reset-password   (sinh mật khẩu mới, gửi email)
-PATCH  /api/superadmin/users/:id/role
+PATCH  /api/superadmin/users/:id/role             (chặn tự đổi role chính mình + chặn newRole=super_admin)
 GET    /api/superadmin/login-methods
 PATCH  /api/superadmin/login-methods/:method      (bật/tắt, chặn nếu tắt hết)
 
 SuperAdmin — quản lý role tuỳ ý (chỉ super_admin)
 GET    /api/superadmin/roles
-POST   /api/superadmin/roles                      (tạo role mới, is_system=false)
+POST   /api/superadmin/roles                      (tạo Custom Role, is_system=false)
 PATCH  /api/superadmin/roles/:id                  (đổi tên/mô tả/permission — chặn nếu is_system=true)
 DELETE /api/superadmin/roles/:id                  (chặn nếu is_system=true hoặc đang có user gán role)
+
+SuperAdmin — quản lý permission tuỳ ý (chỉ super_admin)
 GET    /api/superadmin/permissions                ?assignable=true  (loại bỏ permission is_restricted khi tạo/sửa role thường)
+POST   /api/superadmin/permissions                (tạo permission mới, is_system=false — chỉ có tác dụng khi có route wire authorize() vào code)
+PATCH  /api/superadmin/permissions/:id            (đổi mô tả/nhóm; đổi code chặn nếu is_system=true)
+DELETE /api/superadmin/permissions/:id            (chặn nếu is_system=true hoặc đang gán cho role nào)
 
 Files & tài nguyên
 POST   /api/files/presign                     (lấy presigned URL upload lên R2)
