@@ -21,10 +21,12 @@ function ResetPasswordInner() {
   if (!token) return <p className="text-sm text-red-600">Thiếu token trong liên kết.</p>;
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold text-neutral-900">Đặt lại mật khẩu</h1>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-ink">Đặt lại mật khẩu</h1>
+      </div>
       <form
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-4"
         onSubmit={handleSubmit((values) => resetPassword.mutate({ token, input: values }))}
       >
         <FormField label="Mật khẩu mới" type="password" {...register('newPassword')} error={errors.newPassword} />
@@ -37,7 +39,7 @@ function ResetPasswordInner() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-neutral-700">Đang tải...</p>}>
+    <Suspense fallback={<p className="text-sm text-ink-soft">Đang tải...</p>}>
       <ResetPasswordInner />
     </Suspense>
   );

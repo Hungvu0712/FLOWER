@@ -17,10 +17,13 @@ export default function RegisterPage() {
   } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold text-neutral-900">Đăng ký</h1>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-ink">Tạo tài khoản</h1>
+        <p className="mt-1 text-sm text-ink-muted">Đăng ký để lưu đơn hàng và nhắc lịch đặc biệt</p>
+      </div>
 
-      <form className="flex flex-col gap-3" onSubmit={handleSubmit((values) => registerMutation.mutate(values))}>
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit((values) => registerMutation.mutate(values))}>
         <FormField label="Họ tên" {...register('fullName')} error={errors.fullName} />
         <FormField label="Email" type="email" {...register('email')} error={errors.email} />
         <FormField label="Mật khẩu" type="password" {...register('password')} error={errors.password} />
@@ -30,7 +33,7 @@ export default function RegisterPage() {
         <Button type="submit" loading={registerMutation.isPending}>Tạo tài khoản</Button>
       </form>
 
-      <Link href="/login" className="text-center text-xs text-neutral-500 hover:underline">
+      <Link href="/login" className="text-center text-xs text-ink-muted hover:text-rose">
         Đã có tài khoản? Đăng nhập
       </Link>
     </div>

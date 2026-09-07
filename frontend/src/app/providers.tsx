@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // 1 QueryClient/tab trình duyệt (useState lazy init) — không tạo lại giữa các render.
-// Xem ARCHITECTURE.md §7.2.
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>

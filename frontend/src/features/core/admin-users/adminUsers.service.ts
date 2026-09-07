@@ -9,15 +9,17 @@ export type AdminUserListItem = {
   roles: { role: { code: string; name: string } }[];
 };
 
+type PaginatedMeta = { page: number; limit: number; total: number; totalPages: number };
+
 export const adminUsersService = {
   list: (params: { status?: string; role?: string; search?: string; page?: number }) =>
     api
-      .get<{ data: { items: AdminUserListItem[]; total: number } }>('/api/superadmin/users', { params })
-      .then((r) => r.data.data),
+      .get<{ data: AdminUserListItem[]; meta: PaginatedMeta }>('/api/v1/superadmin/users', { params })
+      .then((r) => ({ items: r.data.data, meta: r.data.meta })),
 
-  block: (id: string) => api.patch(`/api/superadmin/users/${id}/block`),
-  unblock: (id: string) => api.patch(`/api/superadmin/users/${id}/unblock`),
-  remove: (id: string) => api.delete(`/api/superadmin/users/${id}`),
-  resetPassword: (id: string) => api.post(`/api/superadmin/users/${id}/reset-password`),
-  updateRole: (id: string, roleCode: string) => api.patch(`/api/superadmin/users/${id}/role`, { roleCode }),
+  block: (id: string) => api.patch(`/api/v1/superadmin/users/${id}/block`),
+  unblock: (id: string) => api.patch(`/api/v1/superadmin/users/${id}/unblock`),
+  remove: (id: string) => api.delete(`/api/v1/superadmin/users/${id}`),
+  resetPassword: (id: string) => api.post(`/api/v1/superadmin/users/${id}/reset-password`),
+  updateRole: (id: string, roleCode: string) => api.patch(`/api/v1/superadmin/users/${id}/role`, { roleCode }),
 };

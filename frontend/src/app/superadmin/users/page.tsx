@@ -23,58 +23,54 @@ export default function AdminUsersPage() {
   const resetPassword = useResetUserPassword();
 
   return (
-    <div>
-      <h1 className="mb-4 text-lg font-semibold text-neutral-900">Quản lý người dùng</h1>
+    <div className="rounded-3xl border border-border-soft bg-white p-8">
+      <h1 className="font-display mb-6 text-2xl font-semibold text-ink">Quản lý người dùng</h1>
 
       <input
         placeholder="Tìm theo tên/email..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="mb-4 w-full max-w-sm rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-900"
+        className="mb-6 w-full max-w-sm rounded-xl border border-border px-4 py-2.5 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
       />
 
       {isLoading ? (
-        <p className="text-sm text-neutral-500">Đang tải...</p>
+        <p className="text-sm text-ink-muted">Đang tải...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-neutral-200 text-left text-neutral-500">
-                <th className="py-2">Họ tên</th>
-                <th className="py-2">Email</th>
-                <th className="py-2">Role</th>
-                <th className="py-2">Trạng thái</th>
-                <th className="py-2">Hành động</th>
+              <tr className="border-b border-border-soft text-left text-ink-muted">
+                <th className="py-2 font-medium">Họ tên</th>
+                <th className="py-2 font-medium">Email</th>
+                <th className="py-2 font-medium">Role</th>
+                <th className="py-2 font-medium">Trạng thái</th>
+                <th className="py-2 font-medium">Hành động</th>
               </tr>
             </thead>
             <tbody>
               {data?.items.map((user) => {
                 const isSelf = user.id === me?.id;
                 return (
-                  <tr key={user.id} className="border-b border-neutral-100">
-                    <td className="py-2">{user.fullName}</td>
-                    <td className="py-2">{user.email}</td>
-                    <td className="py-2">{user.roles.map((r) => r.role.name).join(', ')}</td>
-                    <td className="py-2">
-                      <span className={user.status === 'blocked' ? 'text-red-600' : 'text-green-600'}>
+                  <tr key={user.id} className="border-b border-border-soft/70">
+                    <td className="py-3">{user.fullName}</td>
+                    <td className="py-3">{user.email}</td>
+                    <td className="py-3">{user.roles.map((r) => r.role.name).join(', ')}</td>
+                    <td className="py-3">
+                      <span className={user.status === 'blocked' ? 'text-red-600' : 'text-sage'}>
                         {user.status === 'blocked' ? 'Đã khoá' : 'Hoạt động'}
                       </span>
                     </td>
-                    <td className="flex flex-wrap gap-2 py-2">
+                    <td className="flex flex-wrap gap-2 py-3">
                       {user.status === 'active' ? (
-                        <Button
-                          variant="ghost"
-                          disabled={isSelf}
-                          onClick={() => blockUser.mutate(user.id)}
-                        >
+                        <Button variant="outline" disabled={isSelf} onClick={() => blockUser.mutate(user.id)}>
                           Khoá
                         </Button>
                       ) : (
-                        <Button variant="ghost" onClick={() => unblockUser.mutate(user.id)}>
+                        <Button variant="outline" onClick={() => unblockUser.mutate(user.id)}>
                           Mở khoá
                         </Button>
                       )}
-                      <Button variant="ghost" onClick={() => resetPassword.mutate(user.id)}>
+                      <Button variant="outline" onClick={() => resetPassword.mutate(user.id)}>
                         Reset mật khẩu
                       </Button>
                       <Button

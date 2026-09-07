@@ -1,26 +1,30 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Design system "Soft Petal" — nguồn: canvas thiết kế đã chọn (.design/flower-storefront).
+   Đổi ở đây sẽ đổi toàn bộ app vì mọi component dùng token, không hard-code màu/font riêng lẻ. */
+@theme {
+  --color-ivory: oklch(97% 0.012 80);
+  --color-ivory-50: oklch(99% 0.006 80);
+  --color-ink: oklch(24% 0.02 40);
+  --color-ink-muted: oklch(45% 0.02 50);
+  --color-ink-soft: oklch(35% 0.02 40);
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-rose: oklch(58% 0.1 20);
+  --color-rose-dark: oklch(48% 0.1 20);
+  --color-rose-light: oklch(93% 0.02 30);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-sage: oklch(55% 0.07 140);
+
+  --color-border: oklch(90% 0.015 70);
+  --color-border-soft: oklch(93% 0.012 70);
+
+  --font-display: var(--font-display), Georgia, serif;
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 20px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ivory);
+  color: var(--color-ink);
 }

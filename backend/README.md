@@ -1,4 +1,4 @@
-# Backend — Express API (Core + Domain)
+# Backend — Express API (TypeScript, Core + Domain)
 
 Xem chuẩn kiến trúc đầy đủ ở [ARCHITECTURE.md](../ARCHITECTURE.md), schema & RBAC ở [DATABASE.md](../DATABASE.md), bảo mật ở [SECURITY.md](../SECURITY.md).
 
@@ -13,21 +13,22 @@ npm run seed:domain    # role/permission domain shop hoa (sales_staff, florist, 
 npm run dev
 ```
 
-Server chạy ở `http://localhost:4000` (đổi qua `PORT` trong `.env`). Kiểm tra nhanh: `GET /health`.
+Server chạy ở `http://localhost:4000`, API mount dưới `/api/v1` (xem ARCHITECTURE.md §5). Kiểm tra
+nhanh: `GET /health` (ngoài versioning).
 
 ## Cấu trúc
 
 ```
 src/
+├── core/            # hạ tầng dùng chung — errors, middleware, response, logger, utils
+├── config/          # env (validate + fail-fast), prisma client, r2 client
 ├── modules/
-│   ├── core/       # auth, users, roles, permissions, files, email, audit-log — xem ARCHITECTURE.md §2
-│   └── domain/     # products, orders... — hiện là thư mục trống, viết dần theo README.md gốc
-├── middlewares/    # authenticate, authorize, errorHandler, asyncHandler, validate
-├── config/         # env, prisma client, r2 client
-├── lib/            # AppError, logger, hash, jwt, rbac
-├── jobs/           # cron: backup DB (2 ngày/lần), dọn file mồ côi (10 ngày/lần)
-├── app.js          # đăng ký middleware + route, KHÔNG listen ở đây (để test dễ import app)
-└── server.js       # entrypoint — listen + đăng ký cron (chỉ ở production)
+│   ├── core/        # auth, users, roles, permissions, settings, files, email, audit-log
+│   └── domain/      # products, orders... — hiện là thư mục trống, viết dần theo README.md gốc
+├── routes/v1/       # gom router từng module thành /api/v1/*
+├── jobs/            # cron: backup DB (2 ngày/lần), dọn file mồ côi (10 ngày/lần)
+├── app.ts           # đăng ký middleware + route, KHÔNG gọi listen() (dễ test)
+└── server.ts        # entrypoint — listen + graceful shutdown + đăng ký cron
 ```
 
 ## Tài khoản mặc định sau seed
@@ -37,10 +38,11 @@ src/
 
 ## Thêm module domain mới
 
-Xem checklist ở [ARCHITECTURE.md §9](../ARCHITECTURE.md#9-checklist-khi-tạo-module-backend-mới). Tóm tắt: tạo
-`modules/domain/<tên>/` với `routes → controller → service`, validate bằng `zod`, bọc controller bằng
-`asyncHandler`, throw `AppError` cho lỗi nghiệp vụ, thêm permission mới vào `prisma/seed/domain.seed.js` nếu
-route cần quyền, rồi mount router trong `app.js`.
+Xem checklist ở [ARCHITECTURE.md §18](../ARCHITECTURE.md#18-checklist-khi-tạo-module-backend-mới). Tóm tắt: tạo
+`modules/domain/<tên>/` với `*.routes.ts → *.controller.ts → *.service.ts`, validate bằng `zod`, bọc
+controller bằng `asyncHandler`, throw `AppError` cho lỗi nghiệp vụ, trả response qua `core/response`,
+thêm permission mới vào `prisma/seed/domain.seed.ts` nếu route cần quyền, rồi mount router trong
+`src/routes/v1/index.ts`.
 
 ## Lưu ý triển khai thật
 
@@ -48,7 +50,7 @@ route cần quyền, rồi mount router trong `app.js`.
   Services (không dùng luồng redirect passport truyền thống).
 - **R2**: cần `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL`.
 - **Email**: mặc định `EMAIL_PROVIDER=smtp` (không cần domain riêng, dễ vào spam hơn); đổi sang
-  `EMAIL_PROVIDER=resend` + `RESEND_API_KEY` khi đã verify domain — xem [ARCHITECTURE.md §6](../ARCHITECTURE.md#6-email-service).
-- **Backup DB**: job `backupDatabase.job.js` gọi binary `pg_dump` — cần cài đặt sẵn trên máy chạy cron
+  `EMAIL_PROVIDER=resend` + `RESEND_API_KEY` khi đã verify domain — xem [ARCHITECTURE.md §9](../ARCHITECTURE.md#9-email).
+- **Backup DB**: job `backupDatabase.job.ts` gọi binary `pg_dump` — cần cài đặt sẵn trên máy chạy cron
   (VPS/Docker image production); không chạy được nếu thiếu binary này trong PATH.
-- Cron chỉ đăng ký khi `NODE_ENV=production` (xem `server.js`) — lúc dev sẽ không tự chạy backup/dọn file.
+- Cron chỉ đăng ký khi `NODE_ENV=production` (xem `server.ts`) — lúc dev sẽ không tự chạy backup/dọn file.

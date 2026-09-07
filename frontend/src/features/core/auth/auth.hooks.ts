@@ -13,7 +13,7 @@ import type {
 } from './auth.schemas';
 
 // Mọi lời gọi API đi qua custom hook — component chỉ render, không biết axios/react-query tồn tại.
-// Xem ARCHITECTURE.md §7.3.
+// Xem ARCHITECTURE.md §13.2.
 
 export function useLoginMethods() {
   return useQuery({ queryKey: ['auth', 'login-methods'], queryFn: authService.getLoginMethods });

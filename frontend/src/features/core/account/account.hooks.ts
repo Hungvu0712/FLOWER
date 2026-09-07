@@ -5,7 +5,7 @@ import { accountService } from './account.service';
 
 export function useMe() {
   // retry: false — 401 ở đây thường chỉ là "chưa đăng nhập" (vd khách ghé trang chủ), không phải lỗi
-  // tạm thời cần thử lại; tránh gọi /api/auth/refresh lặp lại vô ích cho khách vãng lai.
+  // tạm thời cần thử lại; tránh gọi /api/v1/auth/refresh lặp lại vô ích cho khách vãng lai.
   return useQuery({ queryKey: ['account', 'me'], queryFn: accountService.getMe, retry: false });
 }
 

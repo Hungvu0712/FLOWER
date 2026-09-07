@@ -3,15 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "description": "Core + domain Express API (PERN source base)",
-  "main": "src/server.js",
+  "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed:core": "node prisma/seed/core.seed.js",
-    "seed:domain": "node prisma/seed/domain.seed.js"
+    "seed:core": "tsx prisma/seed/core.seed.ts",
+    "seed:domain": "tsx prisma/seed/domain.seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.679.0",
@@ -32,7 +35,17 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
-    "prisma": "^5.22.0"
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.7",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.9.0",
+    "@types/nodemailer": "^6.4.16",
+    "eslint": "^9.15.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.15.0"
   }
 }

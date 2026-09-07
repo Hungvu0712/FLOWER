@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Space Grotesk', system-ui, sans-serif; background: oklch(99% 0 0); color: oklch(15% 0 0); }
+    a { color: oklch(15% 0 0); text-decoration: none; }
+    .btn { display: inline-flex; align-items: center; gap: 10px; padding: 16px 30px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary { background: oklch(15% 0 0); color: white; }
+  </style>
+</helmet>
+
+<div style="width:1280px; min-height:1040px; background: oklch(99% 0 0);">
+
+  <!-- Nav -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding: 28px 56px;">
+    <h3 style="font-size:22px; font-weight:700;">HOA XINH</h3>
+    <div style="display:flex; gap:32px; font-size:15px; font-weight:500;">
+      <a href="#">Shop</a><a href="#">Dịp lễ</a><a href="#">Về Hoa Xinh</a>
+    </div>
+    <button style="background:oklch(65% 0.19 20); color:white; border:none; border-radius:10px; padding:10px 20px; font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px;">
+      Giỏ hàng · 0
+    </button>
+  </div>
+
+  <!-- Hero: bold, grid-breaking -->
+  <div style="position:relative; padding: 32px 56px 0; overflow:hidden;">
+    <div style="position:absolute; top:20px; right:56px; width:340px; height:340px; border-radius:50%; background:oklch(80% 0.15 100); z-index:0;"></div>
+    <div style="position:relative; z-index:1; display:flex; align-items:flex-start; gap:40px;">
+      <div style="flex:1.2; padding-top:24px;">
+        <div style="display:inline-flex; align-items:center; gap:8px; background:oklch(96% 0.02 20); padding:8px 16px; border-radius:999px; font-size:13px; font-weight:600; color:oklch(50% 0.15 20); margin-bottom:24px;">
+          🌸 Giao trong 2 giờ tại nội thành
+        </div>
+        <h1 style="font-size:88px; line-height:0.95; font-weight:700; letter-spacing:-2px; margin:0;">HOA<br><span style="color:oklch(65% 0.19 20);">TƯƠI</span><br>MỖI NGÀY.</h1>
+      </div>
+      <div style="flex:1; padding-top:120px;">
+        <div style="width:100%; aspect-ratio:1; border-radius:24px; background:oklch(93% 0.05 20); display:flex; align-items:center; justify-content:center; transform:rotate(3deg); box-shadow: 12px 16px 0 oklch(15% 0 0 / 0.06);">
+          <svg width="180" height="180" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="7" r="3.4" fill="oklch(65% 0.19 20)"/><circle cx="7" cy="12" r="3.4" fill="oklch(80% 0.15 100)"/><circle cx="17" cy="12" r="3.4" fill="oklch(80% 0.15 100)"/><circle cx="12" cy="15" r="3.4" fill="oklch(65% 0.19 20)"/>
+            <line x1="12" y1="16" x2="12" y2="22" stroke="oklch(50% 0.1 150)" stroke-width="2"/>
+          </svg>
+        </div>
+        <p style="font-size:15px; line-height:1.6; margin-top:24px; color:oklch(35% 0 0); max-width:280px;">Chọn hoa, chọn giờ giao — chỉ vậy thôi. Đơn giản như gửi một tin nhắn yêu thương.</p>
+        <button class="btn btn-primary" style="margin-top:20px;">Đặt hoa ngay
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category chips -->
+  <div style="display:flex; gap:12px; padding: 64px 56px 40px; flex-wrap:wrap;">
+    <sc-for list="{{categories}}" as="cat" hint-placeholder-count="4">
+      <div style="padding:10px 20px; border-radius:10px; background:{{cat.bg}}; font-size:14px; font-weight:600; color:{{cat.fg}};">{{cat.label}}</div>
+    </sc-for>
+  </div>
+
+  <!-- Featured products: bold cards -->
+  <div style="padding: 0 56px 96px;">
+    <h2 style="font-size:36px; font-weight:700; margin-bottom:32px;">Bán chạy tuần này 🔥</h2>
+    <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:24px;">
+      <sc-for list="{{products}}" as="p" hint-placeholder-count="4">
+        <div style="background:{{p.card}}; border-radius:20px; padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="width:100%; aspect-ratio:1; border-radius:14px; background:oklch(100% 0 0 / 0.5); display:flex; align-items:center; justify-content:center;">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="7" r="3" fill="{{p.fg}}"/><circle cx="7.5" cy="12" r="3" fill="{{p.fg}}" opacity="0.8"/><circle cx="16.5" cy="12" r="3" fill="{{p.fg}}" opacity="0.8"/>
+            </svg>
+          </div>
+          <h3 style="font-size:18px; font-weight:700;">{{p.name}}</h3>
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:16px; font-weight:700;">{{p.price}}</span>
+            <button style="width:36px; height:36px; border-radius:50%; border:none; background:oklch(15% 0 0); color:white; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      categories: [
+        {label:'Sinh nhật', bg:'oklch(93% 0.05 20)', fg:'oklch(45% 0.15 20)'},
+        {label:'Khai trương', bg:'oklch(93% 0.08 100)', fg:'oklch(45% 0.12 90)'},
+        {label:'Cưới hỏi', bg:'oklch(93% 0.03 320)', fg:'oklch(45% 0.1 320)'},
+        {label:'Chia buồn', bg:'oklch(94% 0.01 240)', fg:'oklch(45% 0.03 240)'},
+      ],
+      products: [
+        {name:'Passion Đỏ', price:'450.000₫', card:'oklch(95% 0.04 20)', fg:'oklch(60% 0.16 15)'},
+        {name:'Nắng Hướng Dương', price:'380.000₫', card:'oklch(95% 0.06 90)', fg:'oklch(68% 0.14 85)'},
+        {name:'Phú Quý Lẵng', price:'1.250.000₫', card:'oklch(95% 0.04 40)', fg:'oklch(60% 0.12 35)'},
+        {name:'Ivory Cầm Tay', price:'620.000₫', card:'oklch(95% 0.02 320)', fg:'oklch(66% 0.08 320)'},
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

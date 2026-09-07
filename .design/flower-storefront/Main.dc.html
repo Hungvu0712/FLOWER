@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=DM+Sans:wght@400;500;600&display=swap">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'DM Sans', system-ui, sans-serif; background: oklch(97% 0.012 80); color: oklch(24% 0.02 40); }
+    h1, h2, h3 { font-family: 'Cormorant Garamond', Georgia, serif; margin: 0; }
+    a { color: oklch(45% 0.09 20); text-decoration: none; }
+    a:hover { color: oklch(35% 0.09 20); }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: 999px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary { background: oklch(58% 0.1 20); color: oklch(98% 0.005 20); }
+    .btn-outline { background: transparent; color: oklch(30% 0.02 40); border: 1.5px solid oklch(70% 0.02 60); }
+  </style>
+</helmet>
+
+<div style="width:1280px; min-height:1000px; background: oklch(97% 0.012 80);">
+
+  <!-- Nav -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding: 28px 64px; border-bottom: 1px solid oklch(90% 0.015 70);">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="3.2" fill="oklch(65% 0.09 20)"/><circle cx="7" cy="12" r="3.2" fill="oklch(70% 0.07 40)"/><circle cx="17" cy="12" r="3.2" fill="oklch(70% 0.07 40)"/><circle cx="12" cy="15" r="3.2" fill="oklch(60% 0.1 10)"/><line x1="12" y1="16" x2="12" y2="22" stroke="oklch(55% 0.06 140)" stroke-width="1.6"/></svg>
+      <h3 style="font-size:24px; font-weight:600; letter-spacing:0.3px;">Hoa Xinh</h3>
+    </div>
+    <div style="display:flex; gap:36px; font-size:15px; font-weight:500; color:oklch(35% 0.02 40);">
+      <a href="#">Trang chủ</a><a href="#">Sản phẩm</a><a href="#">Dịp lễ</a><a href="#">Về chúng tôi</a><a href="#">Liên hệ</a>
+    </div>
+    <div style="display:flex; align-items:center; gap:20px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="oklch(30% 0.02 40)" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="oklch(30% 0.02 40)" stroke-width="1.8"><path d="M3 6h2l2.4 12.4a2 2 0 0 0 2 1.6h8.4a2 2 0 0 0 2-1.6L22 8H6"/><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></svg>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div style="display:flex; align-items:center; gap:64px; padding: 80px 64px 96px;">
+    <div style="flex:1;">
+      <p style="font-size:14px; letter-spacing:2px; text-transform:uppercase; color:oklch(58% 0.1 20); font-weight:600; margin-bottom:20px;">Hoa tươi mỗi ngày</p>
+      <h1 style="font-size:64px; line-height:1.08; font-weight:600; color:oklch(20% 0.02 40);">Gửi trao yêu thương<br>qua từng cánh hoa</h1>
+      <p style="font-size:17px; line-height:1.7; color:oklch(40% 0.02 50); max-width:460px; margin:28px 0 36px;">Đặt hoa tươi giao tận nơi theo đúng ngày giờ bạn chọn — sinh nhật, khai trương, cưới hỏi hay chỉ đơn giản là một lời hỏi thăm.</p>
+      <div style="display:flex; gap:16px;">
+        <button class="btn btn-primary">Đặt hoa ngay
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <button class="btn btn-outline">Xem bộ sưu tập</button>
+      </div>
+    </div>
+    <div style="flex:1; display:flex; justify-content:center;">
+      <svg width="420" height="420" viewBox="0 0 420 420" fill="none">
+        <circle cx="210" cy="210" r="200" fill="oklch(93% 0.02 30)"/>
+        <line x1="210" y1="260" x2="210" y2="360" stroke="oklch(55% 0.07 140)" stroke-width="4"/>
+        <line x1="180" y1="270" x2="150" y2="350" stroke="oklch(55% 0.07 140)" stroke-width="3"/>
+        <line x1="240" y1="270" x2="270" y2="350" stroke="oklch(55% 0.07 140)" stroke-width="3"/>
+        <circle cx="210" cy="200" r="52" fill="oklch(62% 0.11 15)"/>
+        <circle cx="140" cy="230" r="40" fill="oklch(70% 0.09 30)"/>
+        <circle cx="280" cy="230" r="40" fill="oklch(70% 0.09 30)"/>
+        <circle cx="175" cy="160" r="34" fill="oklch(75% 0.08 45)"/>
+        <circle cx="250" cy="160" r="34" fill="oklch(75% 0.08 45)"/>
+        <circle cx="210" cy="200" r="14" fill="oklch(85% 0.1 90)"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Category chips -->
+  <div style="display:flex; gap:14px; padding: 0 64px 56px; flex-wrap:wrap;">
+    <sc-for list="{{categories}}" as="cat" hint-placeholder-count="4">
+      <div style="padding:10px 22px; border-radius:999px; background:oklch(100% 0 0); border:1px solid oklch(90% 0.015 60); font-size:14px; font-weight:500; color:oklch(35% 0.02 40);">{{cat.label}}</div>
+    </sc-for>
+  </div>
+
+  <!-- Featured products -->
+  <div style="padding: 0 64px 96px;">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:32px;">
+      <h2 style="font-size:34px; font-weight:600;">Hoa bán chạy</h2>
+      <a href="#" style="font-size:14px; font-weight:600;">Xem tất cả →</a>
+    </div>
+    <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:28px;">
+      <sc-for list="{{products}}" as="p" hint-placeholder-count="4">
+        <div style="background:oklch(100% 0 0); border-radius:20px; padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="width:100%; aspect-ratio:1; border-radius:14px; background:{{p.bg}}; display:flex; align-items:center; justify-content:center;">
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="7" r="3" fill="{{p.fg}}"/><circle cx="7.5" cy="12" r="3" fill="{{p.fg}}" opacity="0.75"/><circle cx="16.5" cy="12" r="3" fill="{{p.fg}}" opacity="0.75"/>
+              <line x1="12" y1="12" x2="12" y2="19" stroke="oklch(55% 0.07 140)" stroke-width="1.3"/>
+            </svg>
+          </div>
+          <div>
+            <h3 style="font-size:19px; font-weight:600;">{{p.name}}</h3>
+            <p style="font-size:14px; color:oklch(50% 0.02 50); margin:6px 0 0;">{{p.desc}}</p>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:auto;">
+            <span style="font-size:17px; font-weight:600; color:oklch(58% 0.1 20);">{{p.price}}</span>
+            <button style="width:38px; height:38px; border-radius:50%; border:none; background:oklch(58% 0.1 20); color:white; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      categories: [{label:'Sinh nhật'},{label:'Khai trương'},{label:'Cưới hỏi'},{label:'Chia buồn'}],
+      products: [
+        {name:'Bó hồng đỏ Passion', desc:'12 bông hồng Ecuador', price:'450.000₫', bg:'oklch(94% 0.03 20)', fg:'oklch(60% 0.13 15)'},
+        {name:'Giỏ hướng dương nắng', desc:'Giỏ mây tự nhiên', price:'380.000₫', bg:'oklch(94% 0.04 90)', fg:'oklch(70% 0.13 85)'},
+        {name:'Lẵng khai trương Phú Quý', desc:'Cao 1m2, kèm dải lụa', price:'1.250.000₫', bg:'oklch(94% 0.03 40)', fg:'oklch(62% 0.11 35)'},
+        {name:'Cầm tay cô dâu Ivory', desc:'Hoa mẫu đơn & baby', price:'620.000₫', bg:'oklch(95% 0.02 320)', fg:'oklch(68% 0.08 320)'},
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

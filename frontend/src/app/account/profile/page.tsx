@@ -7,6 +7,7 @@ import { useMe, useUpdateProfile, useChangePassword } from '@/features/core/acco
 import { useUploadFile } from '@/features/core/files/files.hooks';
 import { FormField } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
+import { FlowerIcon } from '@/components/ui/FlowerIcon';
 
 const profileSchema = z.object({
   fullName: z.string().min(1, 'Vui lòng nhập họ tên'),
@@ -32,7 +33,7 @@ export default function ProfilePage() {
   });
   const passwordForm = useForm<PasswordInput>({ resolver: zodResolver(passwordSchema) });
 
-  if (isLoading || !me) return <p className="text-sm text-neutral-500">Đang tải...</p>;
+  if (isLoading || !me) return <p className="text-sm text-ink-muted">Đang tải...</p>;
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -42,25 +43,27 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <section>
-        <h1 className="mb-4 text-lg font-semibold text-neutral-900">Hồ sơ</h1>
+    <div className="flex flex-col gap-10">
+      <section className="rounded-3xl border border-border-soft bg-white p-8">
+        <h1 className="font-display mb-6 text-2xl font-semibold text-ink">Hồ sơ</h1>
 
-        <div className="mb-4 flex items-center gap-4">
+        <div className="mb-6 flex items-center gap-4">
           {me.avatarFile ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={me.avatarFile.url} alt="Avatar" className="h-16 w-16 rounded-full object-cover" />
           ) : (
-            <div className="h-16 w-16 rounded-full bg-neutral-200" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-light">
+              <FlowerIcon className="h-7 w-7" color="var(--color-rose)" />
+            </div>
           )}
-          <label className="text-sm text-neutral-600 hover:underline cursor-pointer">
+          <label className="cursor-pointer text-sm font-medium text-rose hover:text-rose-dark">
             {uploadFile.isPending ? 'Đang tải ảnh lên...' : 'Đổi avatar'}
             <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </label>
         </div>
 
         <form
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-4"
           onSubmit={profileForm.handleSubmit((values) => updateProfile.mutate(values))}
         >
           <FormField label="Email" value={me.email} disabled />
@@ -69,14 +72,14 @@ export default function ProfilePage() {
           <Button type="submit" loading={updateProfile.isPending} className="self-start">
             Lưu thay đổi
           </Button>
-          {updateProfile.isSuccess && <p className="text-xs text-green-600">Đã lưu.</p>}
+          {updateProfile.isSuccess && <p className="text-xs text-sage">Đã lưu.</p>}
         </form>
       </section>
 
-      <section>
-        <h2 className="mb-4 text-lg font-semibold text-neutral-900">Đổi mật khẩu</h2>
+      <section className="rounded-3xl border border-border-soft bg-white p-8">
+        <h2 className="font-display mb-6 text-2xl font-semibold text-ink">Đổi mật khẩu</h2>
         <form
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-4"
           onSubmit={passwordForm.handleSubmit((values) => {
             changePassword.mutate(values, { onSuccess: () => passwordForm.reset() });
           })}
@@ -94,7 +97,7 @@ export default function ProfilePage() {
             error={passwordForm.formState.errors.newPassword}
           />
           {changePassword.isError && <p className="text-xs text-red-600">Mật khẩu hiện tại không đúng.</p>}
-          {changePassword.isSuccess && <p className="text-xs text-green-600">Đổi mật khẩu thành công.</p>}
+          {changePassword.isSuccess && <p className="text-xs text-sage">Đổi mật khẩu thành công.</p>}
           <Button type="submit" loading={changePassword.isPending} className="self-start">
             Đổi mật khẩu
           </Button>

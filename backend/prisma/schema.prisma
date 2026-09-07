@@ -220,13 +220,13 @@ model AuditLog {
 }
 
 model EmailLog {
-  id                String    @id @default(uuid())
-  toEmail           String    @map("to_email")
+  id                String   @id @default(uuid())
+  toEmail           String   @map("to_email")
   type              String // 'welcome' | 'magic_link' | 'password_reset' | 'order_confirmation'...
   status            String // 'sent' | 'failed'
-  providerMessageId String?   @map("provider_message_id")
+  providerMessageId String?  @map("provider_message_id")
   error             String?
-  sentAt            DateTime  @default(now()) @map("sent_at")
+  sentAt            DateTime @default(now()) @map("sent_at")
 
   @@map("email_logs")
 }

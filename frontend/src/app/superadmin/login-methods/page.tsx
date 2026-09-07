@@ -9,29 +9,29 @@ const LABELS: Record<string, string> = {
 };
 
 // Luôn phải còn >= 1 phương thức bật — backend chặn cứng (SECURITY.md §1), ở đây chỉ disable nút +
-// hiện cảnh báo sớm cho UX tốt hơn (yêu cầu #7).
+// hiện cảnh báo sớm cho UX tốt hơn.
 export default function LoginMethodsPage() {
   const { data: methods, isLoading } = useAdminLoginMethods();
   const update = useUpdateLoginMethod();
 
-  if (isLoading || !methods) return <p className="text-sm text-neutral-500">Đang tải...</p>;
+  if (isLoading || !methods) return <p className="text-sm text-ink-muted">Đang tải...</p>;
 
   const enabledCount = methods.filter((m) => m.isEnabled).length;
 
   return (
-    <div>
-      <h1 className="mb-4 text-lg font-semibold text-neutral-900">Phương thức đăng nhập</h1>
+    <div className="rounded-3xl border border-border-soft bg-white p-8">
+      <h1 className="font-display mb-6 text-2xl font-semibold text-ink">Phương thức đăng nhập</h1>
 
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {methods.map((m) => {
           const isLastEnabled = m.isEnabled && enabledCount === 1;
           return (
             <li
               key={m.method}
-              className="flex items-center justify-between rounded-md border border-neutral-200 px-4 py-3"
+              className="flex items-center justify-between rounded-2xl border border-border-soft px-5 py-4"
             >
               <div>
-                <p className="text-sm font-medium text-neutral-900">{LABELS[m.method]}</p>
+                <p className="text-sm font-medium text-ink">{LABELS[m.method]}</p>
                 {isLastEnabled && (
                   <p className="text-xs text-amber-600">
                     Đây là phương thức duy nhất đang bật — không thể tắt (luôn cần tối thiểu 1 phương thức).
@@ -44,7 +44,7 @@ export default function LoginMethodsPage() {
                 disabled={isLastEnabled || update.isPending}
                 onClick={() => update.mutate({ method: m.method, isEnabled: !m.isEnabled })}
                 className={`h-6 w-11 rounded-full transition-colors disabled:opacity-40 ${
-                  m.isEnabled ? 'bg-neutral-900' : 'bg-neutral-300'
+                  m.isEnabled ? 'bg-rose' : 'bg-border'
                 }`}
               >
                 <span

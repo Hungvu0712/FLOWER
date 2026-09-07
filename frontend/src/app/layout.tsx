@@ -1,30 +1,30 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Design system "Soft Petal" — xem .design/flower-storefront (canvas đã chọt) và ARCHITECTURE.md §13.
+const cormorant = Cormorant_Garamond({
+  variable: "--font-display",
+  subsets: ["latin", "latin-ext"],
+  weight: ["500", "600"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const dmSans = DM_Sans({
+  variable: "--font-sans",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "Flower Shop",
-  description: "Website bán hoa trực tuyến",
+  title: "Hoa Xinh — Hoa tươi mỗi ngày",
+  description: "Website bán hoa trực tuyến — đặt hoa tươi giao tận nơi theo đúng ngày giờ bạn chọn.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="vi"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
+    <html lang="vi" className={`${cormorant.variable} ${dmSans.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col bg-ivory text-ink font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>

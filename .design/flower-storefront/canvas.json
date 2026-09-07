@@ -1,0 +1,17 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1280, "h": 1080, "title": "Hoa Xinh — Trang chủ", "page": "page-1" },
+    { "file": "DirectionB.dc.html", "x": 0, "y": 0, "w": 1280, "h": 1080, "title": "B — Botanical Editorial", "page": "page-2" },
+    { "file": "DirectionC.dc.html", "x": 1400, "y": 0, "w": 1280, "h": 1080, "title": "C — Modern Bloom", "page": "page-2" }
+  ],
+  "annotations": [
+    { "id": "note-chosen", "x": 0, "y": -90, "w": 420, "text": "Đã chọn: hướng A — Soft Petal. Đây là thiết kế chính thức.", "page": "page-1" },
+    { "id": "note-botanical", "x": 0, "y": -90, "w": 420, "text": "Phương án không chọn — giữ lại để tham khảo.", "page": "page-2" },
+    { "id": "note-modern", "x": 1400, "y": -90, "w": 420, "text": "Phương án không chọn — giữ lại để tham khảo.", "page": "page-2" }
+  ],
+  "pages": [
+    { "id": "page-1", "name": "Trang chủ" },
+    { "id": "page-2", "name": "Phương án khác" }
+  ],
+  "launch": { "view": "focused", "file": "Main.dc.html" }
+}

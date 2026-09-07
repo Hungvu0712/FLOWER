@@ -19,7 +19,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 | OAuth Google bị giả mạo callback | Dùng `state` param chống CSRF, xác thực domain redirect_uri whitelist |
 | Email/số điện thoại giả khi đăng ký | Xác thực email (verification link) trước khi cho đặt hàng thanh toán online; OTP SMS khi cần |
 | **Bị vô hiệu hoá hết phương thức đăng nhập** | Service `login-methods.update` luôn kiểm tra: sau khi áp thay đổi, phải còn **≥ 1** phương thức `is_enabled = true`, nếu không → trả lỗi 400 + cảnh báo rõ ràng trên UI SuperAdmin, không cho lưu |
-| Chiếm phiên qua thiết bị bị đánh cắp | Người dùng tự xem danh sách thiết bị (`GET /api/account/sessions`) và **đăng xuất từ xa** từng thiết bị hoặc toàn bộ (revoke `sessions`); nên gửi email cảnh báo khi có đăng nhập từ thiết bị/IP lạ |
+| Chiếm phiên qua thiết bị bị đánh cắp | Người dùng tự xem danh sách thiết bị (`GET /api/v1/account/sessions`) và **đăng xuất từ xa** từng thiết bị hoặc toàn bộ (revoke `sessions`); nên gửi email cảnh báo khi có đăng nhập từ thiết bị/IP lạ |
 
 ---
 
@@ -28,15 +28,15 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 Đã thiết kế RBAC chi tiết ở [DATABASE.md §2](DATABASE.md#2-hệ-thống-vai-trò--phân-quyền-rbac). Về mặt bảo mật cần lưu ý thêm:
 
 - **Không bao giờ tin tưởng kiểm tra quyền ở frontend** — mọi permission check phải lặp lại ở backend (frontend chỉ ẩn UI cho trải nghiệm).
-- **Chống IDOR (Insecure Direct Object Reference)**: khi truy vấn `GET /api/orders/:id`, phải kiểm tra `orders.user_id === req.user.id` (trừ khi user có `orders.view_all`) — không chỉ dựa vào việc "biết ID" là được xem.
+- **Chống IDOR (Insecure Direct Object Reference)**: khi truy vấn `GET /api/v1/orders/:id`, phải kiểm tra `orders.user_id === req.user.id` (trừ khi user có `orders.view_all`) — không chỉ dựa vào việc "biết ID" là được xem.
 - **Row-level check cho nhân viên vận hành**: `shipper` chỉ được cập nhật đơn có `order_deliveries.shipper_id = req.user.id`; `florist` chỉ được sửa đơn đang ở trạng thái "đang chuẩn bị".
 - **Nguyên tắc đặc quyền tối thiểu (least privilege)**: tài khoản `sales_staff` mặc định không có `products.delete`, `settings.manage`.
-- **Quản lý user chỉ thuộc về `super_admin`** (permission `users.manage` chỉ gán cho role này) — service xử lý các API `PATCH /api/superadmin/users/:id/role`, `/block`, `/unblock`, `DELETE /api/superadmin/users/:id`, `/reset-password` phải chặn cứng ở tầng service (không chỉ dựa vào middleware `authorize`), với các ràng buộc bắt buộc:
+- **Quản lý user chỉ thuộc về `super_admin`** (permission `users.manage` chỉ gán cho role này) — service xử lý các API `PATCH /api/v1/superadmin/users/:id/role`, `/block`, `/unblock`, `DELETE /api/v1/superadmin/users/:id`, `/reset-password` phải chặn cứng ở tầng service (không chỉ dựa vào middleware `authorize`), với các ràng buộc bắt buộc:
   1. `targetUserId !== req.user.id` — không tự đổi role, **không tự block, không tự xoá** chính mình (áp dụng đồng nhất cho cả 3 hành động, không chỉ riêng đổi role).
   2. `newRole !== 'super_admin'` — không được gán hoặc nâng bất kỳ ai (kể cả chính mình) lên `super_admin` qua API; tài khoản `super_admin` chỉ tạo được qua seed hoặc thao tác thủ công trực tiếp trên DB.
-- **Leo thang quyền qua Custom Role (shadow super_admin)**: hệ thống cho phép `super_admin` tạo role tuỳ ý — đây là điểm dễ bị lợi dụng nếu không chặn đúng chỗ. API `POST/PATCH /api/superadmin/roles` phải **luôn lọc bỏ** mọi permission có `is_restricted = true` (`users.manage`, `settings.manage`, `roles.manage`, `permissions.manage`) khỏi payload trước khi ghi `role_permissions`, kể cả khi request cố tình gửi kèm — không chỉ ẩn ở UI. Việc kiểm tra này nằm ở tầng service, không tin payload từ client.
+- **Leo thang quyền qua Custom Role (shadow super_admin)**: hệ thống cho phép `super_admin` tạo role tuỳ ý — đây là điểm dễ bị lợi dụng nếu không chặn đúng chỗ. API `POST/PATCH /api/v1/superadmin/roles` phải **luôn lọc bỏ** mọi permission có `is_restricted = true` (`users.manage`, `settings.manage`, `roles.manage`, `permissions.manage`) khỏi payload trước khi ghi `role_permissions`, kể cả khi request cố tình gửi kèm — không chỉ ẩn ở UI. Việc kiểm tra này nằm ở tầng service, không tin payload từ client.
 - **Rủi ro khi cho phép tạo Permission tuỳ ý**: 2 hướng cần chặn riêng —
-  1. *Phá route đang chạy*: permission `is_system = true` (đã có `authorize('code')` tham chiếu trong code) không cho đổi `code` hoặc xoá qua API `PATCH/DELETE /api/superadmin/permissions/:id` — nếu không, route liên quan sẽ mất kiểm soát quyền (tuỳ cách code xử lý permission không tồn tại: có thể *fail-open* cho qua hết, hoặc *fail-closed* chặn hết người dùng hợp lệ).
+  1. *Phá route đang chạy*: permission `is_system = true` (đã có `authorize('code')` tham chiếu trong code) không cho đổi `code` hoặc xoá qua API `PATCH/DELETE /api/v1/superadmin/permissions/:id` — nếu không, route liên quan sẽ mất kiểm soát quyền (tuỳ cách code xử lý permission không tồn tại: có thể *fail-open* cho qua hết, hoặc *fail-closed* chặn hết người dùng hợp lệ).
   2. *Permission mới không có tác dụng thật*: vì `authorize()` chỉ kiểm tra permission mà route đã khai báo, permission `super_admin` tự tạo qua UI **không tự động chặn được gì** cho tới khi developer thêm `authorize('permission-mới')` vào route tương ứng trong code — cần hiển thị rõ cảnh báo này trên UI để `super_admin` không hiểu nhầm là "tạo xong là có hiệu lực ngay".
 - **Reset password bởi SuperAdmin**: sinh mật khẩu ngẫu nhiên đủ mạnh, hash trước khi lưu, gửi bản rõ **duy nhất một lần** qua email (Resend) — không log, không trả về trong response API, không hiển thị lại cho `super_admin`.
 - **Audit log cho mọi thao tác nhạy cảm** — ghi vào bảng `audit_logs` (xem [DATABASE.md §3.1](DATABASE.md)): ai (`actor_id`), hành động (`action`), đối tượng (`entity_type`/`entity_id`), giá trị trước/sau (`before`/`after` JSONB), IP, thời điểm. Áp dụng cho: đổi giá sản phẩm, xoá sản phẩm, đổi role user, gán role, block/unblock/xoá user, reset password, tạo/sửa/xoá Custom Role, tạo/sửa/xoá Permission, gán Permission cho Role, bật/tắt phương thức đăng nhập, hoàn tiền đơn hàng. Ghi log là thao tác **best-effort, không chặn transaction chính** nếu ghi log lỗi (log lỗi ghi audit riêng, không rollback nghiệp vụ).
@@ -49,12 +49,12 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 |---|---|
 | HTTP headers an toàn | `helmet` middleware (CSP, X-Frame-Options, X-Content-Type-Options...) |
 | CORS | Whitelist chính xác domain frontend (`origin: process.env.FRONTEND_URL`), không dùng `*` khi có credentials |
-| Validate input | `zod` hoặc `joi` validate toàn bộ body/query/params trước khi vào controller — chặn payload rác, giới hạn độ dài chuỗi |
+| Validate input | `zod` validate toàn bộ body/query/params trước khi vào controller (`core/middleware/validate.ts`) — chặn payload rác, giới hạn độ dài chuỗi |
 | Chống SQL Injection | Dùng ORM (Prisma) với parameterized query; **không** nối chuỗi SQL thủ công |
 | Chống NoSQL/JSON injection | Validate kiểu dữ liệu nghiêm ngặt nếu dùng JSONB trong Postgres |
 | Chống XSS | React/Next.js tự escape output; nếu render nội dung blog dạng HTML (`dangerouslySetInnerHTML`) phải sanitize bằng `DOMPurify` (hoặc `isomorphic-dompurify` khi chạy ở Server Component) trước khi lưu/hiển thị |
 | CSRF | Nếu dùng cookie cho auth: bật CSRF token cho các request thay đổi state (`csurf` hoặc double-submit cookie pattern) |
-| Rate limiting API công khai | Giới hạn `/api/products`, `/api/cart` theo IP để chống scraping/spam bot |
+| Rate limiting API công khai | Giới hạn `/api/v1/products`, `/api/v1/cart` theo IP để chống scraping/spam bot |
 | Giới hạn kích thước request | `express.json({ limit: '1mb' })` tránh payload khổng lồ gây DoS |
 | HTTPS bắt buộc | Redirect HTTP→HTTPS, bật HSTS ở production |
 | Upload ảnh sản phẩm/avatar | Giới hạn loại file (jpg/png/webp), giới hạn dung lượng, đổi tên file ngẫu nhiên (không dùng tên gốc làm key), upload thẳng lên Cloudflare R2 qua **presigned URL** (không đi qua server ứng dụng), quét virus nếu cho khách upload ảnh review |
@@ -77,7 +77,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - **Presigned upload có kiểm soát**: URL presigned chỉ cấp sau khi backend xác thực user, giới hạn `content-type` + kích thước tối đa trong điều kiện ký, và có thời gian hết hạn ngắn (vài phút) — tránh bị lợi dụng upload file tuỳ ý.
 - **Dọn file mồ côi (10 ngày/lần)**: cron job xoá file trong `files` không còn `file_usages` tham chiếu và đã quá ngưỡng an toàn (≥ 24h kể từ lúc upload) — vừa tiết kiệm dung lượng, vừa giảm bề mặt tấn công (file rác không ai quản lý). Trước khi xoá cứng trên R2, xoá record DB trong cùng transaction để tránh mất đồng bộ.
 - **Backup PostgreSQL lên R2**: `pg_dump` định kỳ **2 ngày/lần**, nén + **mã hoá** trước khi đẩy lên bucket `backups/` riêng (tách khỏi bucket ảnh công khai), giới hạn quyền truy cập bucket này ở mức tối thiểu (chỉ service account backup được ghi/đọc).
-- **Retention tự động**: cấu hình lifecycle rule của R2 (hoặc cron job riêng) để **tự xoá backup cũ hơn 1 tháng** — tránh backup tồn đọng vô thời hạn vừa tốn chi phí vừa tăng rủi ro rò rỉ nếu bucket bị lộ.
+- **Retention tự động**: cấu hình lifecycle rule của R2 (hoặc cron job riêng) để **tự xoá backup cũ hơn 30 ngày** — tránh backup tồn đọng vô thời hạn vừa tốn chi phí vừa tăng rủi ro rò rỉ nếu bucket bị lộ.
 - **Test khôi phục định kỳ**: backup vô dụng nếu chưa từng thử restore — lên lịch kiểm tra khôi phục thử (staging) theo quý.
 
 ---
@@ -133,7 +133,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - [ ] Idempotency xử lý webhook
 - [ ] Rate limit đăng nhập + captcha checkout
 - [ ] HTTPS + HSTS ở production
-- [ ] API đăng xuất từ xa (`DELETE /api/account/sessions/:id`) hoạt động đúng — không cho revoke session của user khác
+- [ ] API đăng xuất từ xa (`DELETE /api/v1/account/sessions/:id`) hoạt động đúng — không cho revoke session của user khác
 - [ ] Validate luôn còn ≥ 1 `login_method` được bật khi SuperAdmin cập nhật cấu hình
 
 **Giai đoạn 3 — Tăng trưởng**
@@ -143,7 +143,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - [ ] API tạo/sửa/xoá permission chặn đúng permission `is_system = true` (không đổi được `code`, không xoá được)
 - [ ] Test tự block/tự xoá/tự đổi role chính mình đều bị chặn (không chỉ test riêng đổi role)
 - [ ] Cron job xoá file mồ côi (10 ngày/lần) chạy đúng, không xoá nhầm file mới upload
-- [ ] Cron backup DB → R2 (2 ngày/lần) + retention tự xoá sau 1 tháng hoạt động đúng
+- [ ] Cron backup DB → R2 (2 ngày/lần) + retention tự xoá sau 30 ngày hoạt động đúng
 - [ ] Trang chính sách bảo mật + cơ chế xoá dữ liệu cá nhân
 
 **Giai đoạn 4 — Mở rộng**

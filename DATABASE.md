@@ -174,7 +174,7 @@ function authorize(...requiredPermissions) {
   };
 }
 
-router.patch('/api/orders/:id/status', authenticate, authorize('orders.update_status'), updateOrderStatus);
+router.patch('/api/v1/orders/:id/status', authenticate, authorize('orders.update_status'), updateOrderStatus);
 ```
 
 - Với đơn hàng, cần kiểm tra thêm **phạm vi dữ liệu** (row-level), không chỉ permission chung:
@@ -228,7 +228,7 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 | `file_usages` | id, file_id, entity_type (`product`, `user_avatar`, `blog_post`...), entity_id, created_at | 1 file được gắn vào nhiều nơi → **tái sử dụng ảnh cũ** thay vì upload trùng; `UNIQUE(file_id, entity_type, entity_id)` |
 
 - File được coi là **mồ côi (orphan)** khi không còn dòng nào trong `file_usages` trỏ tới, và đã tạo quá một ngưỡng an toàn (vd 24h, để không xoá nhầm ảnh vừa upload nhưng form chưa submit xong).
-- Cron job **10 ngày/lần**: quét file mồ côi → xoá trên R2 + xoá record `files` (xem thêm [ARCHITECTURE.md §5](ARCHITECTURE.md), [SECURITY.md](SECURITY.md)).
+- Cron job **10 ngày/lần**: quét file mồ côi → xoá trên R2 + xoá record `files` (xem thêm [ARCHITECTURE.md §8](ARCHITECTURE.md#8-lưu-trữ-file-r2--media-management), [SECURITY.md](SECURITY.md)).
 
 ### 3.4. Nhóm Sản phẩm
 
@@ -303,7 +303,7 @@ folders ──< files
 
 ## 4. Seed dữ liệu ban đầu
 
-Khi khởi tạo DB, cần seed sẵn (chia 2 file theo [ARCHITECTURE.md §2.3](ARCHITECTURE.md#23-database--seed): `core.seed.ts` chạy giống nhau ở mọi dự án, `domain.seed.ts` viết riêng cho shop hoa):
+Khi khởi tạo DB, cần seed sẵn (chia 2 file theo [ARCHITECTURE.md §2.1](ARCHITECTURE.md#21-khi-bắt-đầu-1-dự-án-mới-từ-source-base-này): `core.seed.ts` chạy giống nhau ở mọi dự án, `domain.seed.ts` viết riêng cho shop hoa):
 
 **`core.seed.ts`**
 1. 3 System Role: `super_admin`, `admin`, `member`.

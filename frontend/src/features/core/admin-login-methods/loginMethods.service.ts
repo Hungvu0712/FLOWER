@@ -6,8 +6,8 @@ export type LoginMethodSetting = {
 };
 
 export const adminLoginMethodsService = {
-  list: () => api.get<{ data: LoginMethodSetting[] }>('/api/superadmin/login-methods').then((r) => r.data.data),
+  list: () => api.get<{ data: LoginMethodSetting[] }>('/api/v1/superadmin/login-methods').then((r) => r.data.data),
 
   update: (method: string, isEnabled: boolean) =>
-    api.patch<{ data: LoginMethodSetting }>(`/api/superadmin/login-methods/${method}`, { isEnabled }).then((r) => r.data.data),
+    api.patch<{ data: LoginMethodSetting }>(`/api/v1/superadmin/login-methods/${method}`, { isEnabled }).then((r) => r.data.data),
 };

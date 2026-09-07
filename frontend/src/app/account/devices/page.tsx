@@ -8,31 +8,31 @@ export default function DevicesPage() {
   const revokeSession = useRevokeSession();
   const revokeOthers = useRevokeOtherSessions();
 
-  if (isLoading) return <p className="text-sm text-neutral-500">Đang tải...</p>;
+  if (isLoading) return <p className="text-sm text-ink-muted">Đang tải...</p>;
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-neutral-900">Thiết bị đăng nhập</h1>
-        <Button variant="ghost" onClick={() => revokeOthers.mutate()} loading={revokeOthers.isPending}>
+    <div className="rounded-3xl border border-border-soft bg-white p-8">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="font-display text-2xl font-semibold text-ink">Thiết bị đăng nhập</h1>
+        <Button variant="outline" onClick={() => revokeOthers.mutate()} loading={revokeOthers.isPending}>
           Đăng xuất tất cả thiết bị khác
         </Button>
       </div>
 
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {sessions?.map((session) => (
           <li
             key={session.id}
-            className="flex items-center justify-between rounded-md border border-neutral-200 px-4 py-3"
+            className="flex items-center justify-between rounded-2xl border border-border-soft px-5 py-4"
           >
             <div>
-              <p className="text-sm font-medium text-neutral-900">
+              <p className="text-sm font-medium text-ink">
                 {session.deviceName || 'Thiết bị không xác định'}
                 {session.isCurrent && (
-                  <span className="ml-2 rounded bg-neutral-900 px-1.5 py-0.5 text-xs text-white">Hiện tại</span>
+                  <span className="ml-2 rounded-full bg-rose px-2 py-0.5 text-xs text-white">Hiện tại</span>
                 )}
               </p>
-              <p className="text-xs text-neutral-500">
+              <p className="mt-0.5 text-xs text-ink-muted">
                 IP {session.ipAddress} · Hoạt động lần cuối {new Date(session.lastActiveAt).toLocaleString('vi-VN')}
               </p>
             </div>

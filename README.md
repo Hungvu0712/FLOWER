@@ -3,10 +3,10 @@
 Kế hoạch chi tiết cho website thương mại điện tử bán hoa, hướng đến người dùng thật (đặt hoa sinh nhật, cưới hỏi, khai trương, chia buồn, quà tặng...).
 
 - **Frontend:** Next.js (React, App Router, TypeScript)
-- **Backend:** Node.js + Express (modular + MVC)
+- **Backend:** Node.js + Express + **TypeScript (strict mode)** (modular + MVC + Service Layer)
 - **Database:** PostgreSQL (Neon lúc dev, tự quản lý qua Docker trên VPS khi scale) + Prisma ORM
 - **File/ảnh:** Cloudflare R2
-- **Email:** Resend (cần domain riêng đã xác minh) — fallback Nodemailer + SMTP nếu chưa có domain, xem [ARCHITECTURE.md §6](ARCHITECTURE.md)
+- **Email:** Resend (cần domain riêng đã xác minh) — fallback Nodemailer + SMTP nếu chưa có domain, xem [ARCHITECTURE.md §9](ARCHITECTURE.md#9-email)
 
 > Xem chuẩn kiến trúc backend/frontend & quy ước package tại **[ARCHITECTURE.md](ARCHITECTURE.md)**, schema & RBAC tại **[DATABASE.md](DATABASE.md)**, bảo mật tại **[SECURITY.md](SECURITY.md)**.
 
@@ -91,7 +91,7 @@ Xây dựng một cửa hàng hoa online cho phép khách:
 
 - **Xác thực**: 3 phương thức (email/password, Google OAuth, magic link qua email dùng 1 lần), quản lý phiên qua JWT + Cookie httpOnly, refresh token rotation, quản lý thiết bị/đăng xuất từ xa — chi tiết schema tại [DATABASE.md §3.2](DATABASE.md).
 - Upload ảnh & lưu trữ file: **Cloudflare R2**, có cơ chế đánh dấu tái sử dụng ảnh cũ và dọn dẹp tài nguyên mồ côi định kỳ (10 ngày/lần).
-- Email service: **Resend** (production, sau khi đã xác minh domain riêng — không gửi được bằng địa chỉ Gmail cá nhân) hoặc **Nodemailer + SMTP** (tạm thời khi chưa có domain, lưu ý dễ vào spam) — gửi xác nhận đơn hàng, magic link, reset password, nhắc lịch, khuyến mãi. Đổi qua lại giữa 2 phương án chỉ qua biến môi trường, xem [ARCHITECTURE.md §6](ARCHITECTURE.md).
+- Email service: **Resend** (production, sau khi đã xác minh domain riêng — không gửi được bằng địa chỉ Gmail cá nhân) hoặc **Nodemailer + SMTP** (tạm thời khi chưa có domain, lưu ý dễ vào spam) — gửi xác nhận đơn hàng, magic link, reset password, nhắc lịch, khuyến mãi. Đổi qua lại giữa 2 phương án chỉ qua biến môi trường, xem [ARCHITECTURE.md §9](ARCHITECTURE.md#9-email).
 - Thông báo real-time trạng thái đơn hàng: Socket.io.
 - Thanh toán: tích hợp cổng thanh toán VN (VNPay/Momo) và/hoặc Stripe.
 - Cache/session: Redis (giỏ hàng, rate limiting).
@@ -199,98 +199,71 @@ Tóm tắt nhanh:
 
 ## 6. Thiết kế API (REST) — nhóm chính
 
+Mọi route mount dưới **`/api/v1`** (versioning bắt buộc — xem [ARCHITECTURE.md §5](ARCHITECTURE.md#5-api)). `GET /health` là ngoại lệ duy nhất, không versioning.
+
 ```
 Auth
-POST   /api/auth/register                     (email + password)
-POST   /api/auth/login                        (email + password)
-POST   /api/auth/magic-link/request           (gửi magic link qua Resend)
-POST   /api/auth/magic-link/verify            (đăng nhập bằng token magic link, dùng 1 lần)
-GET    /api/auth/google                       (redirect OAuth)
-GET    /api/auth/google/callback
-POST   /api/auth/refresh
-POST   /api/auth/logout
-GET    /api/auth/login-methods                (public — FE dùng để ẩn/hiện nút đăng nhập tương ứng)
+POST   /api/v1/auth/register                     (email + password)
+POST   /api/v1/auth/login                        (email + password)
+POST   /api/v1/auth/magic-link/request           (gửi magic link qua Resend)
+POST   /api/v1/auth/magic-link/verify            (đăng nhập bằng token magic link, dùng 1 lần)
+POST   /api/v1/auth/google                       (verify Google ID token — Google Identity Services)
+POST   /api/v1/auth/refresh
+POST   /api/v1/auth/logout
+POST   /api/v1/auth/forgot-password
+POST   /api/v1/auth/reset-password
+GET    /api/v1/auth/login-methods                (public — FE dùng để ẩn/hiện nút đăng nhập tương ứng)
 
 Account (yêu cầu đăng nhập — chức năng tự quản lý)
-GET    /api/account/me
-PATCH  /api/account/profile                   (full_name, avatar)
-POST   /api/account/change-password
-POST   /api/auth/forgot-password
-POST   /api/auth/reset-password
-GET    /api/account/sessions                  (danh sách thiết bị đang đăng nhập)
-DELETE /api/account/sessions/:id              (đăng xuất 1 thiết bị từ xa)
-DELETE /api/account/sessions                  (đăng xuất tất cả thiết bị khác)
+GET    /api/v1/account/me
+PATCH  /api/v1/account/profile                   (fullName, avatarFileId)
+POST   /api/v1/account/change-password
+GET    /api/v1/account/sessions                  (danh sách thiết bị đang đăng nhập)
+DELETE /api/v1/account/sessions/:id              (đăng xuất 1 thiết bị từ xa)
+DELETE /api/v1/account/sessions                  (đăng xuất tất cả thiết bị khác)
 
 SuperAdmin — quản lý user (chỉ super_admin)
-GET    /api/superadmin/users
-PATCH  /api/superadmin/users/:id/block            (chặn nếu :id === chính super_admin đang gọi)
-PATCH  /api/superadmin/users/:id/unblock
-DELETE /api/superadmin/users/:id                  (soft delete — chặn nếu :id === chính super_admin đang gọi)
-POST   /api/superadmin/users/:id/reset-password   (sinh mật khẩu mới, gửi email)
-PATCH  /api/superadmin/users/:id/role             (chặn tự đổi role chính mình + chặn newRole=super_admin)
-GET    /api/superadmin/login-methods
-PATCH  /api/superadmin/login-methods/:method      (bật/tắt, chặn nếu tắt hết)
+GET    /api/v1/superadmin/users
+PATCH  /api/v1/superadmin/users/:id/block            (chặn nếu :id === chính super_admin đang gọi)
+PATCH  /api/v1/superadmin/users/:id/unblock
+DELETE /api/v1/superadmin/users/:id                  (soft delete — chặn nếu :id === chính super_admin đang gọi)
+POST   /api/v1/superadmin/users/:id/reset-password   (sinh mật khẩu mới, gửi email)
+PATCH  /api/v1/superadmin/users/:id/role             (chặn tự đổi role chính mình + chặn newRole=super_admin)
+GET    /api/v1/superadmin/login-methods
+PATCH  /api/v1/superadmin/login-methods/:method      (bật/tắt, chặn nếu tắt hết)
 
 SuperAdmin — quản lý role tuỳ ý (chỉ super_admin)
-GET    /api/superadmin/roles
-POST   /api/superadmin/roles                      (tạo Custom Role, is_system=false)
-PATCH  /api/superadmin/roles/:id                  (đổi tên/mô tả/permission — chặn nếu is_system=true)
-DELETE /api/superadmin/roles/:id                  (chặn nếu is_system=true hoặc đang có user gán role)
+GET    /api/v1/superadmin/roles
+POST   /api/v1/superadmin/roles                      (tạo Custom Role, isSystem=false)
+PATCH  /api/v1/superadmin/roles/:id                  (đổi tên/mô tả/permission — chặn nếu isSystem=true)
+DELETE /api/v1/superadmin/roles/:id                  (chặn nếu isSystem=true hoặc đang có user gán role)
 
 SuperAdmin — quản lý permission tuỳ ý (chỉ super_admin)
-GET    /api/superadmin/permissions                ?assignable=true  (loại bỏ permission is_restricted khi tạo/sửa role thường)
-POST   /api/superadmin/permissions                (tạo permission mới, is_system=false — chỉ có tác dụng khi có route wire authorize() vào code)
-PATCH  /api/superadmin/permissions/:id            (đổi mô tả/nhóm; đổi code chặn nếu is_system=true)
-DELETE /api/superadmin/permissions/:id            (chặn nếu is_system=true hoặc đang gán cho role nào)
+GET    /api/v1/superadmin/permissions                ?assignable=true  (loại bỏ permission isRestricted khi tạo/sửa role thường)
+POST   /api/v1/superadmin/permissions                (tạo permission mới, isSystem=false — chỉ có tác dụng khi có route wire authorize() vào code)
+PATCH  /api/v1/superadmin/permissions/:id            (đổi mô tả/nhóm; đổi code chặn nếu isSystem=true)
+DELETE /api/v1/superadmin/permissions/:id            (chặn nếu isSystem=true hoặc đang gán cho role nào)
 
 SuperAdmin — audit log (chỉ super_admin)
-GET    /api/superadmin/audit-logs                 ?actorId=&entityType=&from=&to=&page=
+GET    /api/v1/superadmin/audit-logs                 ?actorId=&entityType=&from=&to=&page=&limit=
 
-Files & tài nguyên
-POST   /api/files/presign                     (lấy presigned URL upload lên R2)
-POST   /api/files                             (lưu metadata sau khi upload xong)
-GET    /api/files                             ?folderId=&view=grid|list
-DELETE /api/files/:id
+Files & tài nguyên (đổi tên thành `media` ở Phase 4, xem ARCHITECTURE.md §8)
+POST   /api/v1/files/presign                     (lấy presigned URL upload lên R2)
+POST   /api/v1/files                             (lưu metadata sau khi upload xong)
+GET    /api/v1/files                             ?folderId=&view=grid|list&page=&limit=
+DELETE /api/v1/files/:id
 
-Products
-GET    /api/products              ?category=&occasion=&search=&minPrice=&maxPrice=&page=
-GET    /api/products/:slug
-POST   /api/products               (admin)
-PUT    /api/products/:id           (admin)
-DELETE /api/products/:id           (admin)
-
-Cart
-GET    /api/cart
-POST   /api/cart/items
-PATCH  /api/cart/items/:id
-DELETE /api/cart/items/:id
-
-Orders
-POST   /api/orders                 (tạo đơn từ giỏ hàng, kèm delivery info)
-GET    /api/orders                 (đơn của user)
-GET    /api/orders/:code
-PATCH  /api/orders/:id/status      (admin/staff)
-
-Payments
-POST   /api/payments/create-intent
-POST   /api/payments/webhook       (callback từ cổng thanh toán)
-
-Reviews
-POST   /api/products/:id/reviews
-GET    /api/products/:id/reviews
-
-Promotions
-POST   /api/coupons/apply
-
-Admin
-GET    /api/admin/dashboard/stats
-GET    /api/admin/orders
-GET    /api/admin/customers
+Domain (chưa triển khai — viết theo README §9 khi vào Phase 5+)
+GET    /api/v1/products              ?category=&occasion=&search=&minPrice=&maxPrice=&page=&limit=
+POST   /api/v1/orders                 (tạo đơn từ giỏ hàng, kèm delivery info)
+...
 ```
 
-Tất cả response theo chuẩn:
+Tất cả response theo chuẩn ở [ARCHITECTURE.md §4](ARCHITECTURE.md#4-response--error-format-chuẩn):
 ```json
-{ "success": true, "data": {...}, "message": "..." }
+{ "success": true, "message": "Success", "data": {} }
+{ "success": false, "message": "Validation failed", "errors": { "email": "..." } }
+{ "success": true, "message": "Success", "data": [], "meta": { "page": 1, "limit": 20, "total": 100, "totalPages": 5 } }
 ```
 
 ---
@@ -327,7 +300,7 @@ Tất cả response theo chuẩn:
 - Chat hỗ trợ / chatbot tư vấn chọn hoa.
 - Responsive/PWA để dùng tốt trên mobile, tối ưu SEO.
 - Đa chi nhánh / đa khu vực giao hàng (nếu mở rộng kinh doanh).
-- Khi scale lớn: chuyển DB từ Neon sang VPS tự quản lý qua Docker, bật cron backup 2 ngày/lần lên R2 (tự xoá sau 1 tháng); cân nhắc tách `apps/client` và `apps/admin` thành 2 frontend riêng (xem [ARCHITECTURE.md §7.1](ARCHITECTURE.md)).
+- Khi scale lớn: chuyển DB từ Neon sang VPS tự quản lý qua Docker, bật cron backup 2 ngày/lần lên R2 (tự xoá sau 30 ngày); cân nhắc tách `apps/client` và `apps/admin` thành 2 frontend riêng (xem [ARCHITECTURE.md §13.1](ARCHITECTURE.md#131-chọn-nextjs-hay-react--vite)).
 
 ---
 
@@ -336,7 +309,7 @@ Tất cả response theo chuẩn:
 | Hạng mục | Công nghệ |
 |---|---|
 | Frontend | Next.js (App Router, React 19, TypeScript) cho app cần SEO; React (Vite) + TS cho app nội bộ nếu tách riêng. Validate: `zod` + `react-hook-form`. Data fetching: `@tanstack/react-query` + `axios`. Global state: `zustand`. Style: TailwindCSS |
-| Backend | Node.js, Express (modular + MVC, xem [ARCHITECTURE.md](ARCHITECTURE.md)), Prisma ORM, `zod` validate input |
+| Backend | Node.js, Express, **TypeScript (strict)**, modular + MVC + Service Layer (xem [ARCHITECTURE.md](ARCHITECTURE.md)), Prisma ORM, `zod` validate input |
 | Database | PostgreSQL — **Neon** (dev), tự quản lý qua Docker trên VPS (production khi scale) |
 | Cache/Session | Redis |
 | Auth | JWT + Cookie (httpOnly), bcrypt, Google OAuth, Magic link (Resend), bật/tắt phương thức qua SuperAdmin |
@@ -345,21 +318,27 @@ Tất cả response theo chuẩn:
 | Email | **Resend** (cần domain riêng đã verify DKIM/SPF) — fallback **Nodemailer + SMTP** nếu chưa có domain (dễ vào spam hơn) |
 | Realtime | Socket.io |
 | Deploy | Docker + Docker Compose (khi lên VPS); FE (Next.js) trên Vercel, BE trên Render/Railway/VPS |
-| Backup | `pg_dump` định kỳ 2 ngày/lần → Cloudflare R2, tự xoá bản backup cũ hơn 1 tháng |
+| Backup | `pg_dump` định kỳ 2 ngày/lần → Cloudflare R2, tự xoá bản backup cũ hơn 30 ngày |
 | CI/CD | GitHub Actions |
 
 ---
 
 ## 9. Trạng thái hiện tại & bước tiếp theo
 
-**Core đã triển khai** (xem [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md)):
-- Backend: modular MVC, error handling chuẩn, auth 3 phương thức (email/password, Google OAuth, magic link), JWT + Cookie session với refresh rotation, quản lý thiết bị, RBAC đầy đủ (Custom Role + Permission CRUD, `is_restricted`/`is_system`), quản lý user cho SuperAdmin, file/ảnh qua R2 (presigned upload, dedup, dọn mồ côi), email (Resend/SMTP), audit log, cron backup DB + dọn file mồ côi.
-- Frontend: Next.js `proxy.ts` bảo vệ route, TanStack Query + Zustand + react-hook-form/zod, trang login/register/magic-link/quên mật khẩu, trang tự quản lý tài khoản (profile, avatar, đổi mật khẩu, thiết bị), trang SuperAdmin (quản lý user, bật/tắt phương thức đăng nhập).
-- Đã build/lint/type-check sạch cho cả 2 phía. **Chưa test end-to-end với Neon DB thật** (môi trường dev không có Postgres/Docker sẵn) — cần chạy `prisma migrate dev` + `seed:core` + `seed:domain` với `DATABASE_URL` thật trước khi dùng.
+**Đã kiểm chứng end-to-end (bản backend JS trước rewrite)**: đăng ký, đăng nhập, `/superadmin/users` (block/unblock/xoá tự chặn chính mình), bật/tắt phương thức đăng nhập (chặn tắt hết ở cả UI lẫn backend) — test bằng Playwright thật, với Postgres local thật. Toàn bộ logic nghiệp vụ này **giữ nguyên**, chỉ đổi "vỏ" sang TypeScript + convention mới bên dưới.
 
-**Còn thiếu / bước tiếp theo:**
-1. Nối `DATABASE_URL` Neon thật, chạy migration + seed, kiểm thử toàn bộ luồng auth thật (đặc biệt Google OAuth — cần cấu hình `GOOGLE_CLIENT_ID` và tích hợp Google Identity Services ở frontend).
-2. UI `/superadmin/roles`, `/superadmin/permissions` (API backend đã sẵn, chưa có trang — xem `frontend/README.md`).
-3. Màn hình quản lý tài nguyên (grid/list theo folder) — API `GET/DELETE /api/files` đã có, chưa có UI duyệt folder.
-4. Viết domain thật (`backend/src/modules/domain/`, `frontend/src/features/domain/`): products, categories, cart, orders... theo [DATABASE.md §3.4-3.6](DATABASE.md).
-5. Cấu hình R2 bucket + domain Resend thật khi triển khai production.
+**🟡 Đang làm — Phase 1 Foundation** (theo [ARCHITECTURE.md §19](ARCHITECTURE.md#19-lộ-trình-triển-khai-7-phase), chuyển toàn bộ backend sang TypeScript strict theo Master Prompt):
+- ✅ Đã convert: `core/` (errors, middleware, response, logger, utils), `config/`, module `auth`, `email`, `audit-log`, `files`, `users` (self-service + admin), `roles`.
+- 🚧 Đang dở: module `permissions` (mới viết `permissions.validation.ts`, chưa xong service/controller/routes).
+- ⬜ Chưa làm: module `settings` (login-methods), `jobs/`, `app.ts`/`server.ts` mới (versioning `/api/v1`, graceful shutdown, request ID), `routes/v1/index.ts` gom router, xoá file `.js` cũ, cập nhật `frontend/src/lib/axios.ts` sang base URL `/api/v1`, `npm run build`/`typecheck` sạch, seed lại và test end-to-end với bản TS.
+- ⬜ Prettier chưa cấu hình (yêu cầu ở [ARCHITECTURE.md §16](ARCHITECTURE.md#16-logging-environment-code-quality)).
+
+**Còn thiếu / bước tiếp theo (sau khi xong Phase 1):**
+1. Hoàn tất Phase 1 (danh sách ⬜ ở trên), seed + test lại toàn bộ luồng auth với bản TS.
+2. Google OAuth thật cần `GOOGLE_CLIENT_ID` + tích hợp Google Identity Services ở frontend (`NEXT_PUBLIC_GOOGLE_CLIENT_ID`).
+3. UI `/superadmin/roles`, `/superadmin/permissions` (API backend đã có, chưa có trang).
+4. Màn hình quản lý tài nguyên (grid/list theo folder).
+5. Phase 4: đổi `files` → `media` + `StorageService` abstraction + `system_settings` tổng quát.
+6. Phase 5+: viết domain thật (`backend/src/modules/domain/`, `frontend/src/features/domain/`) theo [DATABASE.md §3.4-3.6](DATABASE.md).
+7. Phase 6: OpenAPI/Swagger, testing (unit/integration/API).
+8. Cấu hình R2 bucket + domain Resend thật khi triển khai production.

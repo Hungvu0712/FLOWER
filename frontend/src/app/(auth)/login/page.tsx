@@ -23,11 +23,14 @@ export default function LoginPage() {
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold text-neutral-900">Đăng nhập</h1>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-ink">Chào mừng trở lại</h1>
+        <p className="mt-1 text-sm text-ink-muted">Đăng nhập để tiếp tục đặt hoa</p>
+      </div>
 
       {isEnabled(methods, 'email_password') && (
-        <form className="flex flex-col gap-3" onSubmit={handleSubmit((values) => login.mutate(values))}>
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit((values) => login.mutate(values))}>
           <FormField label="Email" type="email" {...register('email')} error={errors.email} />
           <FormField label="Mật khẩu" type="password" {...register('password')} error={errors.password} />
           {login.isError && <p className="text-xs text-red-600">Email hoặc mật khẩu không đúng.</p>}
@@ -35,22 +38,30 @@ export default function LoginPage() {
         </form>
       )}
 
+      {(isEnabled(methods, 'magic_link') || isEnabled(methods, 'google_oauth')) && (
+        <div className="flex items-center gap-3 text-xs text-ink-muted">
+          <div className="h-px flex-1 bg-border" />
+          hoặc
+          <div className="h-px flex-1 bg-border" />
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         {isEnabled(methods, 'magic_link') && (
-          <Link href="/magic-link" className="text-center text-sm text-neutral-600 hover:underline">
-            Đăng nhập bằng liên kết qua email (magic link)
+          <Link href="/magic-link">
+            <Button type="button" variant="outline" className="w-full">Đăng nhập bằng liên kết qua email</Button>
           </Link>
         )}
         {isEnabled(methods, 'google_oauth') && (
-          <Button type="button" variant="ghost" disabled title="Cấu hình NEXT_PUBLIC_GOOGLE_CLIENT_ID để bật">
+          <Button type="button" variant="outline" className="w-full" disabled title="Cấu hình NEXT_PUBLIC_GOOGLE_CLIENT_ID để bật">
             Đăng nhập với Google
           </Button>
         )}
       </div>
 
-      <div className="flex justify-between text-xs text-neutral-500">
-        <Link href="/forgot-password" className="hover:underline">Quên mật khẩu?</Link>
-        <Link href="/register" className="hover:underline">Chưa có tài khoản? Đăng ký</Link>
+      <div className="flex justify-between text-xs text-ink-muted">
+        <Link href="/forgot-password" className="hover:text-rose">Quên mật khẩu?</Link>
+        <Link href="/register" className="hover:text-rose">Chưa có tài khoản? Đăng ký</Link>
       </div>
     </div>
   );

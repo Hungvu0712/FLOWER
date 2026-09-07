@@ -17,16 +17,19 @@ export default function MagicLinkRequestPage() {
 
   if (requestMagicLink.isSuccess) {
     return (
-      <p className="text-sm text-neutral-700">
+      <p className="text-sm text-ink-soft">
         Nếu email tồn tại, một liên kết đăng nhập (dùng 1 lần, hết hạn sau ít phút) đã được gửi tới hộp thư của bạn.
       </p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold text-neutral-900">Đăng nhập bằng magic link</h1>
-      <form className="flex flex-col gap-3" onSubmit={handleSubmit((values) => requestMagicLink.mutate(values))}>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-ink">Đăng nhập bằng liên kết</h1>
+        <p className="mt-1 text-sm text-ink-muted">Chúng tôi sẽ gửi liên kết đăng nhập tới email của bạn</p>
+      </div>
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit((values) => requestMagicLink.mutate(values))}>
         <FormField label="Email" type="email" {...register('email')} error={errors.email} />
         <Button type="submit" loading={requestMagicLink.isPending}>Gửi liên kết</Button>
       </form>

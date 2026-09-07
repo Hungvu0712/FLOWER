@@ -19,17 +19,17 @@ export type DeviceSession = {
 };
 
 export const accountService = {
-  getMe: () => api.get<{ data: Me }>('/api/account/me').then((r) => r.data.data),
+  getMe: () => api.get<{ data: Me }>('/api/v1/account/me').then((r) => r.data.data),
 
   updateProfile: (input: { fullName?: string; avatarFileId?: string | null; phone?: string | null }) =>
-    api.patch<{ data: Me }>('/api/account/profile', input).then((r) => r.data.data),
+    api.patch<{ data: Me }>('/api/v1/account/profile', input).then((r) => r.data.data),
 
   changePassword: (input: { currentPassword: string; newPassword: string }) =>
-    api.post('/api/account/change-password', input),
+    api.post('/api/v1/account/change-password', input),
 
-  listSessions: () => api.get<{ data: DeviceSession[] }>('/api/account/sessions').then((r) => r.data.data),
+  listSessions: () => api.get<{ data: DeviceSession[] }>('/api/v1/account/sessions').then((r) => r.data.data),
 
-  revokeSession: (id: string) => api.delete(`/api/account/sessions/${id}`),
+  revokeSession: (id: string) => api.delete(`/api/v1/account/sessions/${id}`),
 
-  revokeOtherSessions: () => api.delete('/api/account/sessions'),
+  revokeOtherSessions: () => api.delete('/api/v1/account/sessions'),
 };
