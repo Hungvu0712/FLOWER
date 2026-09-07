@@ -3,12 +3,15 @@
 import Link from 'next/link';
 import { useMe } from '@/features/core/account/account.hooks';
 import { FlowerIcon } from '@/components/ui/FlowerIcon';
+import { UserMenu } from './UserMenu';
 
+// Dùng chung cho cả storefront ((storefront)/layout.tsx) và trang đăng nhập/đăng ký ((auth)/layout.tsx)
+// nên đặt ở components/layout thay vì _components riêng của storefront.
 export function Nav() {
   const { data: me } = useMe();
 
   return (
-    <header className="flex items-center justify-between border-b border-border-soft px-8 py-6 lg:px-16">
+    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border-soft bg-ivory/95 px-8 py-6 backdrop-blur lg:px-16">
       <Link href="/" className="flex items-center gap-2.5">
         <FlowerIcon className="h-6 w-6" color="var(--color-rose)" />
         <span className="font-display text-2xl font-semibold text-ink">Hoa Xinh</span>
@@ -33,9 +36,7 @@ export function Nav() {
           <circle cx="18" cy="21" r="1" />
         </svg>
         {me ? (
-          <Link href="/account/profile" className="text-sm font-medium text-ink-soft hover:text-rose">
-            {me.fullName}
-          </Link>
+          <UserMenu me={me} />
         ) : (
           <Link href="/login" className="text-sm font-semibold text-rose hover:text-rose-dark">
             Đăng nhập

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Toaster } from "@/components/ui/Toaster";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 // Design system "Soft Petal" — xem .design/flower-storefront (canvas đã chọt) và ARCHITECTURE.md §13.
 const cormorant = Cormorant_Garamond({
@@ -25,7 +27,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="vi" className={`${cormorant.variable} ${dmSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-ivory text-ink font-sans">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <Toaster />
+          <ConfirmDialog />
+        </Providers>
       </body>
     </html>
   );

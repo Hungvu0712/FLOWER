@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { authService } from './auth.service';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useToastStore } from '@/store/useToastStore';
+import { getRedirectTarget } from '@/lib/redirect';
 import type {
   LoginInput,
   RegisterInput,
@@ -27,7 +29,7 @@ function useAfterAuthSuccess() {
   return (user: { id: string; fullName: string; email: string; roles?: string[] }) => {
     setUser({ ...user, roles: user.roles || [] });
     queryClient.invalidateQueries({ queryKey: ['account', 'me'] });
-    router.push('/');
+    router.push(getRedirectTarget());
   };
 }
 
@@ -40,9 +42,23 @@ export function useLogin() {
 }
 
 export function useRegister() {
-  const onSuccess = useAfterAuthSuccess();
+  const router = useRouter();
+  const push = useToastStore((s) => s.push);
+  // Đăng ký KHÔNG tự động đăng nhập (backend không set cookie) — báo thành công rồi chuyển sang trang
+  // login để người dùng tự đăng nhập lại.
   return useMutation({
     mutationFn: (input: RegisterInput) => authService.register(input),
+    onSuccess: () => {
+      push('Đăng ký thành công! Vui lòng đăng nhập.');
+      router.push('/login');
+    },
+  });
+}
+
+export function useLoginWithGoogle() {
+  const onSuccess = useAfterAuthSuccess();
+  return useMutation({
+    mutationFn: (idToken: string) => authService.loginWithGoogle(idToken),
     onSuccess: (data) => onSuccess(data.user),
   });
 }

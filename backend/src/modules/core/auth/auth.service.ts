@@ -71,14 +71,17 @@ export async function getLoginMethods() {
 
 // ---- Email + Password ----
 
-export async function register(input: RegisterInput): Promise<User> {
+// Đăng ký KHÔNG tự động đăng nhập — trả về tài khoản đã tạo, người dùng tự đăng nhập lại ở trang login
+// (frontend hiện toast + redirect). Xem auth.controller.ts.
+export async function register(input: RegisterInput): Promise<SafeUser> {
   await assertMethodEnabled('email_password', 'Đăng ký bằng email/mật khẩu');
 
   const existing = await repo.findUserByEmail(input.email);
   if (existing) throw new AppError('Email đã được sử dụng', 409, 'EMAIL_TAKEN');
 
   const passwordHash = await hashPassword(input.password);
-  return repo.createUserWithMemberRole({ fullName: input.fullName, email: input.email, passwordHash });
+  const user = await repo.createUserWithMemberRole({ fullName: input.fullName, email: input.email, passwordHash });
+  return sanitizeUser(user);
 }
 
 export async function loginWithPassword(input: LoginInput): Promise<User> {
@@ -108,12 +111,12 @@ export async function requestMagicLink(input: { email: string }): Promise<void> 
     await repo.createMagicLinkToken({ email: input.email, userId: user.id, tokenHash, expiresAt });
 
     const url = `${env.magicLink.baseUrl}?token=${token}`;
-    await emailService.sendEmail({
-      to: input.email,
-      subject: 'Liên kết đăng nhập',
-      html: magicLinkTemplate({ url }),
-      type: 'magic_link',
-    });
+    // Nuốt lỗi gửi email tại đây — nếu để văng ra ngoài, response sẽ khác với nhánh "email không tồn
+    // tại" (500 thay vì 200 luôn-thành-công), phá vỡ đúng mục đích chống lộ email ở trên. sendEmail() đã
+    // tự log lỗi + ghi email_log (status 'failed') nên vẫn quan sát được từ phía server. Xem SECURITY.md §1.
+    await emailService
+      .sendEmail({ to: input.email, subject: 'Liên kết đăng nhập', html: magicLinkTemplate({ url }), type: 'magic_link' })
+      .catch(() => {});
   }
 }
 
@@ -147,8 +150,12 @@ export async function verifyMagicLink(token: string): Promise<User> {
 export async function loginWithGoogle(idToken: string): Promise<User> {
   await assertMethodEnabled('google_oauth', 'Đăng nhập bằng Google');
 
-  const ticket = await googleClient.verifyIdToken({ idToken, audience: env.google.clientId });
-  const payload = ticket.getPayload();
+  // verifyIdToken ném lỗi thô (không phải trả payload rỗng) khi idToken sai định dạng/hết hạn/audience
+  // không khớp — bắt lại để trả AppError rõ ràng thay vì để văng thành 500 chung chung.
+  const payload = await googleClient
+    .verifyIdToken({ idToken, audience: env.google.clientId })
+    .then((ticket) => ticket.getPayload())
+    .catch(() => null);
   if (!payload?.email) throw new AppError('Không xác thực được tài khoản Google', 401, 'INVALID_GOOGLE_TOKEN');
 
   const authAccount = await repo.findAuthAccount('google', payload.sub);
@@ -203,6 +210,7 @@ export async function logout(refreshToken: string | undefined): Promise<void> {
 
 export async function forgotPassword(input: ForgotPasswordInput): Promise<void> {
   const user = await repo.findUserByEmail(input.email);
+  // Không tiết lộ email có tồn tại hay không qua response — luôn trả về thành công (xem controller).
   if (user && !user.deletedAt) {
     const token = generateRandomToken();
     const tokenHash = sha256(token);
@@ -211,12 +219,11 @@ export async function forgotPassword(input: ForgotPasswordInput): Promise<void> 
     await repo.createPasswordResetToken({ userId: user.id, tokenHash, expiresAt });
 
     const url = `${env.frontendUrl}/reset-password?token=${token}`;
-    await emailService.sendEmail({
-      to: input.email,
-      subject: 'Đặt lại mật khẩu',
-      html: passwordResetTemplate({ url }),
-      type: 'password_reset',
-    });
+    // Nuốt lỗi gửi email — nếu văng ra ngoài, response 500 sẽ khác nhánh "email không tồn tại" (200
+    // luôn-thành-công), lộ email nào có tài khoản. sendEmail() đã tự log lỗi + ghi email_log. Xem SECURITY.md §1.
+    await emailService
+      .sendEmail({ to: input.email, subject: 'Đặt lại mật khẩu', html: passwordResetTemplate({ url }), type: 'password_reset' })
+      .catch(() => {});
   }
 }
 

@@ -72,7 +72,6 @@ export default function ProfilePage() {
           <Button type="submit" loading={updateProfile.isPending} className="self-start">
             Lưu thay đổi
           </Button>
-          {updateProfile.isSuccess && <p className="text-xs text-sage">Đã lưu.</p>}
         </form>
       </section>
 
@@ -96,8 +95,6 @@ export default function ProfilePage() {
             {...passwordForm.register('newPassword')}
             error={passwordForm.formState.errors.newPassword}
           />
-          {changePassword.isError && <p className="text-xs text-red-600">Mật khẩu hiện tại không đúng.</p>}
-          {changePassword.isSuccess && <p className="text-xs text-sage">Đổi mật khẩu thành công.</p>}
           <Button type="submit" loading={changePassword.isPending} className="self-start">
             Đổi mật khẩu
           </Button>

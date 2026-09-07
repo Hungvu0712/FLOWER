@@ -197,7 +197,7 @@ Chọn provider qua `EMAIL_PROVIDER` env — đổi provider không sửa code g
 Chi tiết đầy đủ (schema, ràng buộc, ma trận quyền) ở [DATABASE.md](DATABASE.md) và [SECURITY.md](SECURITY.md). Tóm tắt convention:
 
 - 3 phương thức đăng nhập bắt buộc: email/password, Google OAuth (verify ID token qua `google-auth-library`, không dùng luồng redirect passport), magic link (token hash, dùng 1 lần, hết hạn ngắn).
-- Session: **Access token JWT ngắn hạn** (15p) + **Refresh token đối lập, rotation, thu hồi được** — cả hai qua cookie `httpOnly`. Không dùng JWT dài hạn làm session duy nhất.
+- Session: **Access token JWT ngắn hạn** (5p — ngắn để thay đổi role/permission lan tới nhanh hơn mà không cần đăng xuất thủ công) + **Refresh token đối lập, rotation, thu hồi được** — cả hai qua cookie `httpOnly`. Không dùng JWT dài hạn làm session duy nhất.
 - RBAC: **permission-based** (`authorize('user.block')`), không hard-code role (`requireRole('Admin')`). Role chỉ là tập hợp Permission. Tối thiểu 3 System Role `super_admin`/`admin`/`member`, không xoá/rename được.
 - SuperAdmin User Management: không tự block/đổi role/xoá chính mình, không tự tạo/gán `super_admin` qua chức năng thông thường — enforce ở **backend**, không dựa vào client-side restriction.
 

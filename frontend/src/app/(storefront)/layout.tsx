@@ -1,5 +1,5 @@
-import { Nav } from './_components/Nav';
-import { Footer } from './_components/Footer';
+import { Nav } from '@/components/layout/Nav';
+import { Footer } from '@/components/layout/Footer';
 
 // Route group PUBLIC (domain) — xem ARCHITECTURE.md §14.2. Nav/Footer dùng chung cho mọi trang
 // storefront (trang chủ, sản phẩm, giỏ hàng...) khi các route đó được thêm sau này.

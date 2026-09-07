@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { FlowerIcon } from '@/components/ui/FlowerIcon';
 
+// Dùng chung cho storefront và trang tài khoản khách hàng (app/account/layout.tsx) — xem components/layout/Nav.tsx.
 export function Footer() {
   return (
     <footer className="border-t border-border-soft px-8 py-12 lg:px-16">

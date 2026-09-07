@@ -12,7 +12,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 |---|---|
 | Mật khẩu yếu / lộ mật khẩu | Hash bằng **bcrypt** (cost ≥ 12) hoặc **argon2**; bắt buộc độ dài tối thiểu 8 ký tự khi đăng ký |
 | Brute-force đăng nhập | Rate limit theo IP + email (`express-rate-limit`), khoá tạm tài khoản sau 5 lần sai (kèm cooldown tăng dần), captcha (reCAPTCHA/hCaptcha) sau vài lần thất bại |
-| Đánh cắp session/token | Access token JWT **thời gian sống ngắn** (15 phút), refresh token lưu ở **httpOnly, Secure, SameSite=Strict cookie** (không lưu localStorage — tránh XSS đánh cắp token) |
+| Đánh cắp session/token | Access token JWT **thời gian sống ngắn** (5 phút), refresh token lưu ở **httpOnly, Secure, SameSite=Strict cookie** (không lưu localStorage — tránh XSS đánh cắp token) |
 | Refresh token bị lộ | Refresh token **rotation**: mỗi lần dùng để cấp access token mới thì phát hành refresh token mới, thu hồi token cũ (set `sessions.revoked_at`); chỉ lưu `refresh_token_hash`, không lưu token thô |
 | **Magic link bị lộ/đoán được** | Token magic link sinh ngẫu nhiên đủ dài (≥ 32 byte), chỉ lưu `token_hash` (sha256) trong DB, **hết hạn ngắn** (~15 phút), **dùng 1 lần** (set `used_at` ngay khi verify — verify lần 2 phải fail), gửi qua Resend với rate limit theo email (chống spam yêu cầu magic link liên tục) |
 | Chiếm quyền tài khoản admin/nhân viên | Bắt buộc **2FA (TOTP)** cho các vai trò `super_admin`, `admin` trở lên |

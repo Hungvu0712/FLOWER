@@ -1,12 +1,18 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, LoginInput } from '@/features/core/auth/auth.schemas';
 import { useLogin, useLoginMethods } from '@/features/core/auth/auth.hooks';
+import { GoogleLoginButton } from '@/features/core/auth/GoogleLoginButton';
+import { useMe } from '@/features/core/account/account.hooks';
 import { FormField } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
+import { getErrorMessage } from '@/lib/errors';
+import { getRedirectTarget } from '@/lib/redirect';
 
 function isEnabled(methods: { method: string; isEnabled: boolean }[] | undefined, method: string) {
   // Trong lúc đang tải danh sách, mặc định hiện — tránh nháy ẩn/hiện; backend vẫn là nơi chặn thật.
@@ -14,6 +20,8 @@ function isEnabled(methods: { method: string; isEnabled: boolean }[] | undefined
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { data: me } = useMe();
   const { data: methods } = useLoginMethods();
   const login = useLogin();
   const {
@@ -21,6 +29,13 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
+
+  // proxy.ts chặn theo token lúc điều hướng — nếu token đó vừa hết hạn thì bị đẩy về đây, nhưng ngay
+  // sau đó Nav gọi useMe() có thể tự refresh ngầm thành công (vẫn còn refresh token hợp lệ). Không có
+  // effect này thì người dùng bị kẹt ở trang login dù thực chất đã đăng nhập lại.
+  useEffect(() => {
+    if (me) router.replace(getRedirectTarget());
+  }, [me, router]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,7 +48,11 @@ export default function LoginPage() {
         <form className="flex flex-col gap-4" onSubmit={handleSubmit((values) => login.mutate(values))}>
           <FormField label="Email" type="email" {...register('email')} error={errors.email} />
           <FormField label="Mật khẩu" type="password" {...register('password')} error={errors.password} />
-          {login.isError && <p className="text-xs text-red-600">Email hoặc mật khẩu không đúng.</p>}
+          {login.isError && (
+            <p className="text-xs text-red-600">
+              {getErrorMessage(login.error, 'Email hoặc mật khẩu không đúng.')}
+            </p>
+          )}
           <Button type="submit" loading={login.isPending}>Đăng nhập</Button>
         </form>
       )}
@@ -52,11 +71,7 @@ export default function LoginPage() {
             <Button type="button" variant="outline" className="w-full">Đăng nhập bằng liên kết qua email</Button>
           </Link>
         )}
-        {isEnabled(methods, 'google_oauth') && (
-          <Button type="button" variant="outline" className="w-full" disabled title="Cấu hình NEXT_PUBLIC_GOOGLE_CLIENT_ID để bật">
-            Đăng nhập với Google
-          </Button>
-        )}
+        {isEnabled(methods, 'google_oauth') && <GoogleLoginButton />}
       </div>
 
       <div className="flex justify-between text-xs text-ink-muted">

@@ -72,7 +72,13 @@ export async function softDeleteUser(actorId: string, targetId: string, ipAddres
   const user = await prisma.user.findUnique({ where: { id: targetId } });
   if (!user || user.deletedAt) throw new AppError('Không tìm thấy người dùng', 404, 'NOT_FOUND');
 
-  await prisma.user.update({ where: { id: targetId }, data: { deletedAt: new Date(), status: 'blocked' } });
+  // `email` có unique constraint toàn cục (DATABASE.md §3.8) — soft delete vẫn giữ lại row để không mất
+  // lịch sử (đơn hàng, audit log tham chiếu theo user_id), nhưng phải "giải phóng" email gốc bằng cách
+  // gắn thêm hậu tố, nếu không email đó bị khoá vĩnh viễn, không đăng ký lại được dù tài khoản đã xoá.
+  await prisma.user.update({
+    where: { id: targetId },
+    data: { deletedAt: new Date(), status: 'blocked', email: `${user.email}.deleted.${targetId}` },
+  });
   await prisma.session.updateMany({ where: { userId: targetId, revokedAt: null }, data: { revokedAt: new Date() } });
 
   await auditLog.record({ actorId, action: 'user.delete', entityType: 'user', entityId: targetId, ...(ipAddress && { ipAddress }) });
@@ -83,9 +89,9 @@ export async function resetPassword(actorId: string, targetId: string, ipAddress
   if (!user || user.deletedAt) throw new AppError('Không tìm thấy người dùng', 404, 'NOT_FOUND');
 
   const newPassword = crypto.randomBytes(9).toString('base64url'); // đủ mạnh, dễ đọc để paste
-  const passwordHash = await hashPassword(newPassword);
-  await prisma.user.update({ where: { id: targetId }, data: { passwordHash } });
 
+  // Gửi email TRƯỚC khi ghi mật khẩu mới vào DB — nếu gửi thất bại (vd chưa cấu hình SMTP/Resend),
+  // mật khẩu cũ của user vẫn còn nguyên thay vì bị ghi đè bằng 1 chuỗi ngẫu nhiên không ai biết.
   // Mật khẩu bản rõ chỉ tồn tại trong bộ nhớ đủ lâu để gửi email — không log, không trả về API.
   await emailService.sendEmail({
     to: user.email,
@@ -93,6 +99,9 @@ export async function resetPassword(actorId: string, targetId: string, ipAddress
     html: newPasswordTemplate({ password: newPassword }),
     type: 'password_reset',
   });
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.user.update({ where: { id: targetId }, data: { passwordHash } });
 
   await auditLog.record({ actorId, action: 'user.reset_password', entityType: 'user', entityId: targetId, ...(ipAddress && { ipAddress }) });
 }

@@ -19,9 +19,8 @@ export const getLoginMethods = asyncHandler(async (_req, res) => {
 
 export const register = asyncHandler(async (req, res) => {
   const user = await authService.register(req.body);
-  const session = await authService.issueSession(user, requestMeta(req));
   await auditLog.record({ actorId: user.id, action: 'auth.register', entityType: 'user', entityId: user.id });
-  respondWithSession(res, session);
+  ok(res, { user }, 'Đăng ký thành công, vui lòng đăng nhập.');
 });
 
 export const login = asyncHandler(async (req, res) => {

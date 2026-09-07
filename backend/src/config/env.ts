@@ -21,7 +21,7 @@ export const env = {
   jwt: {
     accessSecret: required('JWT_ACCESS_SECRET'),
     refreshSecret: required('JWT_REFRESH_SECRET'), // dự phòng nếu sau này đổi refresh token sang JWT
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
+    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '5m',
     refreshExpiresInDays: 30,
   },
 
