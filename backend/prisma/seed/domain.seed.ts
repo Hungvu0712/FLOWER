@@ -50,16 +50,22 @@ async function main() {
     });
   }
 
-  console.log('Seeding DOMAIN: admin permissions...');
-  const adminRole = await prisma.role.findUnique({ where: { code: 'admin' } });
-  if (adminRole) {
+  // Theo đúng ma trận Vai trò × Quyền đã chốt (DATABASE.md §2.4): super_admin có hầu hết quyền domain
+  // giống admin (ngoại trừ các quyền 🔒 core is_restricted đã seed riêng ở core.seed.ts). super_admin
+  // KHÔNG tự động có mọi permission chỉ vì là super_admin — authorize() chỉ check permissions thật sự
+  // được gán, nên thiếu bước này thì super_admin cũng bị FORBIDDEN như user thường (đã từng xảy ra).
+  console.log('Seeding DOMAIN: admin + super_admin permissions...');
+  for (const roleCode of ['admin', 'super_admin']) {
+    const role = await prisma.role.findUnique({ where: { code: roleCode } });
+    if (!role) {
+      console.warn(`  -> Role "${roleCode}" chưa tồn tại — chạy \`npm run seed:core\` trước.`);
+      continue;
+    }
     const perms = await prisma.permission.findMany({ where: { code: { in: ADMIN_DOMAIN_PERMISSIONS } } });
     await prisma.rolePermission.createMany({
-      data: perms.map((p) => ({ roleId: adminRole.id, permissionId: p.id })),
+      data: perms.map((p) => ({ roleId: role.id, permissionId: p.id })),
       skipDuplicates: true,
     });
-  } else {
-    console.warn('  -> Role "admin" chưa tồn tại — chạy `npm run seed:core` trước.');
   }
 
   console.log('Seeding DOMAIN: roles (sales_staff, florist, shipper)...');

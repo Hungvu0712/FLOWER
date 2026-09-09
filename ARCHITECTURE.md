@@ -268,9 +268,11 @@ Tách rõ **UI ≠ API ≠ Business Logic ≠ State**. Component không tự g�
 app.use('/api/v1/auth', authRouter);                                              // public
 app.use('/api/v1/account', authenticate, accountRouter);                          // cần đăng nhập
 app.use('/api/v1/superadmin/users', authenticate, authorize('users.manage'), usersAdminRouter);
+app.use('/api/v1/categories', categoriesRouter);                                  // public — domain đọc (storefront)
+app.use('/api/v1/admin/categories', authenticate, categoriesAdminRouter);         // domain quản trị (route tự authorize bên trong)
 ```
 
-Gom nhóm theo prefix rõ ràng — không route nào "quên" `authenticate`.
+Gom nhóm theo prefix rõ ràng — không route nào "quên" `authenticate`. `/superadmin/*` dành riêng cho quản trị hệ thống (chỉ `super_admin`); `/admin/*` dành cho nghiệp vụ domain mà `admin`/`super_admin` đều dùng được tuỳ permission — 2 prefix này KHÔNG dùng thay thế nhau.
 
 ### 14.2. Frontend (Next.js App Router)
 

@@ -234,7 +234,7 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
-| `categories` | id, name, slug, parent_id, image | Danh mục con dạng cây |
+| `categories` | id, name, slug, description, image_file_id (FK → `files`), parent_id, sort_order, is_active | Danh mục con dạng cây; ảnh qua `image_file_id` (tái sử dụng module Files, không lưu URL thô) |
 | `occasions` | id, name (Sinh nhật, Valentine...) | Tag dịp lễ |
 | `products` | id, name, slug, description, base_price, category_id, thumbnail, status, stock, deleted_at | |
 | `product_images` | id, product_id, url, sort_order | |
