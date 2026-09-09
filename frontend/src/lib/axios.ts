@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // withCredentials: true — access_token/refresh_token là cookie httpOnly do backend set,
 // trình duyệt tự đính kèm, KHÔNG cần (và không nên) tự tay gắn Authorization header.
-// Xem ARCHITECTURE.md §13.3, SECURITY.md §1.
+// Xem docs/04 §5, docs/07 §1.
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
   withCredentials: true,
@@ -11,8 +11,8 @@ export const api = axios.create({
 let isRefreshing = false;
 let pendingQueue: Array<() => void> = [];
 
-// access_token hết hạn sau 15 phút — tự động refresh 1 lần rồi retry request gốc,
-// tránh user bị văng ra ngay khi token vừa hết hạn giữa phiên làm việc.
+// access_token cố ý hết hạn ngắn (mặc định 5 phút, xem JWT_ACCESS_EXPIRES_IN ở backend) — tự động
+// refresh 1 lần rồi retry request gốc, tránh user bị văng ra ngay khi token vừa hết hạn giữa phiên.
 api.interceptors.response.use(
   (response) => response,
   async (error) => {

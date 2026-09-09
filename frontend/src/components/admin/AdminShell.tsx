@@ -20,7 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
 // GET /account/me) — KHÔNG còn ở proxy.ts (proxy chỉ check đã đăng nhập hay chưa, xem src/proxy.ts).
 // Nhờ vậy đổi role trong DB có hiệu lực ngay sau F5, không cần đăng xuất/đăng nhập lại. Đây vẫn chỉ là
 // lớp UX — API thật sự luôn được backend authorize() kiểm tra lại độc lập, không tin riêng frontend.
-// Xem ARCHITECTURE.md §10, §14.
+// Xem docs/02 §8, docs/04 §3.
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();

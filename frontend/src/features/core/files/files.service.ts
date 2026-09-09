@@ -13,7 +13,7 @@ export type FileRecord = {
 
 export const filesService = {
   // Bước 1: backend cấp presigned URL — bước 2: PUT thẳng file lên R2 (không qua server Express) —
-  // bước 3: báo backend lưu metadata. Xem ARCHITECTURE.md §8.
+  // bước 3: báo backend lưu metadata. Xem docs/02 §6.
   async upload(file: File, folderId?: string | null): Promise<FileRecord> {
     const presign = await api
       .post<{ data: { uploadUrl: string; r2Key: string } }>('/api/v1/files/presign', {

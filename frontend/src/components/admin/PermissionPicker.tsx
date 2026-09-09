@@ -7,7 +7,7 @@ type Props = {
 };
 
 // Chọn permission dạng pill theo nhóm (groupName) — chỉ nhận permission "assignable" (không restricted,
-// đã lọc từ trước qua GET .../permissions?assignable=true). Xem SECURITY.md §2.
+// đã lọc từ trước qua GET .../permissions?assignable=true). Xem docs/07 §2.
 export function PermissionPicker({ permissions, selected, onChange }: Props) {
   const groups = new Map<string, PickerPermission[]>();
   for (const p of permissions) {

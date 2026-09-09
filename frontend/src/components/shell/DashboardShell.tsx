@@ -33,7 +33,7 @@ type Props = {
 // app/(dashboard)/layout.tsx). Full-bleed (không max-w căn giữa cả khối) để không bị hẹp/lệch tâm
 // trên màn hình rộng — từng trang tự quyết định độ rộng nội dung của mình.
 // Chỉ dùng bởi AdminShell (components/admin/AdminShell.tsx) — trang tài khoản khách hàng /account
-// có diện mạo riêng, xem app/account/layout.tsx. Xem ARCHITECTURE.md §14.
+// có diện mạo riêng, xem app/account/layout.tsx. Xem docs/04 §3.
 export function DashboardShell({ brandSubtitle, sections, footerLine, children }: Props) {
   const pathname = usePathname();
   const { data: me } = useMe();

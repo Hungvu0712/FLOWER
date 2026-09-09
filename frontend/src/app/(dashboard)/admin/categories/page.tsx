@@ -82,7 +82,7 @@ function toInput(form: FormState) {
 }
 
 // Danh mục con dạng cây (parentId tự tham chiếu) — ảnh qua imageFileId (module Files/R2 có sẵn), xem
-// DATABASE.md §3.3. "categories.manage" là permission domain, admin/super_admin đều dùng được.
+// docs/05 §3.3. "categories.manage" là permission domain, admin/super_admin đều dùng được.
 export default function CategoriesPage() {
   const { data: categories, isLoading } = useCategories({ includeInactive: true });
   const createCategory = useCreateCategory();

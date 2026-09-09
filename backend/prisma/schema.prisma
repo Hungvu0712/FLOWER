@@ -9,7 +9,7 @@ datasource db {
 
 // =====================================================================
 // CORE (reusable) — giữ nguyên khi copy source base sang dự án PERN khác
-// Xem ARCHITECTURE.md §2 và DATABASE.md §3.1-3.3
+// Xem docs/02 §2 và docs/05 §3.1-3.3
 // =====================================================================
 
 model User {
@@ -234,7 +234,7 @@ model EmailLog {
 
 // =====================================================================
 // DOMAIN (flower shop specific) — thay thế bằng nghiệp vụ của dự án mới
-// Xem DATABASE.md §3.4-3.6. Đây chỉ là placeholder tối thiểu để tránh
+// Xem docs/05 §3.4-3.6. Đây chỉ là placeholder tối thiểu để tránh
 // migration rỗng — mở rộng dần theo README.md khi triển khai tính năng.
 // =====================================================================
 

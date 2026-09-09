@@ -1,6 +1,6 @@
 // Seed dữ liệu CORE — chạy giống nhau ở mọi dự án dùng source base này.
 // Domain (role/permission riêng nghiệp vụ) nằm ở prisma/seed/domain.seed.ts.
-// Xem DATABASE.md §4, ARCHITECTURE.md §2.
+// Xem docs/05 §4, docs/02 §2.
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';

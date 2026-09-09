@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Định nghĩa 1 lần, dùng lại cho react-hook-form (validate client) — khớp với schema zod phía backend
-// (auth.validation.ts) để tránh lệch rule. Xem ARCHITECTURE.md §13.3.
+// (auth.validation.ts) để tránh lệch rule. Xem docs/04 §5.
 export const loginSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
   password: z.string().min(1, 'Vui lòng nhập mật khẩu'),

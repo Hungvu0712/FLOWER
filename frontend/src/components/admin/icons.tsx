@@ -1,7 +1,7 @@
 type IconProps = { className?: string };
 
 // Bộ icon dùng riêng cho khu quản trị (sidebar, page header...) — vẽ SVG tay theo cùng style
-// (stroke 1.8, viewBox 24x24) với FlowerIcon để đồng bộ toàn app. Xem ARCHITECTURE.md §13.3.
+// (stroke 1.8, viewBox 24x24) với FlowerIcon để đồng bộ toàn app. Xem docs/04 §5.
 export function IconDashboard({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

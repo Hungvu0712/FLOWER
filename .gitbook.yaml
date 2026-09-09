@@ -1,0 +1,17 @@
+# Cấu hình đồng bộ GitHub → GitBook.
+# GitBook chỉ đọc thư mục docs/gitbook/ (tài liệu dành cho khách hàng);
+# toàn bộ tài liệu kỹ thuật trong docs/ KHÔNG được xuất bản.
+#
+# Cách kết nối: GitBook → Space → Integrations → GitHub → chọn repo và nhánh `main`.
+# Mỗi lần merge vào main, GitBook tự cập nhật nội dung.
+
+root: ./docs/gitbook/
+
+structure:
+  readme: README.md
+  summary: SUMMARY.md
+
+redirects:
+  tien-do: 03-tien-do.md
+  estimate: 04-estimate.md
+  rui-ro: 05-rui-ro.md

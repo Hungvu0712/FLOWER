@@ -19,7 +19,7 @@ type FormState = { code: string; name: string; description: string; permissionId
 const emptyForm: FormState = { code: '', name: '', description: '', permissionIds: [] };
 
 // Role tuỳ chỉnh (không phải System Role) chỉ được gán permission "assignable" (is_restricted=false) —
-// backend vẫn tự lọc bỏ permission restricted dù client gửi gì (SECURITY.md §2), nhưng picker chỉ hiện
+// backend vẫn tự lọc bỏ permission restricted dù client gửi gì (docs/07 §2), nhưng picker chỉ hiện
 // permission được phép ngay từ đầu để UX rõ ràng, không tạo cảm giác chọn được mà lưu lại mất.
 export default function RolesPage() {
   const { data: roles, isLoading } = useAdminRoles();

@@ -4,7 +4,7 @@ import { AccountTabs } from '@/components/account/AccountTabs';
 
 // Khu vực tài khoản khách hàng — dùng chung Nav/Footer với storefront (khác hẳn diện mạo sidebar
 // dashboard của /admin, /superadmin — xem components/admin/AdminShell.tsx) để đúng tinh thần trang
-// "khách hàng" thay vì "quản trị". Xem ARCHITECTURE.md §14.
+// "khách hàng" thay vì "quản trị". Xem docs/04 §3.
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">

@@ -7,7 +7,7 @@ type Props = InputHTMLAttributes<HTMLInputElement> & {
 };
 
 // Field validate theo từng ô, gắn với schema zod ở tầng gọi (react-hook-form + @hookform/resolvers/zod)
-// — xem ARCHITECTURE.md §13.3. `register('fieldName')` không tự sinh `id`, nên mặc định lấy theo
+// — xem docs/04 §5. `register('fieldName')` không tự sinh `id`, nên mặc định lấy theo
 // `name` để <label htmlFor> luôn liên kết đúng với input (accessibility).
 export function FormField({ label, error, id, name, className = '', ...rest }: Props) {
   const inputId = id ?? name;

@@ -1,7 +1,7 @@
-import type { Prisma } from '@prisma/client';
-import { prisma } from '../../../config/prisma';
-import { logger } from '../../../core/logger/logger';
-import { buildPaginationMeta } from '../../../core/response/ApiResponse';
+import type { Prisma } from "@prisma/client";
+import { prisma } from "../../../config/prisma";
+import { logger } from "../../../shared/logger/logger";
+import { buildPaginationMeta } from "../../../shared/response/ApiResponse";
 
 interface RecordAuditInput {
   actorId?: string;
@@ -14,7 +14,7 @@ interface RecordAuditInput {
 }
 
 // Ghi audit log là best-effort — lỗi ghi log không được làm rollback transaction nghiệp vụ chính.
-// Xem SECURITY.md §2.
+// Xem docs/07 §2.
 export async function record(input: RecordAuditInput): Promise<void> {
   try {
     await prisma.auditLog.create({
@@ -23,13 +23,20 @@ export async function record(input: RecordAuditInput): Promise<void> {
         action: input.action,
         entityType: input.entityType,
         entityId: String(input.entityId),
-        ...(input.before !== undefined && { before: input.before as Prisma.InputJsonValue }),
-        ...(input.after !== undefined && { after: input.after as Prisma.InputJsonValue }),
+        ...(input.before !== undefined && {
+          before: input.before as Prisma.InputJsonValue,
+        }),
+        ...(input.after !== undefined && {
+          after: input.after as Prisma.InputJsonValue,
+        }),
         ...(input.ipAddress && { ipAddress: input.ipAddress }),
       },
     });
   } catch (err) {
-    logger.error('Ghi audit log thất bại:', err instanceof Error ? err.message : err);
+    logger.error(
+      "Ghi audit log thất bại:",
+      err instanceof Error ? err.message : err,
+    );
   }
 }
 
@@ -42,7 +49,14 @@ interface ListAuditParams {
   limit: number;
 }
 
-export async function list({ actorId, entityType, from, to, page, limit }: ListAuditParams) {
+export async function list({
+  actorId,
+  entityType,
+  from,
+  to,
+  page,
+  limit,
+}: ListAuditParams) {
   const where = {
     ...(actorId && { actorId }),
     ...(entityType && { entityType }),
@@ -57,7 +71,7 @@ export async function list({ actorId, entityType, from, to, page, limit }: ListA
   const [items, total] = await Promise.all([
     prisma.auditLog.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
       include: { actor: { select: { id: true, fullName: true, email: true } } },

@@ -1,51 +1,85 @@
-# Frontend — Next.js (Core + Domain)
+# Frontend — Next.js 16 (App Router)
 
-Xem chuẩn kiến trúc đầy đủ ở [ARCHITECTURE.md](../ARCHITECTURE.md), schema & RBAC ở [DATABASE.md](../DATABASE.md).
+Tài liệu đầy đủ: [`docs/04-frontend.md`](../docs/04-frontend.md).
+
+> ⚠️ **Next.js 16 có breaking changes** so với v14/v15 — đáng chú ý nhất: `middleware.ts` đổi tên
+> thành **`proxy.ts`** và export hàm `proxy`. Khi không chắc về API, đọc tài liệu đi kèm trong
+> `node_modules/next/dist/docs/` thay vì suy đoán.
 
 ## Cài đặt
 
 ```bash
 npm install
-cp .env.local.example .env.local   # điền NEXT_PUBLIC_API_URL (mặc định http://localhost:4000)
-npm run dev
+cp .env.local.example .env.local   # điền NEXT_PUBLIC_API_URL
+npm run dev                        # → http://localhost:3000
 ```
 
-Chạy song song `backend/` (xem [backend/README.md](../backend/README.md)) — frontend gọi API qua `NEXT_PUBLIC_API_URL` + prefix `/api/v1`.
+Chạy song song với [`backend/`](../backend/README.md). Frontend gọi
+`NEXT_PUBLIC_API_URL` + prefix `/api/v1` — **không** thêm `/api/v1` vào biến môi trường.
 
-## Design system
+## Lệnh
 
-"Soft Petal" — token định nghĩa ở `src/app/globals.css` (`@theme`), font qua `next/font/google`
-(Cormorant Garamond cho tiêu đề, DM Sans cho nội dung) trong `src/app/layout.tsx`. Đổi màu/font ở
-đúng 1 chỗ này sẽ áp dụng cho toàn app vì mọi component dùng token (`bg-rose`, `text-ink`, `font-display`...),
-không hard-code màu riêng lẻ.
-
-## Đã triển khai (core)
-
-- **Auth**: `/login`, `/register`, `/magic-link` (+ `/magic-link/verify`), `/forgot-password`, `/reset-password`.
-- **Account self-service**: `/account/profile` (đổi họ tên/SĐT/avatar qua R2 presigned URL), `/account/devices`
-  (danh sách thiết bị, đăng xuất từng thiết bị/tất cả thiết bị khác), đổi mật khẩu.
-- **SuperAdmin**: `/superadmin/users`, `/superadmin/login-methods`.
-- **Storefront**: `/` — trang chủ theo design Soft Petal (hero, danh mục, sản phẩm nổi bật — dữ liệu mẫu,
-  chưa nối API domain thật).
-- `proxy.ts` bảo vệ `/account/*`, `/admin/*`, `/superadmin/*`.
-
-## Chưa triển khai
-
-- `/superadmin/roles`, `/superadmin/permissions` (API backend đã có, UI chưa viết).
-- Google OAuth thật (cần `NEXT_PUBLIC_GOOGLE_CLIENT_ID` + tích hợp Google Identity Services).
-- Toàn bộ domain thật: `/products`, `/cart`, `/orders`... (xem `features/domain/README.md`).
+| Lệnh | Việc |
+|---|---|
+| `npm run dev` / `build` / `start` | Chạy dev · build · chạy production |
+| `npm run typecheck` | Kiểm tra kiểu *(cần chạy `next build` ít nhất một lần để sinh type của App Router)* |
+| `npm run lint` | ESLint |
+| `npm test` | **101 test** — unit + component + hook |
+| `npm run test:e2e` | Playwright — **cần backend + database thật đang chạy** |
+| `npm run test:e2e:ui` | Playwright chế độ giao diện, debug từng bước |
 
 ## Cấu trúc
 
 ```
 src/
-├── app/            # routes — xem ARCHITECTURE.md §14.2
-│   └── (storefront)/_components/   # Nav, Footer dùng chung cho các trang storefront
-├── components/ui/  # Button, FormField, FlowerIcon — dùng chung, style theo design token
+├── app/                    # App Router
+│   ├── (storefront)/       # 🌸 PUBLIC — trang chủ, sản phẩm
+│   ├── (auth)/             # 🔧 PUBLIC — login · register · magic-link · forgot/reset password
+│   ├── (dashboard)/        # 🔧 route group gộp /admin + /superadmin dưới 1 layout
+│   ├── account/            # 🔧 PROTECTED — route THẬT (không phải route group) để proxy.ts match
+│   └── 403/                #    đích redirect khi đã đăng nhập nhưng thiếu quyền
+├── components/             # ui/ · layout/ · shell/ · admin/ · account/
 ├── features/
-│   ├── core/       # mỗi feature = *.service.ts (axios thuần) + *.hooks.ts (TanStack Query)
-│   └── domain/     # trống — viết theo nghiệp vụ dự án
-├── lib/            # axios instance (withCredentials, auto-refresh khi 401), decode JWT (không verify)
-├── store/          # Zustand — useAuthStore (chỉ lưu user hiện tại cho UI)
-└── proxy.ts         # bảo vệ route ở edge/node runtime trước khi vào app/
+│   ├── core/               # 🔧 auth · account · files · admin-users/roles/permissions/login-methods
+│   └── domain/             # 🌸 categories
+├── lib/                    # 🔧 axios (auto-refresh khi 401) · jwt decode · errors · redirect
+├── store/                  # 🔧 zustand — CHỈ UI state
+└── proxy.ts                # 🔧 chặn route sớm (Next.js 16)
+tests/                      # unit + component
+e2e/                        # Playwright
 ```
+
+**Mỗi feature = 2 file**: `*.service.ts` (axios thuần, không import React) +
+`*.hooks.ts` (TanStack Query). Component **không tự gọi axios**.
+
+## Bảo vệ route — 3 lớp, chỉ 1 lớp là bảo mật thật
+
+| Lớp | Ở đâu | Kiểm tra | Bảo mật thật? |
+|:---:|---|---|:---:|
+| 1 | `src/proxy.ts` | **Chỉ** "đã đăng nhập chưa" (decode JWT lấy `exp`, không verify chữ ký) | ❌ UX |
+| 2 | `components/admin/AdminShell.tsx` | Role, qua `useMe()` refetch mỗi lần đổi route | ❌ UX |
+| 3 | Backend `authorize()` | Permission hiện tại trong DB | ✅ |
+
+Chi tiết và lý do: [`docs/04-frontend.md §3`](../docs/04-frontend.md).
+
+## Design system "Soft Petal"
+
+Token màu/font khai báo **một chỗ** ở `src/app/globals.css` (`@theme` của Tailwind 4);
+font qua `next/font/google` trong `app/layout.tsx` (Cormorant Garamond cho tiêu đề, DM Sans cho nội
+dung). Component dùng token (`bg-rose`, `text-ink`, `font-display`) — **không hard-code mã màu**,
+đổi bảng màu ở một chỗ là áp dụng toàn app.
+
+Bản thiết kế gốc ở [`.design/`](../.design/) — tài liệu tham chiếu, không phải code chạy.
+
+## Đã triển khai
+
+- **Auth**: `/login` · `/register` · `/magic-link` (+ `/verify`) · `/forgot-password` · `/reset-password`
+- **Tài khoản**: `/account/profile` (đổi tên/SĐT/avatar qua R2) · `/account/devices` (quản lý thiết bị)
+- **SuperAdmin**: `/superadmin/users` · `/roles` · `/permissions` · `/login-methods`
+- **Admin**: `/admin` · `/admin/categories`
+- **Storefront**: `/` (giao diện xong, dữ liệu mẫu)
+
+## Chưa triển khai
+
+Trang sản phẩm · giỏ hàng · thanh toán · đơn hàng · màn tra cứu audit log · màn quản lý tài nguyên.
+Google OAuth cần `NEXT_PUBLIC_GOOGLE_CLIENT_ID` thật. Xem [`CHECKLIST.md`](../CHECKLIST.md).

@@ -15,7 +15,7 @@ function getTransporter(): Transporter {
   return transporter;
 }
 
-// Phương án tạm khi chưa có domain riêng cho Resend — dễ vào spam hơn, xem ARCHITECTURE.md §9.
+// Phương án tạm khi chưa có domain riêng cho Resend — dễ vào spam hơn, xem docs/02 §7.
 export const nodemailerProvider: EmailProvider = {
   async send({ to, subject, html }: SendEmailInput): Promise<SendEmailResult> {
     const info = await getTransporter().sendMail({ from: env.email.from, to, subject, html });

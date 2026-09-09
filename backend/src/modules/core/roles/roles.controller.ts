@@ -1,6 +1,6 @@
-import { asyncHandler } from '../../../core/middleware';
-import { ok, created } from '../../../core/response/ApiResponse';
-import * as service from './roles.service';
+import { asyncHandler } from "../../../shared/middleware";
+import { ok, created } from "../../../shared/response/ApiResponse";
+import * as service from "./roles.service";
 
 export const list = asyncHandler(async (_req, res) => {
   const roles = await service.list();
@@ -13,11 +13,16 @@ export const create = asyncHandler(async (req, res) => {
 });
 
 export const update = asyncHandler(async (req, res) => {
-  const role = await service.update(req.user!.id, Number(req.params.id), req.body, req.ip);
+  const role = await service.update(
+    req.user!.id,
+    Number(req.params.id),
+    req.body,
+    req.ip,
+  );
   ok(res, role);
 });
 
 export const remove = asyncHandler(async (req, res) => {
   await service.remove(req.user!.id, Number(req.params.id), req.ip);
-  ok(res, null, 'Đã xoá role');
+  ok(res, null, "Đã xoá role");
 });
