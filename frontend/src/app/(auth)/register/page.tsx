@@ -15,7 +15,7 @@ import { getRedirectTarget } from '@/lib/redirect';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { data: me } = useMe();
+  const { data: me, refetch: refetchMe } = useMe();
   const registerMutation = useRegister();
   const {
     register,
@@ -23,8 +23,13 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
 
-  // Xem giải thích ở login/page.tsx — token vừa hết hạn lúc điều hướng có thể tự refresh ngầm ngay sau
-  // đó, tránh kẹt người dùng ở trang đăng ký dù thực chất đã đăng nhập.
+  // Xem giải thích ở login/page.tsx — refetch() cố ý bỏ qua cache/staleTime để tránh vòng lặp redirect
+  // khi dữ liệu cache còn "tươi" nhưng cookie thật đã hết hạn.
+  useEffect(() => {
+    refetchMe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (me) router.replace(getRedirectTarget());
   }, [me, router]);

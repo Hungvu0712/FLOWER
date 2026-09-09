@@ -5,8 +5,10 @@ export interface UserRolesAndPermissions {
   permissions: string[];
 }
 
-// Load role code + permission code (flatten, unique) của 1 user — dùng để nhúng vào JWT payload
-// và để authorize() middleware so khớp mà không cần query DB mỗi request.
+// Load role code + permission code (flatten, unique) của 1 user — nguồn sự thật duy nhất cho RBAC,
+// gọi lại ở MỖI request qua authenticate middleware (không nhúng vào JWT) để đổi role trong DB có
+// hiệu lực ngay. Cũng dùng cho GET /account/me để frontend hiển thị đúng role/permission hiện tại.
+// Xem ARCHITECTURE.md §10.
 export async function loadUserRolesAndPermissions(userId: string): Promise<UserRolesAndPermissions> {
   const userRoles = await prisma.userRole.findMany({
     where: { userId },

@@ -22,26 +22,32 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
-      if (!isRefreshing) {
-        isRefreshing = true;
-        try {
-          await api.post('/api/v1/auth/refresh');
-          pendingQueue.forEach((resolve) => resolve());
-          pendingQueue = [];
-        } catch {
-          // Không có refresh token hợp lệ — có thể chỉ là khách chưa đăng nhập ghé trang public
-          // (vd gọi useMe() ở trang chủ). Không tự ý redirect ở đây: route thật sự cần đăng nhập đã
-          // được proxy.ts chặn từ trước khi vào trang; cứ để lỗi 401 trả về cho caller tự xử lý.
-          pendingQueue = [];
-          return Promise.reject(error);
-        } finally {
-          isRefreshing = false;
-        }
+      // Đã có 1 request khác đang refresh — xếp hàng chờ thay vì gọi refresh trùng lặp.
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          pendingQueue.push(() => resolve(api(originalRequest)));
+        });
       }
 
-      return new Promise((resolve) => {
-        pendingQueue.push(() => resolve(api(originalRequest)));
-      });
+      isRefreshing = true;
+      try {
+        await api.post('/api/v1/auth/refresh');
+        pendingQueue.forEach((resolve) => resolve());
+        pendingQueue = [];
+        // Request "chính" (request kích hoạt refresh) phải tự retry ở đây — KHÔNG được đẩy vào
+        // pendingQueue vì hàng đợi vừa bị xoá rỗng ngay phía trên, đẩy vào đây thì không ai resolve
+        // nữa, promise treo vĩnh viễn (bug thật đã xảy ra: user tưởng đã refresh xong nhưng request
+        // gốc — vd useMe() — không bao giờ trả kết quả).
+        return api(originalRequest);
+      } catch {
+        // Không có refresh token hợp lệ — có thể chỉ là khách chưa đăng nhập ghé trang public
+        // (vd gọi useMe() ở trang chủ). Không tự ý redirect ở đây: route thật sự cần đăng nhập đã
+        // được proxy.ts chặn từ trước khi vào trang; cứ để lỗi 401 trả về cho caller tự xử lý.
+        pendingQueue = [];
+        return Promise.reject(error);
+      } finally {
+        isRefreshing = false;
+      }
     }
 
     return Promise.reject(error);

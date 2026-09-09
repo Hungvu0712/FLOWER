@@ -21,7 +21,7 @@ function isEnabled(methods: { method: string; isEnabled: boolean }[] | undefined
 
 export default function LoginPage() {
   const router = useRouter();
-  const { data: me } = useMe();
+  const { data: me, refetch: refetchMe } = useMe();
   const { data: methods } = useLoginMethods();
   const login = useLogin();
   const {
@@ -31,8 +31,17 @@ export default function LoginPage() {
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
   // proxy.ts chặn theo token lúc điều hướng — nếu token đó vừa hết hạn thì bị đẩy về đây, nhưng ngay
-  // sau đó Nav gọi useMe() có thể tự refresh ngầm thành công (vẫn còn refresh token hợp lệ). Không có
-  // effect này thì người dùng bị kẹt ở trang login dù thực chất đã đăng nhập lại.
+  // sau đó có thể tự refresh ngầm thành công (vẫn còn refresh token hợp lệ). Không có effect này thì
+  // người dùng bị kẹt ở trang login dù thực chất đã đăng nhập lại.
+  // refetch() ở đây CỐ Ý bỏ qua staleTime (30s) của useMe() — nếu chỉ dựa vào `me` từ cache, dữ liệu có
+  // thể là kết quả fetch TRƯỚC KHI token hết hạn (vẫn còn "tươi" theo staleTime dù cookie thật đã hết
+  // hạn), khiến effect tưởng đã đăng nhập và replace đi trong khi cookie thật vẫn hết hạn — proxy.ts lại
+  // chặn, tạo vòng lặp redirect. refetch() luôn gọi API thật, đi qua đúng luồng refresh-token thật sự.
+  useEffect(() => {
+    refetchMe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (me) router.replace(getRedirectTarget());
   }, [me, router]);

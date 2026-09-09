@@ -7,6 +7,7 @@ export type Me = {
   phone: string | null;
   avatarFile: { url: string } | null;
   roles: string[];
+  permissions: string[];
 };
 
 export type DeviceSession = {

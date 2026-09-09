@@ -5,7 +5,6 @@ import { env } from '../../../config/env';
 import { prisma } from '../../../config/prisma';
 import { hashPassword, verifyPassword, sha256, generateRandomToken } from '../../../core/utils/hash';
 import { signAccessToken } from '../../../core/utils/jwt';
-import { loadUserRolesAndPermissions } from '../../../core/utils/rbac';
 import { emailService } from '../email/email.service';
 import { magicLinkTemplate, passwordResetTemplate } from '../email/email.templates';
 import * as repo from './auth.repository';
@@ -46,8 +45,9 @@ async function assertMethodEnabled(method: string, label: string): Promise<void>
 
 // ---- Helper dùng chung cho mọi luồng login (password/magic-link/google) ----
 export async function issueSession(user: User, meta?: RequestMeta): Promise<AuthSession> {
-  const { roles, permissions } = await loadUserRolesAndPermissions(user.id);
-  const accessToken = signAccessToken({ sub: user.id, roles, permissions });
+  // Access token CHỈ chứa sub (định danh) — role/permission được authenticate middleware tra lại từ
+  // DB ở mỗi request, không nhúng ở đây. Xem core/utils/jwt.ts.
+  const accessToken = signAccessToken({ sub: user.id });
 
   const refreshToken = generateRandomToken();
   const refreshTokenHash = sha256(refreshToken);

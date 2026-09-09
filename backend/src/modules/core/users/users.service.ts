@@ -2,6 +2,7 @@ import type { User } from '@prisma/client';
 import { prisma } from '../../../config/prisma';
 import { AppError } from '../../../core/errors';
 import { hashPassword, verifyPassword, sha256 } from '../../../core/utils/hash';
+import { loadUserRolesAndPermissions } from '../../../core/utils/rbac';
 import * as filesService from '../files/files.service';
 import type { UpdateProfileInput, ChangePasswordInput } from './users.validation';
 
@@ -10,13 +11,15 @@ function sanitizeUser(user: User) {
   return safe;
 }
 
+// Trả roles + permissions HIỆN TẠI từ DB (không phải từ token) — frontend dùng dữ liệu này để cập
+// nhật menu/quyền truy cập ngay sau F5, không cần đăng xuất/đăng nhập lại. Xem ARCHITECTURE.md §10.
 export async function getMe(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { roles: { include: { role: true } }, avatarFile: true },
-  });
+  const [user, { roles, permissions }] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, include: { avatarFile: true } }),
+    loadUserRolesAndPermissions(userId),
+  ]);
   if (!user) throw new AppError('Không tìm thấy người dùng', 404, 'NOT_FOUND');
-  return { ...sanitizeUser(user), roles: user.roles.map((r) => r.role.code) };
+  return { ...sanitizeUser(user), roles, permissions };
 }
 
 export async function updateProfile(userId: string, input: UpdateProfileInput) {
