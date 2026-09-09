@@ -39,3 +39,8 @@ lerna-debug.log*
 # Misc
 *.local
 coverage/
+
+# Design canvas build output (regenerated from .dc.html + canvas.json via
+# the Claude Design skill's seed-canvas.mjs — not source, don't commit)
+.design/**/*.html
+!.design/**/*.dc.html

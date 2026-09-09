@@ -1,0 +1,236 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-white: oklch(100% 0 0);
+      --color-ivory: oklch(97% 0.012 80);
+      --color-ivory-50: oklch(99% 0.006 80);
+      --color-ink: oklch(24% 0.02 40);
+      --color-ink-muted: oklch(45% 0.02 50);
+      --color-ink-soft: oklch(35% 0.02 40);
+      --color-rose: oklch(58% 0.1 20);
+      --color-rose-dark: oklch(48% 0.1 20);
+      --color-rose-light: oklch(93% 0.02 30);
+      --color-sage: oklch(55% 0.07 140);
+      --color-sage-light: oklch(94% 0.025 140);
+      --color-border: oklch(90% 0.015 70);
+      --color-border-soft: oklch(93% 0.012 70);
+      --font-display: 'Cormorant Garamond', Georgia, serif;
+      --font-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font-sans); background: var(--color-white); color: var(--color-ink); }
+    a { color: var(--color-rose); text-decoration: none; }
+    a:hover { color: var(--color-rose-dark); }
+    .pill-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      border-radius: 999px; font-weight: 600; font-size: 14px; white-space: nowrap;
+      transition: background-color .15s, border-color .15s;
+    }
+  </style>
+</helmet>
+
+<div style="width: 1440px; background: var(--color-white); position: relative;">
+
+  <!-- Utility bar -->
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 64px; height: 38px; background: var(--color-white); border-bottom: 1px solid var(--color-border-soft); color: var(--color-ink-muted); font-size: 12.5px;">
+    <div style="display: flex; align-items: center; gap: 28px;">
+      <div style="display: flex; align-items: center; gap: 7px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-rose)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="7" width="14" height="10" rx="1.5"/><path d="M15.5 10.5H19l3 3.2V17h-6.5"/><circle cx="6" cy="19.5" r="1.7"/><circle cx="17.5" cy="19.5" r="1.7"/></svg>
+        <span>Miễn phí giao nội thành</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-rose)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+        <span>Giao gấp trong 90 phút</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-rose)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v17l-2.5-1.6L13 20.5l-2.5-1.6L8 20.5l-2-1.6V3.5Z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+        <span>Xuất hoá đơn VAT trong 30 phút</span>
+      </div>
+    </div>
+    <span>Mở cửa 07:00 – 21:00 tất cả các ngày</span>
+  </div>
+
+  <!-- Header -->
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: 22px 64px; background: var(--color-white); border-bottom: 1px solid var(--color-border-soft);">
+    <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="7" r="3.2" fill="var(--color-rose)"/>
+        <circle cx="7" cy="12" r="3.2" fill="var(--color-rose)" opacity="0.75"/>
+        <circle cx="17" cy="12" r="3.2" fill="var(--color-rose)" opacity="0.75"/>
+        <circle cx="12" cy="15" r="3.2" fill="var(--color-rose)"/>
+        <line x1="12" y1="16" x2="12" y2="22" stroke="var(--color-sage)" stroke-width="1.6"/>
+      </svg>
+      <span style="font-family: var(--font-display); font-size: 26px; font-weight: 600; color: var(--color-ink);">Hoa Xinh</span>
+    </div>
+
+    <div style="flex: 1; max-width: 460px; display: flex; align-items: center; border: 1px solid var(--color-border); border-radius: 999px; padding: 10px 8px 10px 20px; background: white;">
+      <input placeholder="Tìm mẫu hoa, ví dụ: hoa cưới..." style="flex: 1; border: none; outline: none; font-family: var(--font-sans); font-size: 14px; color: var(--color-ink); background: transparent;">
+      <div style="width: 34px; height: 34px; border-radius: 999px; background: var(--color-rose); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 14px; flex-shrink: 0;">
+      <div class="pill-btn" style="border: 1px solid var(--color-border); color: var(--color-ink-soft); padding: 9px 16px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15.5a2 2 0 0 1-2 2H8l-5 4V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9.5Z"/></svg>
+        Nhắn tin nhanh
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 38px; height: 38px; border-radius: 999px; background: var(--color-rose-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-rose-dark)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5c0-1.1.9-2 2-2h2.2c.5 0 .95.35 1.06.85l.9 4c.1.45-.06.9-.4 1.2l-1.7 1.4a13 13 0 0 0 5.9 5.9l1.4-1.7c.3-.34.75-.5 1.2-.4l4 .9c.5.1.85.56.85 1.06V19c0 1.1-.9 2-2 2h-1C10.8 21 3 13.2 3 3.6v-1Z" transform="translate(0,0)"/></svg>
+        </div>
+        <div>
+          <p style="margin: 0; font-size: 11px; color: var(--color-ink-muted); line-height: 1.3;">Hotline đặt hoa</p>
+          <p style="margin: 0; font-size: 15px; font-weight: 600; color: var(--color-ink); line-height: 1.3;">0900 000 000</p>
+        </div>
+      </div>
+
+      <div style="position: relative; width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-ink-soft)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h2l2.4 12.4a2 2 0 0 0 2 1.6h8.4a2 2 0 0 0 2-1.6L22 8H6"/><circle cx="9" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></svg>
+        <span style="position: absolute; top: -5px; right: -5px; width: 17px; height: 17px; border-radius: 999px; background: var(--color-rose); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;">2</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div style="display: flex; align-items: center; gap: 36px; padding: 15px 64px; border-bottom: 1px solid var(--color-border-soft); font-size: 14px; font-weight: 500;">
+    <a href="#" style="color: var(--color-rose); border-bottom: 2px solid var(--color-rose); padding-bottom: 15px; margin-bottom: -16px;">Trang chủ</a>
+    <a href="#" style="color: var(--color-ink-soft);">Hoa bó</a>
+    <a href="#" style="color: var(--color-ink-soft);">Giỏ hoa</a>
+    <a href="#" style="color: var(--color-ink-soft);">Hoa khai trương</a>
+    <a href="#" style="color: var(--color-ink-soft);">Hoa viếng</a>
+    <a href="#" style="color: var(--color-ink-soft);">Về chúng tôi</a>
+    <a href="#" style="color: var(--color-ink-soft);">Liên hệ</a>
+  </div>
+
+  <!-- Hero -->
+  <div style="display: flex; align-items: center; gap: 56px; padding: 76px 64px;">
+    <div style="flex: 1; min-width: 0;">
+      <p style="margin: 0 0 18px; font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--color-rose);">Điện hoa tươi mỗi ngày</p>
+      <h1 style="margin: 0; font-family: var(--font-display); font-size: 52px; font-weight: 600; line-height: 1.12; color: var(--color-ink);">Gửi trọn yêu thương<br>bằng đoá hoa tươi</h1>
+      <p style="margin: 26px 0 0; max-width: 420px; font-size: 16px; line-height: 1.7; color: var(--color-ink-muted);">Hoa bó, giỏ hoa, kệ khai trương và hoa viếng — thiết kế theo yêu cầu, giao tận nơi trong 90 phút.</p>
+
+      <div style="display: flex; gap: 14px; margin-top: 34px;">
+        <div class="pill-btn" style="background: var(--color-rose); color: white; padding: 15px 26px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5c0-1.1.9-2 2-2h2.2c.5 0 .95.35 1.06.85l.9 4c.1.45-.06.9-.4 1.2l-1.7 1.4a13 13 0 0 0 5.9 5.9l1.4-1.7c.3-.34.75-.5 1.2-.4l4 .9c.5.1.85.56.85 1.06V19c0 1.1-.9 2-2 2h-1C10.8 21 3 13.2 3 3.6v-1Z"/></svg>
+          Gọi đặt hoa 0900 000 000
+        </div>
+        <div class="pill-btn" style="background: transparent; color: var(--color-ink-soft); border: 1px solid var(--color-border); padding: 15px 26px;">Xem mẫu hoa</div>
+      </div>
+
+      <div style="display: flex; gap: 26px; margin-top: 40px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-sage)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>
+          <span style="font-size: 13.5px; color: var(--color-ink-soft);">Ảnh thật trước khi giao</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-sage)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>
+          <span style="font-size: 13.5px; color: var(--color-ink-soft);">Hoa tươi mỗi ngày</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-sage)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>
+          <span style="font-size: 13.5px; color: var(--color-ink-soft);">Xuất hoá đơn VAT</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex: 1; display: flex; justify-content: center; position: relative; padding: 10px 20px 40px 0;">
+      <!-- Dot pattern accent, sits behind the photo frame -->
+      <svg width="140" height="140" style="position: absolute; top: -6px; left: 0; z-index: 0;" viewBox="0 0 140 140">
+        <g fill="var(--color-rose)" opacity="0.35">
+          <circle cx="4" cy="4" r="2.6"/><circle cx="24" cy="4" r="2.6"/><circle cx="44" cy="4" r="2.6"/><circle cx="64" cy="4" r="2.6"/>
+          <circle cx="4" cy="24" r="2.6"/><circle cx="24" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="64" cy="24" r="2.6"/>
+          <circle cx="4" cy="44" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="44" cy="44" r="2.6"/><circle cx="64" cy="44" r="2.6"/>
+          <circle cx="4" cy="64" r="2.6"/><circle cx="24" cy="64" r="2.6"/><circle cx="44" cy="64" r="2.6"/><circle cx="64" cy="64" r="2.6"/>
+        </g>
+      </svg>
+
+      <!-- Photo frame: replace the placeholder illustration below with the real product photo
+           (add it as a files entry, e.g. bouquet.jpg, then swap the <div> background for
+           background-image: url('bouquet.jpg'); background-size: cover; background-position: center;) -->
+      <div style="position: relative; z-index: 1; width: 430px; height: 460px; border-radius: 28px; overflow: hidden; background: linear-gradient(160deg, var(--color-rose-light) 0%, var(--color-ivory-50) 55%, var(--color-sage-light) 100%); border: 1px solid var(--color-border-soft); box-shadow: 0 40px 70px -28px oklch(24% 0.02 40 / 0.22);">
+        <svg width="100%" height="100%" viewBox="0 0 430 460" style="position: absolute; inset: 0;">
+          <ellipse cx="215" cy="330" rx="150" ry="26" fill="var(--color-rose)" opacity="0.08"/>
+          <circle cx="150" cy="190" r="46" fill="var(--color-rose)" opacity="0.85"/>
+          <circle cx="230" cy="165" r="52" fill="var(--color-rose-dark)" opacity="0.9"/>
+          <circle cx="290" cy="205" r="40" fill="var(--color-rose)" opacity="0.7"/>
+          <circle cx="185" cy="145" r="34" fill="white" opacity="0.9"/>
+          <circle cx="265" cy="140" r="28" fill="white" opacity="0.85"/>
+          <circle cx="205" cy="230" r="30" fill="var(--color-rose-light)"/>
+          <path d="M150 236 L140 320 M230 217 L232 322 M290 245 L300 315" stroke="var(--color-sage)" stroke-width="4" stroke-linecap="round"/>
+          <path d="M120 300 Q215 340 320 300 L330 340 Q215 380 110 340 Z" fill="var(--color-ink)" opacity="0.08"/>
+        </svg>
+      </div>
+
+      <!-- Floating trust badge -->
+      <div style="position: absolute; z-index: 2; left: 10px; bottom: 10px; display: flex; align-items: center; gap: 10px; background: white; border: 1px solid var(--color-border-soft); border-radius: 16px; padding: 12px 18px; box-shadow: 0 16px 30px -14px oklch(24% 0.02 40 / 0.2);">
+        <div style="width: 34px; height: 34px; border-radius: 999px; background: var(--color-sage-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>
+        </div>
+        <div>
+          <p style="margin: 0; font-size: 13px; font-weight: 600; color: var(--color-ink);">Ảnh thật 100%</p>
+          <p style="margin: 1px 0 0; font-size: 11.5px; color: var(--color-ink-muted);">Chụp trước khi giao</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feature row -->
+  <div style="background: var(--color-ivory); padding: 44px 64px 84px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px;">
+    <div style="display: flex; align-items: center; gap: 14px; background: white; border: 1px solid var(--color-border-soft); border-radius: 20px; padding: 20px 22px;">
+      <div style="width: 44px; height: 44px; border-radius: 999px; background: var(--color-rose-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--color-rose-dark)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v17l-2.5-1.6L13 20.5l-2.5-1.6L8 20.5l-2-1.6V3.5Z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+      </div>
+      <div>
+        <p style="margin: 0; font-size: 14px; font-weight: 600; color: var(--color-ink);">Xuất hoá đơn VAT</p>
+        <p style="margin: 3px 0 0; font-size: 12.5px; color: var(--color-ink-muted);">Trong vòng 30 phút</p>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 14px; background: white; border: 1px solid var(--color-border-soft); border-radius: 20px; padding: 20px 22px;">
+      <div style="width: 44px; height: 44px; border-radius: 999px; background: var(--color-rose-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--color-rose-dark)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="7" width="14" height="10" rx="1.5"/><path d="M15.5 10.5H19l3 3.2V17h-6.5"/><circle cx="6" cy="19.5" r="1.7"/><circle cx="17.5" cy="19.5" r="1.7"/></svg>
+      </div>
+      <div>
+        <p style="margin: 0; font-size: 14px; font-weight: 600; color: var(--color-ink);">Giao hoa miễn phí</p>
+        <p style="margin: 3px 0 0; font-size: 12.5px; color: var(--color-ink-muted);">Trong khu vực nội thành</p>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 14px; background: white; border: 1px solid var(--color-border-soft); border-radius: 20px; padding: 20px 22px;">
+      <div style="width: 44px; height: 44px; border-radius: 999px; background: var(--color-rose-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--color-rose-dark)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+      </div>
+      <div>
+        <p style="margin: 0; font-size: 14px; font-weight: 600; color: var(--color-ink);">Giao hoa gấp</p>
+        <p style="margin: 3px 0 0; font-size: 12.5px; color: var(--color-ink-muted);">Chỉ trong 90 phút</p>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 14px; background: white; border: 1px solid var(--color-border-soft); border-radius: 20px; padding: 20px 22px;">
+      <div style="width: 44px; height: 44px; border-radius: 999px; background: var(--color-rose-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--color-rose-dark)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4.5L15.5 5 19 8.5 8.5 19 4 20Z"/><line x1="13" y1="7" x2="17" y2="11"/></svg>
+      </div>
+      <div>
+        <p style="margin: 0; font-size: 14px; font-weight: 600; color: var(--color-ink);">Thiết kế theo yêu cầu</p>
+        <p style="margin: 3px 0 0; font-size: 12.5px; color: var(--color-ink-muted);">Mẫu riêng, đúng ngân sách</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
