@@ -21,8 +21,9 @@ import { confirmDialog } from '@/store/useConfirmStore';
 // ở đây chỉ disable nút cho gọn UI, không phải lớp bảo mật.
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const { data: me } = useMe();
-  const { data, isLoading } = useAdminUsers({ search: search || undefined });
+  const { data, isLoading } = useAdminUsers({ search: search || undefined, page });
   const { data: roles } = useAdminRoles();
   const blockUser = useBlockUser();
   const unblockUser = useUnblockUser();
@@ -39,7 +40,10 @@ export default function AdminUsersPage() {
         <input
           placeholder="Tìm theo tên/email..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1); // đổi từ khoá tìm kiếm thì về lại trang 1, tránh đứng ở trang không còn dữ liệu
+          }}
           className="mb-6 w-full max-w-sm rounded-xl border border-border px-4 py-2.5 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
         />
 
@@ -136,6 +140,27 @@ export default function AdminUsersPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {data && data.meta.totalPages > 1 && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-ink-muted">
+              Trang {data.meta.page}/{data.meta.totalPages} · {data.meta.total} người dùng
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                Trước
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= data.meta.totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Sau
+              </Button>
+            </div>
           </div>
         )}
       </div>
