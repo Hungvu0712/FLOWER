@@ -1,19 +1,16 @@
 import Link from 'next/link';
 import { FlowerIcon } from '@/components/ui/FlowerIcon';
 import { Button } from '@/components/ui/Button';
+import { ProductCard } from '@/components/storefront/ProductCard';
+import { getStorefrontCategories, getStorefrontProducts } from '@/lib/storefront-api';
 
-// Dữ liệu mẫu — thay bằng API thật khi module domain `products` được triển khai
-// (xem docs/02 §2, docs/05 §3.4).
-const CATEGORIES = ['Sinh nhật', 'Khai trương', 'Cưới hỏi', 'Chia buồn'];
+export default async function StorefrontHomePage() {
+  const [categories, products] = await Promise.all([
+    getStorefrontCategories(),
+    getStorefrontProducts({ limit: 8 }),
+  ]);
+  const rootCategories = categories.filter((c) => c.parentId === null);
 
-const PRODUCTS = [
-  { name: 'Bó hồng đỏ Passion', desc: '12 bông hồng Ecuador', price: '450.000₫', color: '#c95b52' },
-  { name: 'Giỏ hướng dương nắng', desc: 'Giỏ mây tự nhiên', price: '380.000₫', color: '#d69a3a' },
-  { name: 'Lẵng khai trương Phú Quý', desc: 'Cao 1m2, kèm dải lụa', price: '1.250.000₫', color: '#c17a4a' },
-  { name: 'Cầm tay cô dâu Ivory', desc: 'Hoa mẫu đơn & baby', price: '620.000₫', color: '#c98fae' },
-];
-
-export default function StorefrontHomePage() {
   return (
     <>
       {/* Hero */}
@@ -48,16 +45,19 @@ export default function StorefrontHomePage() {
       </section>
 
       {/* Category chips */}
-      <section className="flex flex-wrap gap-3 px-8 pb-14 lg:px-16">
-        {CATEGORIES.map((cat) => (
-          <span
-            key={cat}
-            className="rounded-full border border-border bg-white px-6 py-2.5 text-sm font-medium text-ink-soft"
-          >
-            {cat}
-          </span>
-        ))}
-      </section>
+      {rootCategories.length > 0 && (
+        <section className="flex flex-wrap gap-3 px-8 pb-14 lg:px-16">
+          {rootCategories.map((cat) => (
+            <Link
+              key={cat.id}
+              href={`/danh-muc/${cat.slug}`}
+              className="rounded-full border border-border bg-white px-6 py-2.5 text-sm font-medium text-ink-soft hover:border-rose hover:text-rose"
+            >
+              {cat.name}
+            </Link>
+          ))}
+        </section>
+      )}
 
       {/* Featured products */}
       <section className="px-8 pb-24 lg:px-16">
@@ -67,31 +67,16 @@ export default function StorefrontHomePage() {
             Xem tất cả →
           </Link>
         </div>
-        <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
-          {PRODUCTS.map((p) => (
-            <div key={p.name} className="flex flex-col gap-3.5 rounded-2xl bg-white p-5">
-              <div className="flex aspect-square items-center justify-center rounded-2xl" style={{ backgroundColor: `${p.color}22` }}>
-                <FlowerIcon className="h-16 w-16" color={p.color} />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-ink">{p.name}</h3>
-                <p className="mt-1 text-sm text-ink-muted">{p.desc}</p>
-              </div>
-              <div className="mt-auto flex items-center justify-between">
-                <span className="text-lg font-semibold text-rose">{p.price}</span>
-                <button
-                  aria-label={`Thêm ${p.name} vào giỏ`}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-rose text-white transition-colors hover:bg-rose-dark"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+
+        {products.length === 0 ? (
+          <p className="text-sm text-ink-muted">Chưa có sản phẩm nào — quay lại sau nhé.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map((p, i) => (
+              <ProductCard key={p.id} product={p} index={i} />
+            ))}
+          </div>
+        )}
       </section>
     </>
   );

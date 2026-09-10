@@ -97,6 +97,7 @@ bản ghi sản phẩm còn tồn tại (dù đã xoá mềm), tránh job dọn 
 | Quyền | Công khai | `products.manage` |
 | Lọc | `deletedAt: null` + `isActive: true` | Mặc định `isActive: true`; `?includeInactive=true` bỏ lọc `isActive` — `deletedAt: null` LUÔN áp dụng dù `includeInactive` |
 | Phân trang | Có (`page`/`limit`, mặc định 24, tối đa 100) — khác `categories` (không phân trang, danh sách nhỏ) | Có |
+| Trường trả về | `id, name, slug, description, basePrice, category, images` | Đầy đủ + `categoryId`, `isActive`, `createdAt`, `updatedAt` — hai select riêng (`PRODUCT_PUBLIC_SELECT` vs `PRODUCT_SELECT`), giống cách `categories` tách `CATEGORY_SELECT` |
 
 ---
 

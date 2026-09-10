@@ -32,6 +32,22 @@ const PRODUCT_SELECT = {
   },
 } as const;
 
+// Dùng cho storefront (public) — KHÔNG lộ isActive/createdAt/updatedAt/categoryId (nội bộ, và
+// categoryId dư thừa vì đã có object `category`), giống đúng cách categories.service.ts tách
+// CATEGORY_SELECT (admin) khỏi select riêng cho listPublic().
+const PRODUCT_PUBLIC_SELECT = {
+  id: true,
+  name: true,
+  slug: true,
+  description: true,
+  basePrice: true,
+  category: { select: { id: true, name: true, slug: true } },
+  images: {
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, sortOrder: true, file: { select: { id: true, url: true } } },
+  },
+} as const;
+
 // Tự thêm hậu tố -2, -3... nếu slug đã tồn tại — giống categories.service.ts (mỗi module domain tự
 // giữ bản riêng, không tách chung — xem README.md về triết lý core vs domain của source base này).
 async function ensureUniqueSlug(base: string, excludeId?: string): Promise<string> {
@@ -91,7 +107,7 @@ export async function listPublic({ categoryId, page, limit }: ListProductsQuery)
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
-      select: PRODUCT_SELECT,
+      select: PRODUCT_PUBLIC_SELECT,
     }),
     prisma.product.count({ where }),
   ]);

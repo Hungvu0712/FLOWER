@@ -34,6 +34,24 @@ const ADMIN_DOMAIN_PERMISSIONS = [
   'reviews.moderate', 'reports.view', 'blog.manage',
 ];
 
+const SAMPLE_CATEGORIES = [
+  { slug: 'hoa-sinh-nhat', name: 'Sinh nhật' },
+  { slug: 'hoa-khai-truong', name: 'Khai trương' },
+  { slug: 'hoa-cuoi-hoi', name: 'Cưới hỏi' },
+  { slug: 'hoa-chia-buon', name: 'Chia buồn' },
+];
+
+const SAMPLE_PRODUCTS = [
+  { slug: 'bo-hong-do-passion', name: 'Bó hồng đỏ Passion', categorySlug: 'hoa-sinh-nhat', basePrice: 450000, description: '<p>12 bông hồng nhập khẩu Ecuador, gói giấy Hàn Quốc.</p>' },
+  { slug: 'gio-huong-duong-nang', name: 'Giỏ hướng dương nắng', categorySlug: 'hoa-sinh-nhat', basePrice: 380000, description: '<p>Giỏ mây tự nhiên, hoa hướng dương tươi rực rỡ.</p>' },
+  { slug: 'bo-tulip-vang-nang', name: 'Bó tulip vàng nắng', categorySlug: 'hoa-sinh-nhat', basePrice: 520000, description: '<p>15 cành tulip Hà Lan, tươi mới mỗi ngày.</p>' },
+  { slug: 'lang-khai-truong-phu-quy', name: 'Lẵng khai trương Phú Quý', categorySlug: 'hoa-khai-truong', basePrice: 1250000, description: '<p>Cao 1m2, kèm dải lụa chúc mừng.</p>' },
+  { slug: 'ke-hoa-khai-truong-hong-phat', name: 'Kệ hoa khai trương Hồng Phát', categorySlug: 'hoa-khai-truong', basePrice: 1450000, description: '<p>Cao 1m5, phối lay ơn và đồng tiền.</p>' },
+  { slug: 'cam-tay-co-dau-ivory', name: 'Cầm tay cô dâu Ivory', categorySlug: 'hoa-cuoi-hoi', basePrice: 620000, description: '<p>Hoa mẫu đơn phối baby trắng, phong cách tối giản.</p>' },
+  { slug: 'bo-hoa-cuoi-hong-pastel', name: 'Bó hoa cưới hồng pastel', categorySlug: 'hoa-cuoi-hoi', basePrice: 680000, description: '<p>Hồng phấn phối baby, tông pastel nhẹ nhàng.</p>' },
+  { slug: 'vong-hoa-chia-buon-trang', name: 'Vòng hoa chia buồn trắng', categorySlug: 'hoa-chia-buon', basePrice: 850000, description: '<p>Hoa cúc trắng và ly ly, trang trọng.</p>' },
+];
+
 const DOMAIN_ROLES = [
   // sales_staff KHÔNG có products.manage nữa (permission cũ products.view đã bị gộp — xem
   // DOMAIN_PERMISSIONS phía trên) — nếu sau này cần cho sales_staff xem (không sửa) sản phẩm, tách
@@ -86,12 +104,35 @@ async function main() {
     });
   }
 
+  // Dữ liệu mẫu cho storefront (xem app/(storefront)/page.tsx) — KHÔNG có ảnh (seed script không tự
+  // upload lên Cloudinary được); storefront tự hiện icon hoa thay thế khi sản phẩm/danh mục chưa có
+  // ảnh, giống đúng cách admin panel đang làm.
   console.log('Seeding DOMAIN: sample categories...');
-  await prisma.category.upsert({
-    where: { slug: 'hoa-sinh-nhat' },
-    create: { name: 'Hoa sinh nhật', slug: 'hoa-sinh-nhat' },
-    update: {},
-  });
+  const categoryIdBySlug: Record<string, string> = {};
+  for (const c of SAMPLE_CATEGORIES) {
+    const category = await prisma.category.upsert({
+      where: { slug: c.slug },
+      create: { name: c.name, slug: c.slug },
+      update: { name: c.name },
+    });
+    categoryIdBySlug[c.slug] = category.id;
+  }
+
+  console.log('Seeding DOMAIN: sample products...');
+  for (const p of SAMPLE_PRODUCTS) {
+    await prisma.product.upsert({
+      where: { slug: p.slug },
+      create: {
+        name: p.name,
+        slug: p.slug,
+        description: p.description,
+        basePrice: p.basePrice,
+        categoryId: categoryIdBySlug[p.categorySlug],
+        isActive: true,
+      },
+      update: {},
+    });
+  }
 
   console.log('Seed DOMAIN hoàn tất.');
 }
