@@ -67,12 +67,12 @@ flowchart LR
 **Vấn đề.** Hiện lập trình viên phải tự nhớ chạy kiểm thử trước khi nộp code. Quên một lần là lỗi
 lọt vào hệ thống.
 
-**Đề xuất.** Cấu hình hệ thống tự động chạy toàn bộ 494 bài kiểm thử mỗi lần có code mới, **chặn
+**Đề xuất.** Cấu hình hệ thống tự động chạy toàn bộ 557 bài kiểm thử mỗi lần có code mới, **chặn
 không cho gộp** nếu có bài nào thất bại.
 
 ```mermaid
 flowchart LR
-    D["👨‍💻 Lập trình viên<br/>nộp code"] --> CI["🤖 Máy tự động chạy<br/>494 bài kiểm thử<br/>+ kiểm tra chất lượng"]
+    D["👨‍💻 Lập trình viên<br/>nộp code"] --> CI["🤖 Máy tự động chạy<br/>557 bài kiểm thử<br/>+ kiểm tra chất lượng"]
     CI -->|Có lỗi| BLOCK["🚫 Chặn — báo lỗi<br/>lập trình viên sửa"]
     CI -->|Đạt| MERGE["✅ Cho phép gộp<br/>vào hệ thống chính"]
     BLOCK --> D
@@ -118,7 +118,7 @@ người lạ, thực tế thì không.
 |---|---|
 | **Lợi ích** | Giảm rủi ro phụ thuộc · Rút ngắn tiến độ ~30% (không phải 50% — có chi phí phối hợp) · Hai người soi code nhau, chất lượng tốt hơn |
 | **Chi phí** | Chi phí nhân sự tăng gấp đôi trong giai đoạn đó |
-| **Điều kiện thuận lợi** | ✅ Tài liệu đầy đủ và ✅ 494 bài kiểm thử tự động — người mới hoà nhập trong **1–2 tuần**, không phải 1–2 tháng |
+| **Điều kiện thuận lợi** | ✅ Tài liệu đầy đủ và ✅ 557 bài kiểm thử tự động — người mới hoà nhập trong **1–2 tuần**, không phải 1–2 tháng |
 | **Khi nào nên** | Nếu bạn cần ra mắt **trước dịp 14/2/2027** |
 
 ---

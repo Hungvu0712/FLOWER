@@ -519,9 +519,17 @@ hoặc tài liệu đã di chuyển (`ARCHITECTURE.md`/`DATABASE.md`/`SECURITY.m
 
 ### 5.1. Trước khi viết module `orders` — chuẩn hoá kiểm tra phạm vi dữ liệu
 
-Toàn bộ RBAC hiện tại là **permission-based** (làm được hành động gì). Module `orders` là nơi đầu
-tiên cần thêm **row-level check** (được đụng vào bản ghi nào) — `shipper` chỉ thấy đơn của mình,
-`member` chỉ thấy đơn của mình.
+> ✅ **Cập nhật (10/09/2026)**: module `orders` đã triển khai giai đoạn cơ bản (xem
+> [modules/domain-orders.md](modules/domain-orders.md)) nhưng **CHƯA cần** helper row-level check dưới
+> đây — `GET /api/v1/orders/:id` (tra cứu đơn) là **công khai**, dùng `id` (UUID) làm token sở hữu link
+> thay vì so khớp `userId`, nên không đăng nhập cũng xem được đúng đơn của mình mà không cần row-level
+> check. Đề xuất dưới đây **vẫn còn giá trị** cho 2 việc chưa làm: `GET /api/v1/account/orders` (khách
+> xem lịch sử đơn khi đăng nhập, cần `order.userId === req.user.id`) và hàng đợi giao hàng của
+> `shipper` (`delivery.shipperId === req.user.id`, chưa có vì chưa tách `order_deliveries`) — viết
+> helper này khi bắt tay vào 1 trong 2 việc đó.
+
+Toàn bộ RBAC hiện tại là **permission-based** (làm được hành động gì). Việc row-level check dưới đây
+là bước tiếp theo cần có — `shipper` chỉ thấy đơn của mình, `member` chỉ thấy đơn của mình.
 
 ```mermaid
 flowchart TD

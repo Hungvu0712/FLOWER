@@ -99,6 +99,13 @@ bản ghi sản phẩm còn tồn tại (dù đã xoá mềm), tránh job dọn 
 | Phân trang | Có (`page`/`limit`, mặc định 24, tối đa 100) — khác `categories` (không phân trang, danh sách nhỏ) | Có |
 | Trường trả về | `id, name, slug, description, basePrice, category, images` | Đầy đủ + `categoryId`, `isActive`, `createdAt`, `updatedAt` — hai select riêng (`PRODUCT_PUBLIC_SELECT` vs `PRODUCT_SELECT`), giống cách `categories` tách `CATEGORY_SELECT` |
 
+`getPublicBySlug(slug)` — `GET /api/v1/products/:slug`, dùng cho trang chi tiết. Cùng bộ lọc
+(`deletedAt: null` + `isActive: true`) và cùng `PRODUCT_PUBLIC_SELECT` với `listPublic()`, nhưng là
+endpoint RIÊNG chứ không lọc trên kết quả `listPublic()` như `categories` đang làm với
+`getStorefrontCategoryBySlug()` — vì danh sách sản phẩm có phân trang, không thể tải hết để tìm 1
+slug. `404 NOT_FOUND` khi không khớp slug (gộp chung 2 trường hợp "không tồn tại" và "đã ẩn/xoá",
+không phân biệt để tránh dò xem sản phẩm nào từng tồn tại).
+
 ---
 
 ## 5. Ràng buộc nghiệp vụ
@@ -119,6 +126,10 @@ bản ghi sản phẩm còn tồn tại (dù đã xoá mềm), tránh job dọn 
 | `features/domain/products/products.hooks.ts` | `useProducts`, `useCreateProduct`, `useUpdateProduct`, `useDeleteProduct` |
 | `app/(dashboard)/admin/products/page.tsx` | Danh sách + form tạo/sửa, upload nhiều ảnh (`input[multiple]`, loop `useUploadFile` từng file) |
 | `lib/currency.ts` | `formatVnd()` — `Intl.NumberFormat('vi-VN')`, dùng chung cho mọi nơi hiển thị giá |
+| `lib/storefront-api.ts` → `getStorefrontProductBySlug()` | Gọi `GET /api/v1/products/:slug` bằng `fetch` gốc (không phải axios — xem comment đầu file) |
+| `app/(storefront)/san-pham/[slug]/page.tsx` | Trang chi tiết — breadcrumb, gallery, mô tả (render `dangerouslySetInnerHTML`, an toàn vì đã sanitize ở backend lúc lưu — xem §9), CTA gọi/Zalo, sản phẩm liên quan (cùng `categoryId`, loại trừ chính nó) |
+| `components/storefront/ProductGallery.tsx` | Client Component — đổi ảnh chính khi bấm thumbnail (`useState`), dữ liệu ảnh do trang cha (Server Component) fetch sẵn |
+| `lib/contact-info.ts` | `HOTLINE`/`ZALO_LINK` dùng chung giữa `ProductCard` (overlay hover) và trang chi tiết (CTA chính) — giá trị mẫu, xem TODO trong file |
 
 `ProductForm`/`ImageGallery` là component **tách riêng ở module-scope** (không định nghĩa lồng trong
 `ProductsPage`) — định nghĩa component bên trong component khác khiến React tạo lại nó (và mất state)
@@ -130,9 +141,9 @@ mỗi lần render cha, bị `eslint-plugin-react-hooks` (`react-hooks/static-co
 
 | Tầng | File | Số test |
 |---|---|---|
-| Unit | `backend/tests/unit/modules/products.service.test.ts` | 20 — slug, soft delete, đồng bộ bộ ảnh, ràng buộc danh mục, sanitize mô tả HTML |
+| Unit | `backend/tests/unit/modules/products.service.test.ts` | 24 — slug, soft delete, đồng bộ bộ ảnh, ràng buộc danh mục, sanitize mô tả HTML, `getPublicBySlug` |
 | Unit | `backend/tests/unit/shared/sanitizeHtml.test.ts` | 5 — giữ thẻ trong allowlist, xoá `<script>`, xoá mọi attribute, hạ cấp thẻ lạ |
-| Integration | `backend/tests/integration/products.routes.test.ts` + phần chung trong `rbac.test.ts` | 8 + phần chung — envelope 201, mã lỗi, 403 thiếu quyền |
+| Integration | `backend/tests/integration/products.routes.test.ts` + phần chung trong `rbac.test.ts` | 11 + phần chung — envelope 201, mã lỗi, 403 thiếu quyền, `GET /:slug` công khai + 404 |
 
 Kiểm chứng thủ công qua trình duyệt thật (Playwright, không phải test tự động lưu trong repo): đăng
 nhập super_admin → tạo sản phẩm kèm 2 ảnh → sửa giá + gỡ 1 ảnh → xoá — toàn bộ chạy đúng trên
@@ -145,7 +156,7 @@ Cloudinary + Postgres thật, không có lỗi console.
 | Việc | Ưu tiên | Mã |
 |---|:---:|---|
 | `product_variants` (size/giá riêng: Nhỏ/Vừa/Lớn) | 🟡 | — |
-| `GET /api/v1/products/:slug` — trang chi tiết 1 sản phẩm | 🟡 | — |
+| Giỏ hàng + đặt hàng (nút "Thêm vào giỏ" ở `ProductCard` hiện chưa nối logic) | 🟡 | — |
 | Tìm kiếm/lọc theo giá, `occasions` (chưa có bảng) | 🟢 | — |
 | Kéo–thả sắp xếp `sortOrder` cho ảnh trên UI (hiện chỉ theo thứ tự upload) | 🟢 | — |
 | Tách permission `products.view` riêng cho `sales_staff` xem (không sửa) | 🟢 | Xem [12 §BE-10](../12-danh-gia-va-de-xuat.md) |

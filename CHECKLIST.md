@@ -110,19 +110,20 @@
 - [x] UI `/admin/products`
 - [x] Trang chủ storefront (`/`) đọc danh mục/sản phẩm thật qua API công khai (Server Component, `fetch` + `revalidate: 60s`) — thay hẳn mảng dữ liệu giả cứng trong code trước đó
 - [x] Dữ liệu mẫu: 4 danh mục + 8 sản phẩm qua `domain.seed.ts` (chưa có ảnh — seed script không tự upload Cloudinary được, hiện icon hoa thay thế)
+- [x] Trang danh mục (`/danh-muc/[slug]`) + trang chi tiết sản phẩm (`/san-pham/[slug]`) — API công khai `GET /products/:slug`, gallery đổi ảnh, sản phẩm liên quan cùng danh mục, CTA gọi/Zalo
 - [ ] `product_variants` (size/giá riêng) ⬜
 - [ ] Occasions (dịp lễ) ⬜
-- [ ] Cart (guest cart) ⬜ *(4 ngày)*
-- [ ] **Orders + chọn ngày giờ giao** ⬜ *(8 ngày — cốt lõi ngành hoa)*
+- [x] **Cart (guest cart)** — lưu phía client (Zustand + localStorage), KHÔNG có bảng `carts` ở backend *(quyết định kiến trúc — xem [docs/modules/domain-orders.md §1](docs/modules/domain-orders.md))*
+- [x] **Orders + chọn ngày giờ giao** — giai đoạn cơ bản: guest checkout, COD, cửa hàng xác nhận qua điện thoại *(chưa thanh toán online — xem [docs/modules/domain-orders.md §8](docs/modules/domain-orders.md))*
+- [x] Trang giỏ hàng (`/gio-hang`) + checkout (`/thanh-toan`) + xác nhận đơn công khai (`/don-hang/[id]`, `id` UUID làm token tra cứu)
+- [x] UI `/admin/orders` — lọc theo trạng thái, mở rộng xem chi tiết, đổi trạng thái (quyền theo giá trị `status`, đúng ma trận docs/05 §2.4)
 - [ ] Sổ địa chỉ người nhận ⬜
-- [ ] Payments (COD + VNPay/Momo) ⬜ *(7 ngày)*
-- [ ] Quản lý đơn cho cửa hàng ⬜ *(5 ngày)*
-- [ ] Lịch giao hoa theo ngày ⬜ *(3 ngày)*
+- [ ] Payments online (VNPay/Momo) ⬜ *(7 ngày — hiện chỉ COD)*
+- [ ] Lịch giao hoa theo ngày (dashboard riêng cho florist) ⬜ *(3 ngày)*
 - [ ] Reviews + wishlist ⬜
 - [ ] Promotions / coupons ⬜
 - [ ] Blog + newsletter ⬜
 - [ ] Nhắc lịch sinh nhật/kỷ niệm ⬜
-- [ ] Storefront: danh sách · chi tiết · giỏ hàng · thanh toán ⬜ *(13 ngày)*
 - [ ] Realtime trạng thái đơn (Socket.io) ⬜
 
 ## Phase 6 — Quality 🟡
@@ -244,9 +245,11 @@ Chi tiết: [docs/07 · Bảo mật](docs/07-bao-mat.md).
 | Sửa 6 điểm 🔴 nợ kỹ thuật (`BE-01` → `BE-06`) | 1.5 ngày | ⬜ |
 | Thiết lập CI/CD GitHub Actions | 2 ngày | ⬜ |
 | **Module Products** (CRUD + nhiều ảnh, không tồn kho) | 6 ngày | ✅ *(10/09/2026 — chưa gồm biến thể/size riêng, xem `product_variants` ở Phase 5)* |
+| **Cart + Orders (giai đoạn cơ bản)** — làm sớm hơn kế hoạch, ngoài phạm vi kỳ này ban đầu | — | ✅ *(10/09/2026 — guest checkout, COD, chưa thanh toán online, xem `docs/modules/domain-orders.md`)* |
 | Màn hình tra cứu Audit Log | 1 ngày | ⬜ |
 
-**Mốc cuối kỳ**: nhập được sản phẩm thật vào hệ thống qua khu quản trị.
+**Mốc cuối kỳ**: nhập được sản phẩm thật vào hệ thống qua khu quản trị — **đã vượt mốc**: khách đã đặt
+được hàng thật (giỏ hàng → thanh toán COD → xác nhận) và cửa hàng xử lý được đơn qua `/admin/orders`.
 
 ---
 

@@ -142,7 +142,7 @@ mình lên toàn quyền; hoặc tắt nhầm hết các cách đăng nhập khi
 | Tự dọn ảnh không còn dùng | ✅ | Tiết kiệm dung lượng |
 | Gửi email tự động | ✅ | Cần đăng ký domain — [xem mục cần quyết định](07-trao-doi.md) |
 | Ghi nhật ký lỗi để tra cứu sự cố | ✅ | Báo lỗi kèm mã là tra được nguyên nhân |
-| **494 bài kiểm thử tự động** | ✅ | Sửa chỗ này không làm hỏng chỗ kia mà không ai biết |
+| **557 bài kiểm thử tự động** | ✅ | Sửa chỗ này không làm hỏng chỗ kia mà không ai biết |
 | Kiểm thử giao diện tự động | ✅ | Mô phỏng thao tác người dùng thật |
 | Tự động kiểm tra chất lượng khi lập trình viên nộp code | ⬜ | Sẽ làm ở giai đoạn chuẩn bị vận hành |
 | Đưa hệ thống lên máy chủ thật | ⬜ | Giai đoạn cuối |

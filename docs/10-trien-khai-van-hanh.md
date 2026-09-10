@@ -343,7 +343,7 @@ jobs:
       - run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test          # 335 test, không cần database
+      - run: npm test          # 446 test, không cần database
 
   frontend:
     runs-on: ubuntu-latest
@@ -359,7 +359,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm test          # 101 test
+      - run: npm test          # 111 test
       - run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000

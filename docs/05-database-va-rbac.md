@@ -308,13 +308,12 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 
 | Bảng                   | Cột chính                                                                                                            | Ghi chú                                        |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| ⬜ `carts`                | id, user_id (nullable), session_id                                                                                   | Hỗ trợ guest cart                              |
-| ⬜ `cart_items`           | id, cart_id, product_id, variant_id, quantity, note                                                                  |                                                |
-| ⬜ `orders`               | id, user_id, order_code, status, subtotal, discount, shipping_fee, total, payment_method, payment_status, created_at |                                                |
-| ⬜ `order_items`          | id, order_id, product_id, variant_id, quantity, price, card_message                                                  | Thiệp chúc kèm đơn                             |
-| ⬜ `order_deliveries`     | order_id, recipient_name, recipient_phone, address, delivery_date, delivery_time_slot, shipper_id                    | `shipper_id` phục vụ row-level check ở mục 2.5 |
-| ⬜ `order_status_history` | id, order_id, status, note, changed_at, changed_by (user_id)                                                         | Truy vết ai đổi trạng thái gì                  |
-| ⬜ `payments`             | id, order_id, provider, transaction_id, amount, status, paid_at                                                      |                                                |
+| — `carts`/`cart_items`   | (không làm)                                                                                                           | Giỏ hàng lưu Ở CLIENT (Zustand + localStorage), không có bảng — xem [modules/domain-orders.md §1](modules/domain-orders.md#1-quyết-định-kiến-trúc-giỏ-hàng-ở-client-không-phải-bảng-carts) |
+| ✅ `orders`               | id, user_id (nullable), order_code, status, subtotal, total, payment_method, recipient_name, recipient_phone, delivery_address, delivery_date, delivery_time_slot, note | **Giai đoạn cơ bản** — nhúng thẳng field giao hàng (không tách `order_deliveries`), chưa có `discount`/`shipping_fee`/`payment_status` (chưa coupon/ship/thanh toán online). `id` (UUID) đóng vai trò token tra cứu công khai, `order_code` chỉ để hiển thị — xem [modules/domain-orders.md §2](modules/domain-orders.md#2-schema--rút-gọn-so-với-bản-phác-thảo-đầy-đủ) |
+| ✅ `order_items`          | id, order_id, product_id (nullable), product_name, unit_price, quantity, subtotal                                    | Snapshot tên/giá tại thời điểm đặt. Chưa có `variant_id`/`card_message` riêng (dùng chung `orders.note`) |
+| ⬜ `order_deliveries`     | order_id, recipient_name, recipient_phone, address, delivery_date, delivery_time_slot, shipper_id                    | Tách ra khi có màn phân công shipper thật — hiện field này nằm thẳng trên `orders` |
+| — `order_status_history` | (không làm)                                                                                                           | Dùng lại `AuditLog` chung (`action: 'order.update_status'`), không xây bảng lịch sử riêng |
+| ⬜ `payments`             | id, order_id, provider, transaction_id, amount, status, paid_at                                                      | Chưa có — hiện chỉ COD (`orders.payment_method = 'cod'` cố định)                             |
 | ⬜ `coupons`              | id, code, type, value, min_order_value, start_date, end_date, usage_limit                                            |                                                |
 | ⬜ `coupon_usages`        | coupon_id, order_id, user_id                                                                                         |                                                |
 
@@ -360,9 +359,8 @@ flowchart TB
 
     subgraph DOMAIN["🌸 DOMAIN"]
         CA["categories ✅"]
-        PRD["products ⬜"]
-        ORD["orders ⬜"]
-        CART["carts ⬜"]
+        PRD["products ✅"]
+        ORD["orders ✅ (cơ bản)"]
         REV["reviews ⬜"]
         BLOG["blog_posts ⬜"]
     end
@@ -375,8 +373,7 @@ flowchart TB
     FO --> FI --> FU
     CA -->|image_file_id| FI
     PRD --> ORD
-    U --> ORD
-    U --> CART --> PRD
+    U -.->|nullable, guest checkout| ORD
     PRD --> REV
     U --> REV
     CA --> PRD
@@ -463,7 +460,14 @@ erDiagram
     }
 ```
 
-#### Chi tiết — nhóm Domain (⬜ thiết kế, chưa tạo bảng trừ `categories`, `products`, `product_images`)
+#### Chi tiết — nhóm Domain (⬜ thiết kế, chưa tạo bảng trừ `categories`, `products`, `product_images`,
+`orders`, `order_items`)
+
+> `orders`/`order_items` **đã tạo** nhưng ở bản RÚT GỌN hơn sơ đồ đầy đủ dưới đây (chưa `order_deliveries`
+> riêng, chưa `payments`/`coupons`, kiểu tiền dùng `Int` như `products.base_price` chứ không phải
+> `decimal`) — xem đúng schema đã build ở [§3.5](#35-nhóm-giỏ-hàng--đơn-hàng) và
+> [modules/domain-orders.md](modules/domain-orders.md). Sơ đồ dưới vẫn giữ nguyên làm bản thiết kế đầy
+> đủ cho các giai đoạn sau (thanh toán online, phân công shipper, coupon...).
 
 ```mermaid
 erDiagram
@@ -552,6 +556,15 @@ Khi khởi tạo DB, cần seed sẵn (chia 2 file theo [Kiến trúc §2.1](02-
 > domain của admin/super_admin — `/admin/categories` và `/admin/products` báo 403 dù trước đó vẫn
 > chạy bình thường. Khắc phục bằng cách chạy lại `npm run seed:domain`, và sửa `core.seed.ts` bỏ hẳn
 > bước `deleteMany`. Xem comment tại vòng lặp gán role trong `core.seed.ts`.
+
+> ⚠️ **Đối chiếu mảng seed với bảng ma trận Vai trò × Quyền (mục 2.4) mỗi khi thêm permission mới** —
+> đừng chỉ tin permission "trông có vẻ" đủ. Bug thật đã xảy ra: `domain.seed.ts`'s
+> `ADMIN_DOMAIN_PERMISSIONS` thiếu `orders.update_status` từ trước (dù ma trận 2.4 ghi rõ admin/
+> super_admin đều có quyền này) — hậu quả kể cả `super_admin` cũng bị `403 FORBIDDEN` khi đổi trạng
+> thái đơn hàng sang bất kỳ giá trị nào ngoài `cancelled` (`orders.cancel` là permission KHÁC, không
+> bị ảnh hưởng). Phát hiện khi build module Orders, test thủ công qua `curl` thật (test tự động mock
+> permission nên không lộ bug này). Đã sửa + chạy lại `npm run seed:domain`. Xem
+> [modules/domain-orders.md §3](modules/domain-orders.md#3-quyền-theo-giá-trị-không-phải-1-permission-cố-định-cho-route).
 
 ---
 

@@ -68,6 +68,7 @@ flowchart LR
     ROOT --> FILES["/files<br/>🔑 + files.manage cho ghi/xoá"]
     ROOT --> CAT["/categories<br/>— công khai, storefront"]
     ROOT --> PROD["/products<br/>— công khai, storefront"]
+    ROOT --> ORD["/orders<br/>— công khai, guest checkout, rate limit 10/15p"]
     ROOT --> CONTACT["/contact<br/>— công khai, rate limit 5/15p"]
     ROOT --> ADM["/admin/*<br/>🔑 nghiệp vụ domain"]
     ROOT --> SA["/superadmin/*<br/>🔑 quản trị hệ thống"]
@@ -77,6 +78,7 @@ flowchart LR
     ADM --> AD1["/admin/categories<br/>categories.manage"]
     ADM --> AD2["/admin/products<br/>products.manage"]
     ADM --> AD3["/admin/contact-messages<br/>contact.manage"]
+    ADM --> AD4["/admin/orders<br/>orders.view_all · update_status · cancel"]
     SA --> S1["/users → users.manage 🔒"]
     SA --> S2["/roles → roles.manage 🔒"]
     SA --> S3["/permissions → permissions.manage 🔒"]
@@ -339,6 +341,7 @@ Lỗi: `400 CATEGORY_CYCLE` (chọn danh mục con làm cha) · `404 PARENT_NOT_
 | Method | Path | Quyền | Mô tả |
 |---|---|---|---|
 | `GET` | `/api/v1/products?categoryId=&page=&limit=` | — | Sản phẩm đang bật, cho storefront (phân trang) |
+| `GET` | `/api/v1/products/:slug` | — | Chi tiết 1 sản phẩm đang bật theo `slug`, cho trang chi tiết storefront |
 | `GET` | `/api/v1/admin/products?includeInactive=&categoryId=&page=&limit=` | `products.manage` | Danh sách đầy đủ (phân trang) |
 | `POST` | `/api/v1/admin/products` | `products.manage` | Tạo sản phẩm |
 | `PATCH` | `/api/v1/admin/products/:id` | `products.manage` | Sửa sản phẩm |
@@ -365,6 +368,12 @@ text — xem [modules/domain-products.md §9](modules/domain-products.md#9-mô-t
 phải văn bản thuần — client tự chịu trách nhiệm render đúng (hoặc dùng
 `stripHtml()` để lấy bản tóm tắt văn bản thuần nếu chỉ cần preview).
 
+### `GET /api/v1/products/:slug` (công khai)
+
+Cùng shape 1 phần tử của `GET /api/v1/products` (không có `isActive`/`createdAt`/`updatedAt`/
+`categoryId`). `404 NOT_FOUND` khi `slug` không tồn tại, hoặc sản phẩm đã ẩn (`isActive: false`)
+hay đã xoá mềm — storefront không phân biệt 2 trường hợp này với người dùng (cùng hiện trang 404).
+
 ### `POST /api/v1/admin/products`
 
 ```jsonc
@@ -387,16 +396,78 @@ phải văn bản thuần — client tự chịu trách nhiệm render đúng (h
 Lỗi: `404 CATEGORY_NOT_FOUND` (categoryId không tồn tại) · `404 NOT_FOUND` (PATCH/DELETE sản phẩm
 không tồn tại hoặc đã xoá mềm trước đó).
 
-> Xoá là **soft delete** (`deletedAt`) — khác categories (hard delete) — vì sản phẩm sẽ được
-> `order_items` tham chiếu khi module Orders triển khai; đơn hàng cũ vẫn cần hiển thị đúng tên/giá dù
-> sản phẩm đã ngừng bán.
+> Xoá là **soft delete** (`deletedAt`) — khác categories (hard delete) — vì sản phẩm được `order_items`
+> tham chiếu (xem §9 Orders); đơn hàng cũ vẫn hiển thị đúng tên/giá dù sản phẩm đã ngừng bán.
 
 > **Không có `stock`/tồn kho** — hoa tươi làm theo đơn/theo mẫu tại thời điểm đặt, không phải hàng lưu
 > kho theo SKU cố định. Ẩn tạm sản phẩm dùng `isActive`, không phải "hết hàng".
 
 ---
 
-## 9. Contact 🔧
+## 9. Orders 🌸
+
+Giai đoạn **cơ bản** — guest checkout (không cần đăng nhập), thanh toán COD, cửa hàng xác nhận qua điện
+thoại. Chưa có thanh toán online/`payments`, chưa có `carts`/`cart_items` ở backend (giỏ hàng lưu phía
+client, xem [modules/domain-orders.md](modules/domain-orders.md)).
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `POST` | `/api/v1/orders` | — (guest checkout) | Tạo đơn hàng — rate limit 10/15 phút theo IP |
+| `GET` | `/api/v1/orders/:id` | — | Tra cứu 1 đơn theo `id` (UUID đóng vai trò token, xem dưới) |
+| `GET` | `/api/v1/admin/orders?status=&page=&limit=` | `orders.view_all` | Danh sách đơn (phân trang) |
+| `GET` | `/api/v1/admin/orders/:id` | `orders.view_all` | Chi tiết 1 đơn |
+| `PATCH` | `/api/v1/admin/orders/:id/status` | `orders.update_status` hoặc `orders.cancel` — xem dưới | Đổi trạng thái đơn |
+
+### `POST /api/v1/orders` (công khai)
+
+```jsonc
+{ "items": [{ "productId": "uuid", "quantity": 2 }],
+  "recipientName": "Trần Thị B", "recipientPhone": "0900000000",
+  "deliveryAddress": "123 Đường Hoa, Q1", "deliveryDate": "2026-12-25",
+  "deliveryTimeSlot": "chieu", "note": "Giao trước 17h" }
+```
+
+- `recipientName`/`recipientPhone` là **người NHẬN hoa** (có thể khác người đặt) — cũng là số điện
+  thoại cửa hàng gọi lại xác nhận, vì giai đoạn này chưa thu thập riêng thông tin người đặt/email.
+- `deliveryDate` dạng `YYYY-MM-DD`, phải từ hôm nay trở đi (422 nếu ở quá khứ).
+- `deliveryTimeSlot`: `sang` | `chieu` | `toi`.
+- Giá/tên sản phẩm được **chốt (snapshot)** vào đơn tại thời điểm đặt — sản phẩm sau đó đổi giá/tên/bị
+  ẩn không ảnh hưởng đơn đã tạo.
+- `409 PRODUCT_UNAVAILABLE` khi có sản phẩm trong giỏ không còn tồn tại/đã ẩn/đã xoá — giỏ hàng phía
+  client (localStorage) có thể đã cũ so với dữ liệu server.
+- Đã đăng nhập (cookie `access_token` hợp lệ) thì đơn tự gắn `userId`; không đăng nhập vẫn đặt được
+  bình thường (`userId: null`).
+- `website` (tuỳ chọn): **honeypot chống bot** — field ẩn bằng CSS ở form thật, người dùng thật không
+  bao giờ điền được. Gửi kèm bất kỳ giá trị nào (kể cả chỉ khoảng trắng) → `422 INVALID_SUBMISSION`,
+  không tạo đơn. Xem [modules/domain-orders.md](modules/domain-orders.md#9-chống-spam-form-honeypot).
+
+### `GET /api/v1/orders/:id` (công khai)
+
+`id` (UUID) đóng vai trò **token tra cứu** — ai có link đều xem được, không cần đăng nhập/quyền gì,
+giống trang xác nhận đơn hàng khách của các nền tảng thương mại điện tử khác. `orderCode` (vd
+`HX2609100001`) chỉ để **hiển thị/đọc qua điện thoại**, KHÔNG dùng làm khoá tra cứu — dễ đoán hơn UUID
+nên không đủ an toàn để đóng vai trò quyền truy cập (chống IDOR, xem [07 §2](07-bao-mat.md)).
+`404 NOT_FOUND` khi `id` không tồn tại.
+
+### `PATCH /api/v1/admin/orders/:id/status`
+
+```jsonc
+{ "status": "confirmed" } // 'pending'|'confirmed'|'preparing'|'delivering'|'completed'|'cancelled'
+```
+
+Quyền phụ thuộc **giá trị `status` gửi lên** (đúng ma trận [05 §2.4](05-database-va-rbac.md#24-ma-trận-vai-trò--quyền-mặc-định-seed)),
+không phải 1 permission cố định cho cả route:
+
+- `status: "cancelled"` → cần `orders.cancel`.
+- Mọi giá trị khác → cần `orders.update_status`.
+
+Ràng buộc: `409 ORDER_STATUS_FINAL` khi đơn đã `completed`/`cancelled` (không đổi tiếp được) ·
+`409 ORDER_CANNOT_CANCEL` khi huỷ đơn đang `delivering` · `403 FORBIDDEN` khi thiếu đúng permission
+cho giá trị `status` đang gửi · `404 NOT_FOUND` khi đơn không tồn tại.
+
+---
+
+## 10. Contact 🔧
 
 | Method | Path | Quyền | Rate limit | Mô tả |
 |---|---|---|---|---|
@@ -423,7 +494,7 @@ Lỗi: `422` (thiếu `name`/`phone`/`message`, hoặc `email` sai định dạn
 
 ---
 
-## 10. SuperAdmin — Users · `/api/v1/superadmin/users` 🔒 `users.manage`
+## 11. SuperAdmin — Users · `/api/v1/superadmin/users` 🔒 `users.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -479,7 +550,7 @@ tránh tình trạng tài khoản bị đặt mật khẩu mà không ai biết.
 
 ---
 
-## 11. SuperAdmin — Roles · `/api/v1/superadmin/roles` 🔒 `roles.manage`
+## 12. SuperAdmin — Roles · `/api/v1/superadmin/roles` 🔒 `roles.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -503,7 +574,7 @@ Lỗi: `403 SYSTEM_ROLE_LOCKED` (sửa/xoá System Role) · `409 ROLE_IN_USE` (c
 
 ---
 
-## 12. SuperAdmin — Permissions · `/api/v1/superadmin/permissions` 🔒 `permissions.manage`
+## 13. SuperAdmin — Permissions · `/api/v1/superadmin/permissions` 🔒 `permissions.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -527,7 +598,7 @@ Lỗi: `409 PERMISSION_CODE_TAKEN` · `403 SYSTEM_PERMISSION_LOCKED` (đổi `co
 
 ---
 
-## 13. SuperAdmin — Login Methods · `/api/v1/superadmin/login-methods` 🔒 `settings.manage`
+## 14. SuperAdmin — Login Methods · `/api/v1/superadmin/login-methods` 🔒 `settings.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -542,7 +613,7 @@ Lỗi: `409 PERMISSION_CODE_TAKEN` · `403 SYSTEM_PERMISSION_LOCKED` (đổi `co
 
 ---
 
-## 14. SuperAdmin — Audit Logs · `/api/v1/superadmin/audit-logs` 🔒 `audit.view`
+## 15. SuperAdmin — Audit Logs · `/api/v1/superadmin/audit-logs` 🔒 `audit.view`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -563,20 +634,24 @@ Danh sách `action` đang ghi: [modules/core-audit-log.md](modules/core-audit-lo
 
 ---
 
-## 15. Endpoint dự kiến (🌸 Domain — chưa triển khai)
+## 16. Endpoint dự kiến (🌸 Domain — chưa triển khai)
 
 `GET /api/v1/products` (§8) đã triển khai nhưng **đơn giản hơn** bản phác thảo cũ — chỉ có
 `categoryId`/`page`/`limit`, CHƯA có `search`/`minPrice`/`maxPrice`/`occasion` (occasions chưa có bảng,
-xem [05 §3.4](05-database-va-rbac.md#34-nhóm-sản-phẩm)). Còn thiếu:
+xem [05 §3.4](05-database-va-rbac.md#34-nhóm-sản-phẩm)). `GET /api/v1/products/:slug` đã triển khai
+(§8). Orders (§9) đã triển khai **giai đoạn cơ bản** — guest checkout, COD, đổi trạng thái đơn. Còn
+thiếu (giai đoạn thanh toán online):
 
 ```
-GET    /api/v1/products/:slug          # trang chi tiết 1 sản phẩm cho storefront
-POST   /api/v1/cart/items
-POST   /api/v1/orders                  # tạo đơn từ giỏ + delivery info (ngày giờ giao)
-GET    /api/v1/orders/:id              # row-level check: chỉ chủ đơn hoặc orders.view_all
-PATCH  /api/v1/admin/orders/:id/status # orders.update_status + validate state machine
 POST   /api/v1/payments/webhook/:provider  # verify chữ ký HMAC + idempotency
+PATCH  /api/v1/admin/orders/:id/assign-shipper  # orders.assign_shipper — chưa có màn phân công
+GET    /api/v1/admin/orders/delivery-queue      # orders.view_delivery_queue (florist)
+GET    /api/v1/admin/orders/shipping-queue      # orders.view_shipping_queue (shipper)
 ```
+
+`GET /api/v1/account/orders` (khách xem đơn của chính mình, `orders.view_own`, row-level check
+`orders.user_id = req.user.id`) cũng chưa có — hiện khách xem lại đơn qua link `/don-hang/:id` đã lưu
+(không cần đăng nhập), xem [modules/domain-orders.md](modules/domain-orders.md).
 
 Khi triển khai, tuân theo checklist ở [03 · Backend §10](03-backend.md#10-checklist-tạo-module-backend-mới)
 và cập nhật lại tài liệu này.

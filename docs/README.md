@@ -52,6 +52,7 @@ Tài liệu **trao đổi với khách hàng** nằm riêng ở [`docs/gitbook/`
 | Contact (form Liên hệ) | 🔧 Core | [modules/core-contact.md](modules/core-contact.md) |
 | Categories (danh mục) | 🌸 Domain | [modules/domain-categories.md](modules/domain-categories.md) |
 | Products (sản phẩm) | 🌸 Domain | [modules/domain-products.md](modules/domain-products.md) |
+| Orders (giỏ hàng + đặt hàng) | 🌸 Domain | [modules/domain-orders.md](modules/domain-orders.md) |
 
 ---
 

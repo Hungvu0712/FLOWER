@@ -15,10 +15,10 @@ flowchart TD
         E["~30 kịch bản<br/>Cần: BE + FE + DB thật đang chạy<br/>Chậm (phút) · Chạy trước khi release"]
     end
     subgraph INT["🔷 Integration · Supertest — backend/tests/integration/"]
-        I["82 test<br/>App Express thật + Prisma mock<br/>Nhanh (giây) · Chạy mỗi lần commit"]
+        I["147 test<br/>App Express thật + Prisma mock<br/>Nhanh (giây) · Chạy mỗi lần commit"]
     end
     subgraph UNIT["🟩 Unit · Vitest — backend/tests/unit · frontend/tests/"]
-        U["393 + 101 test<br/>Không I/O · Rất nhanh (ms)<br/>Chạy liên tục khi code"]
+        U["299 + 111 test<br/>Không I/O · Rất nhanh (ms)<br/>Chạy liên tục khi code"]
     end
 
     UNIT --> INT --> E2E
@@ -30,9 +30,9 @@ flowchart TD
 
 | Tầng | Công cụ | Ở đâu | Cần gì để chạy | Số test |
 |---|---|---|---|---|
-| **Unit — backend** | Vitest | `backend/tests/unit/` | Không cần gì | 253 |
-| **Integration — backend** | Vitest + Supertest | `backend/tests/integration/` | Không cần gì (Prisma được mock) | 82 |
-| **Unit/Component — frontend** | Vitest + Testing Library | `frontend/tests/` | Không cần gì | 101 |
+| **Unit — backend** | Vitest | `backend/tests/unit/` | Không cần gì | 299 |
+| **Integration — backend** | Vitest + Supertest | `backend/tests/integration/` | Không cần gì (Prisma được mock) | 147 |
+| **Unit/Component — frontend** | Vitest + Testing Library | `frontend/tests/` | Không cần gì | 111 |
 | **E2E** | Playwright | `frontend/e2e/` | Backend + frontend + PostgreSQL **thật** | ~30 kịch bản |
 
 > **Toàn bộ test unit + integration chạy được mà KHÔNG cần database.** Đây là lựa chọn có chủ đích:
@@ -44,7 +44,7 @@ flowchart TD
 ## 2. Chạy test
 
 ```bash
-# Backend — 393 test, khoảng 5 giây
+# Backend — 446 test, khoảng 5 giây
 cd backend
 npm test                  # toàn bộ unit + integration
 npm run test:unit         # chỉ unit
@@ -52,7 +52,7 @@ npm run test:integration  # chỉ integration
 npm run test:watch        # chế độ theo dõi khi đang code
 npm run test:coverage     # kèm báo cáo độ phủ (coverage/index.html)
 
-# Frontend — 101 test, khoảng 2 giây
+# Frontend — 111 test, khoảng 2 giây
 cd frontend
 npm test
 npm run test:watch
