@@ -14,11 +14,12 @@ const CORE_PERMISSIONS = [
   { code: 'permissions.manage', groupName: 'permissions', isRestricted: true, description: 'Tạo/sửa/xoá permission (chỉ super_admin)' },
   { code: 'files.manage', groupName: 'files', isRestricted: false, description: 'Xem/xoá file trong màn quản lý tài nguyên' },
   { code: 'audit.view', groupName: 'audit', isRestricted: false, description: 'Xem nhật ký Audit Log' },
+  { code: 'contact.manage', groupName: 'contact', isRestricted: false, description: 'Xem tin nhắn Liên hệ khách gửi, đánh dấu đã xử lý' },
 ];
 
 const CORE_ROLES = [
   { code: 'super_admin', name: 'Super Admin', isSystem: true, permissionCodes: CORE_PERMISSIONS.map((p) => p.code) },
-  { code: 'admin', name: 'Admin', isSystem: true, permissionCodes: ['files.manage'] },
+  { code: 'admin', name: 'Admin', isSystem: true, permissionCodes: ['files.manage', 'contact.manage'] },
   { code: 'member', name: 'Member', isSystem: true, permissionCodes: [] as string[] },
 ];
 
@@ -42,8 +43,16 @@ async function main() {
       update: { name: r.name, isSystem: r.isSystem },
     });
 
+    // CHỈ THÊM (createMany + skipDuplicates), KHÔNG deleteMany trước — 'admin'/'super_admin' là role
+    // DÙNG CHUNG với domain.seed.ts (role đó gán thêm categories.manage/products.manage.../ADMIN_
+    // DOMAIN_PERMISSIONS theo kiểu additive, không xoá). Bug THẬT đã xảy ra: trước đây có deleteMany
+    // ở đây — chạy lại `npm run seed:core` (vd sau khi thêm 1 core permission mới) SAU khi đã chạy
+    // `seed:domain` sẽ xoá sạch mọi permission domain đã gán cho admin/super_admin, làm cả trang
+    // /admin/categories lẫn /admin/products báo 403 dù trước đó vẫn dùng bình thường. Đánh đổi: nếu
+    // 1 permission bị RÚT khỏi permissionCodes trong code, seed sẽ không tự thu hồi permission đó —
+    // chấp nhận được (domain.seed.ts đã chọn đánh đổi y hệt cho admin/super_admin), an toàn hơn nhiều
+    // so với việc âm thầm mất quyền.
     const permissions = await prisma.permission.findMany({ where: { code: { in: r.permissionCodes } } });
-    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
     if (permissions.length) {
       await prisma.rolePermission.createMany({
         data: permissions.map((p) => ({ roleId: role.id, permissionId: p.id })),

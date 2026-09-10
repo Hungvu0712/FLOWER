@@ -16,7 +16,7 @@ description: Tiến độ thực tế của dự án, cập nhật hai tuần m�
 | Hoàn thành tổng thể | **~40%** |
 | Nền tảng kỹ thuật | ✅ Đã xong và đã kiểm thử |
 | Nghiệp vụ bán hàng | 🟡 Mới có phần danh mục |
-| Số bài kiểm thử tự động đang chạy | **466** (backend 365 · giao diện 101) + ~30 kịch bản mô phỏng người dùng |
+| Số bài kiểm thử tự động đang chạy | **494** (backend 393 · giao diện 101) + ~30 kịch bản mô phỏng người dùng |
 | Dự kiến bản dùng thử (MVP) | **Cuối tháng 12/2026** |
 | Dự kiến bản hoàn chỉnh | **Cuối tháng 2/2027** |
 
@@ -58,7 +58,7 @@ flowchart LR
 
 | Việc | Kết quả |
 |---|---|
-| **Bổ sung 466 bài kiểm thử tự động** | Toàn bộ phần nền tảng nay được kiểm tra tự động mỗi lần sửa code |
+| **Bổ sung 494 bài kiểm thử tự động** | Toàn bộ phần nền tảng nay được kiểm tra tự động mỗi lần sửa code |
 | **Bổ sung ~30 kịch bản mô phỏng người dùng thật** | Máy tự mở trình duyệt, đăng nhập, thao tác và kiểm tra kết quả |
 | **Viết lại toàn bộ tài liệu kỹ thuật** | 13 tài liệu chính + 7 tài liệu chi tiết theo module, có sơ đồ minh hoạ |
 | **Rà soát toàn bộ mã nguồn** | Phát hiện 29 điểm cần cải thiện, đã xếp thứ tự ưu tiên và ước lượng |

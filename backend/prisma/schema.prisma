@@ -233,6 +233,19 @@ model EmailLog {
   @@map("email_logs")
 }
 
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  email     String?
+  message   String
+  isHandled Boolean  @default(false) @map("is_handled")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([isHandled])
+  @@map("contact_messages")
+}
+
 // =====================================================================
 // DOMAIN (flower shop specific) — thay thế bằng nghiệp vụ của dự án mới
 // Xem docs/05 §3.4-3.6. Đây chỉ là placeholder tối thiểu để tránh

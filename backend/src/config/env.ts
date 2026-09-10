@@ -59,4 +59,9 @@ export const env = {
   passwordReset: {
     ttlMinutes: Number(process.env.PASSWORD_RESET_TTL_MINUTES || 30),
   },
+
+  // Hộp thư nhận thông báo khi khách gửi form Liên hệ (khác EMAIL_FROM — đó là địa chỉ NGƯỜI GỬI, còn
+  // đây là địa chỉ NHẬN thông báo cho chủ shop). Mặc định dùng lại EMAIL_FROM cho môi trường dev khi
+  // chưa cấu hình riêng.
+  contactEmail: process.env.CONTACT_EMAIL || process.env.EMAIL_FROM || "no-reply@example.com",
 } as const;

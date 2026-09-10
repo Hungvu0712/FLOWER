@@ -18,7 +18,7 @@ flowchart TD
         I["82 test<br/>App Express thật + Prisma mock<br/>Nhanh (giây) · Chạy mỗi lần commit"]
     end
     subgraph UNIT["🟩 Unit · Vitest — backend/tests/unit · frontend/tests/"]
-        U["365 + 101 test<br/>Không I/O · Rất nhanh (ms)<br/>Chạy liên tục khi code"]
+        U["393 + 101 test<br/>Không I/O · Rất nhanh (ms)<br/>Chạy liên tục khi code"]
     end
 
     UNIT --> INT --> E2E
@@ -44,7 +44,7 @@ flowchart TD
 ## 2. Chạy test
 
 ```bash
-# Backend — 365 test, khoảng 5 giây
+# Backend — 393 test, khoảng 5 giây
 cd backend
 npm test                  # toàn bộ unit + integration
 npm run test:unit         # chỉ unit

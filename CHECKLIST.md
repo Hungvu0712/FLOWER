@@ -94,6 +94,7 @@
 - [x] Email abstraction Resend / Nodemailer-SMTP (đổi qua env)
 - [x] Ghi `email_logs` cho mọi lần gửi (`sent` / `failed` + `error`)
 - [x] `login_method_settings` + chốt chặn ≥ 1 phương thức bật
+- [x] Form Liên hệ công khai (`/api/v1/contact`, rate limit 5/15p theo IP) + admin xem/đánh dấu xử lý (`contact.manage`) — xem [docs/modules/core-contact.md](docs/modules/core-contact.md)
 - [ ] CRUD `folders` ⬜ *(bảng đã có, API chưa — `BE-19`)*
 - [ ] Màn hình quản lý tài nguyên (cây thư mục, grid/list) ⬜
 - [ ] Mở rộng `system_settings` key-value tổng quát ⬜
@@ -107,6 +108,8 @@
 - [x] **Products** — CRUD, giá, thư viện nhiều ảnh, mô tả rich text (TipTap, sanitize XSS ở backend), soft delete *(không có tồn kho — hoa tươi làm theo đơn; chưa có `product_variants` — xem [docs/modules/domain-products.md §8](docs/modules/domain-products.md))*
 - [x] API công khai `/products` (phân trang, không lộ trường nội bộ)
 - [x] UI `/admin/products`
+- [x] Trang chủ storefront (`/`) đọc danh mục/sản phẩm thật qua API công khai (Server Component, `fetch` + `revalidate: 60s`) — thay hẳn mảng dữ liệu giả cứng trong code trước đó
+- [x] Dữ liệu mẫu: 4 danh mục + 8 sản phẩm qua `domain.seed.ts` (chưa có ảnh — seed script không tự upload Cloudinary được, hiện icon hoa thay thế)
 - [ ] `product_variants` (size/giá riêng) ⬜
 - [ ] Occasions (dịp lễ) ⬜
 - [ ] Cart (guest cart) ⬜ *(4 ngày)*

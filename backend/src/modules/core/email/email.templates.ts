@@ -27,3 +27,27 @@ export function newPasswordTemplate({ password }: { password: string }): string 
     <p>Vui lòng đăng nhập và đổi mật khẩu ngay sau khi truy cập.</p>
   `;
 }
+
+// name/phone/email/message đã được escapeHtml() ở contact.service.ts TRƯỚC KHI truyền vào đây — nội
+// dung này do khách công khai tự nhập (form Liên hệ, không cần đăng nhập), không escape thì dán thẳng
+// HTML/script của khách vào email nội bộ.
+export function contactMessageTemplate({
+  name,
+  phone,
+  email,
+  message,
+}: {
+  name: string;
+  phone: string;
+  email: string | null;
+  message: string;
+}): string {
+  return `
+    <p>Có khách vừa gửi form Liên hệ trên website:</p>
+    <p><strong>Tên:</strong> ${name}</p>
+    <p><strong>Điện thoại:</strong> ${phone}</p>
+    ${email ? `<p><strong>Email:</strong> ${email}</p>` : ""}
+    <p><strong>Lời nhắn:</strong></p>
+    <p>${message.replace(/\n/g, "<br>")}</p>
+  `;
+}

@@ -14,7 +14,7 @@ export function Footer() {
           <Link href="/" className="hover:text-rose">Chính sách đổi trả</Link>
           <Link href="/" className="hover:text-rose">Chính sách giao hàng</Link>
           <Link href="/" className="hover:text-rose">Chính sách bảo mật</Link>
-          <Link href="/" className="hover:text-rose">Liên hệ</Link>
+          <Link href="/lien-he" className="hover:text-rose">Liên hệ</Link>
         </div>
       </div>
       <p className="mt-8 text-xs text-ink-muted">© {new Date().getFullYear()} Hoa Xinh. Hoa tươi mỗi ngày.</p>

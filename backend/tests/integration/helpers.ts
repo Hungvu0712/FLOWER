@@ -24,6 +24,7 @@ export const SUPER_ADMIN_PERMISSIONS = [
   "audit.view",
   "categories.manage",
   "products.manage",
+  "contact.manage",
 ];
 
 export { db };

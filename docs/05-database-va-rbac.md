@@ -128,6 +128,7 @@ Toàn bộ permission dưới đây được seed sẵn với `is_system = true`
 | 🔧 Core   | permissions | `permissions.manage` 🔒      | Tạo/sửa/xoá permission (chỉ `super_admin`)                                                         |
 | 🔧 Core   | files       | `files.manage`               | Xem/xoá file trong màn hình quản lý tài nguyên (folder, ảnh mồ côi...)                             |
 | 🔧 Core   | audit       | `audit.view`                 | Xem nhật ký Audit Log                                                                              |
+| 🔧 Core   | contact     | `contact.manage` ✅          | Xem tin nhắn Liên hệ khách gửi, đánh dấu đã xử lý — đã cài, xem [modules/core-contact.md](modules/core-contact.md) |
 
 🔒 = `is_restricted = true` — permission này chỉ được seed sẵn cho role `is_system = true` (mặc định chỉ `super_admin`), không thể gán qua UI tạo/sửa role tuỳ ý. Cột **Phạm vi** map trực tiếp với [Kiến trúc §2](02-kien-truc-tong-quan.md#2-chiến-lược-tái-sử-dụng--core-vs-domain): permission 🔧 Core giữ nguyên khi copy sang dự án khác, permission 🌸 Domain viết mới theo nghiệp vụ từng dự án.
 
@@ -150,6 +151,7 @@ Toàn bộ permission dưới đây được seed sẵn với `is_system = true`
 | reports.view                  |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | blog.manage                   |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | files.manage                  |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
+| contact.manage                |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | users.manage                  |     ✅      |   –   |       –       |              –               |            –             |               –               |
 | settings.manage               |     ✅      |   –   |       –       |              –               |            –             |               –               |
 | roles.manage                  |     ✅      |   –   |       –       |              –               |            –             |               –               |
@@ -323,6 +325,7 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 | ⬜ `blog_posts`    | id, author_id, title, slug, content, thumbnail_file_id, published_at                                                                 |                            |
 | ⬜ `notifications` | id, user_id, type, message, is_read, created_at                                                                                      |                            |
 | ✅ `email_logs`    | id, to_email, type (`welcome`, `magic_link`, `password_reset`, `order_confirmation`...), status, provider_message_id, error, sent_at | Audit email gửi qua Resend |
+| ✅ `contact_messages` | id, name, phone, email (nullable), message, is_handled, created_at | Khách gửi qua form Liên hệ công khai (`POST /api/v1/contact`, có rate limit theo IP) — xem [modules/core-contact.md](modules/core-contact.md) |
 
 ### 3.7. Quan hệ chính (ERD)
 
@@ -535,11 +538,20 @@ Khi khởi tạo DB, cần seed sẵn (chia 2 file theo [Kiến trúc §2.1](02-
 **`core.seed.ts`**
 
 1. 3 System Role: `super_admin`, `admin`, `member`.
-2. Permission 🔧 Core ở mục 2.3 (`users.manage`, `settings.manage`, `roles.manage`, `permissions.manage`, `files.manage`, `audit.view`).
+2. Permission 🔧 Core ở mục 2.3 (`users.manage`, `settings.manage`, `roles.manage`, `permissions.manage`, `files.manage`, `audit.view`, `contact.manage`).
 3. 1 tài khoản `super_admin` mặc định (đổi mật khẩu ngay sau lần đăng nhập đầu).
 4. `login_method_settings`: cả 3 phương thức (`google_oauth`, `email_password`, `magic_link`) mặc định `is_enabled = true`.
 
 **`domain.seed.ts`** (shop hoa) 5. Role `sales_staff`, `florist`, `shipper`. 6. Permission 🌸 Domain ở mục 2.3 (`products.*`, `orders.*`, `categories.manage`...). 7. Ma trận `role_permissions` theo mục 2.4 (gộp cả permission core lẫn domain). 8. Danh mục/dịp lễ mẫu (`categories`, `occasions`) nếu muốn có sẵn dữ liệu demo.
+
+> ⚠️ **Cả 2 file PHẢI gán `role_permissions` kiểu THÊM (`createMany` + `skipDuplicates`), KHÔNG BAO
+> GIỜ `deleteMany` trước khi gán lại** cho `admin`/`super_admin` — 2 role này bị **cả 2 file cùng
+> gán** (core.seed.ts gán permission 🔧 Core, domain.seed.ts gán thêm permission 🌸 Domain). Bug thật
+> đã xảy ra: `core.seed.ts` từng `deleteMany` rồi mới `createMany`, nên chạy lại `npm run seed:core`
+> (vd sau khi thêm 1 permission core mới) **sau khi đã chạy `seed:domain`** xoá sạch mọi permission
+> domain của admin/super_admin — `/admin/categories` và `/admin/products` báo 403 dù trước đó vẫn
+> chạy bình thường. Khắc phục bằng cách chạy lại `npm run seed:domain`, và sửa `core.seed.ts` bỏ hẳn
+> bước `deleteMany`. Xem comment tại vòng lặp gán role trong `core.seed.ts`.
 
 ---
 

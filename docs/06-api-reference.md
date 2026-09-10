@@ -68,6 +68,7 @@ flowchart LR
     ROOT --> FILES["/files<br/>🔑 + files.manage cho ghi/xoá"]
     ROOT --> CAT["/categories<br/>— công khai, storefront"]
     ROOT --> PROD["/products<br/>— công khai, storefront"]
+    ROOT --> CONTACT["/contact<br/>— công khai, rate limit 5/15p"]
     ROOT --> ADM["/admin/*<br/>🔑 nghiệp vụ domain"]
     ROOT --> SA["/superadmin/*<br/>🔑 quản trị hệ thống"]
 
@@ -75,6 +76,7 @@ flowchart LR
     ACC --> C1["me · profile · change-password<br/>sessions (list · revoke 1 · revoke khác)"]
     ADM --> AD1["/admin/categories<br/>categories.manage"]
     ADM --> AD2["/admin/products<br/>products.manage"]
+    ADM --> AD3["/admin/contact-messages<br/>contact.manage"]
     SA --> S1["/users → users.manage 🔒"]
     SA --> S2["/roles → roles.manage 🔒"]
     SA --> S3["/permissions → permissions.manage 🔒"]
@@ -344,12 +346,14 @@ Lỗi: `400 CATEGORY_CYCLE` (chọn danh mục con làm cha) · `404 PARENT_NOT_
 
 ### `GET /api/v1/products` (công khai)
 
-Trả về dạng phân trang (`data` + `meta`), mỗi sản phẩm kèm `category` và `images` (đã sắp theo `sortOrder`):
+Trả về dạng phân trang (`data` + `meta`), mỗi sản phẩm kèm `category` và `images` (đã sắp theo
+`sortOrder`) — **KHÔNG** có `isActive`/`createdAt`/`updatedAt`/`categoryId` (nội bộ, và `categoryId`
+dư thừa vì đã có object `category`), khác `GET /api/v1/admin/products` trả đủ trường:
 
 ```jsonc
 { "success": true, "data": [
   { "id": "uuid", "name": "Bó hoa hồng đỏ", "slug": "bo-hoa-hong-do",
-    "description": null, "basePrice": 350000, "categoryId": "uuid", "isActive": true,
+    "description": null, "basePrice": 350000,
     "category": { "id": "uuid", "name": "Hoa bó", "slug": "hoa-bo" },
     "images": [{ "id": "uuid", "sortOrder": 0, "file": { "id": "uuid", "url": "https://res.cloudinary.com/..." } }] }
 ], "meta": { "page": 1, "limit": 24, "total": 1, "totalPages": 1 } }
@@ -392,7 +396,34 @@ không tồn tại hoặc đã xoá mềm trước đó).
 
 ---
 
-## 9. SuperAdmin — Users · `/api/v1/superadmin/users` 🔒 `users.manage`
+## 9. Contact 🔧
+
+| Method | Path | Quyền | Rate limit | Mô tả |
+|---|---|---|---|---|
+| `POST` | `/api/v1/contact` | — | 5 / 15 phút theo IP | Khách gửi form Liên hệ |
+| `GET` | `/api/v1/admin/contact-messages?isHandled=&page=&limit=` | `contact.manage` | — | Danh sách tin nhắn (phân trang) |
+| `PATCH` | `/api/v1/admin/contact-messages/:id` | `contact.manage` | — | Đánh dấu đã/chưa xử lý |
+
+### `POST /api/v1/contact` (công khai)
+
+```jsonc
+{ "name": "Nguyễn Thị A", "phone": "0912345678", "email": "a@example.com", "message": "Cho hỏi giá bó hoa cưới" }
+// 201
+{ "success": true, "message": "Đã gửi liên hệ, chúng tôi sẽ phản hồi sớm nhất", "data": { "id": "uuid", "...": "..." } }
+```
+
+- `email` tuỳ chọn — bỏ trống hoặc gửi `""` đều được, lưu thành `null`.
+- Ghi vào DB **trước**, gửi email thông báo tới `CONTACT_EMAIL` là **best-effort** (lỗi gửi email
+  không làm hỏng response — request vẫn 201 vì đã lưu DB xong, giống cách `magic-link`/`reset-password`
+  nuốt lỗi gửi mail, xem [07 · Bảo mật §1](07-bao-mat.md)). Nội dung khách nhập được escape HTML trước
+  khi chèn vào email (chống XSS trong email nội bộ) — xem [modules/core-contact.md](modules/core-contact.md).
+- Rate limit 5 lần/15 phút theo IP — vượt quá trả `429`.
+
+Lỗi: `422` (thiếu `name`/`phone`/`message`, hoặc `email` sai định dạng).
+
+---
+
+## 10. SuperAdmin — Users · `/api/v1/superadmin/users` 🔒 `users.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -448,7 +479,7 @@ tránh tình trạng tài khoản bị đặt mật khẩu mà không ai biết.
 
 ---
 
-## 10. SuperAdmin — Roles · `/api/v1/superadmin/roles` 🔒 `roles.manage`
+## 11. SuperAdmin — Roles · `/api/v1/superadmin/roles` 🔒 `roles.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -472,7 +503,7 @@ Lỗi: `403 SYSTEM_ROLE_LOCKED` (sửa/xoá System Role) · `409 ROLE_IN_USE` (c
 
 ---
 
-## 11. SuperAdmin — Permissions · `/api/v1/superadmin/permissions` 🔒 `permissions.manage`
+## 12. SuperAdmin — Permissions · `/api/v1/superadmin/permissions` 🔒 `permissions.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -496,7 +527,7 @@ Lỗi: `409 PERMISSION_CODE_TAKEN` · `403 SYSTEM_PERMISSION_LOCKED` (đổi `co
 
 ---
 
-## 12. SuperAdmin — Login Methods · `/api/v1/superadmin/login-methods` 🔒 `settings.manage`
+## 13. SuperAdmin — Login Methods · `/api/v1/superadmin/login-methods` 🔒 `settings.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -511,7 +542,7 @@ Lỗi: `409 PERMISSION_CODE_TAKEN` · `403 SYSTEM_PERMISSION_LOCKED` (đổi `co
 
 ---
 
-## 13. SuperAdmin — Audit Logs · `/api/v1/superadmin/audit-logs` 🔒 `audit.view`
+## 14. SuperAdmin — Audit Logs · `/api/v1/superadmin/audit-logs` 🔒 `audit.view`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -532,7 +563,7 @@ Danh sách `action` đang ghi: [modules/core-audit-log.md](modules/core-audit-lo
 
 ---
 
-## 14. Endpoint dự kiến (🌸 Domain — chưa triển khai)
+## 15. Endpoint dự kiến (🌸 Domain — chưa triển khai)
 
 `GET /api/v1/products` (§8) đã triển khai nhưng **đơn giản hơn** bản phác thảo cũ — chỉ có
 `categoryId`/`page`/`limit`, CHƯA có `search`/`minPrice`/`maxPrice`/`occasion` (occasions chưa có bảng,

@@ -57,6 +57,7 @@ rõ ràng, thay vì chạy được rồi lỗi mập mờ giữa chừng một 
 | `EMAIL_FROM` | | `no-reply@example.com` | Địa chỉ người gửi |
 | `RESEND_API_KEY` | tính năng | `""` | 🔑 Secret — khi `EMAIL_PROVIDER=resend` |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | tính năng | `""` / `587` | 🔑 `SMTP_PASS` là secret |
+| `CONTACT_EMAIL` | | `EMAIL_FROM` | Hộp thư NHẬN thông báo khi khách gửi form Liên hệ — khác `EMAIL_FROM` (đó là địa chỉ người GỬI). Bỏ trống thì fallback về `EMAIL_FROM`, chỉ hợp cho dev |
 | `MAGIC_LINK_TTL_MINUTES` | | `15` | Hạn magic link (phút) |
 | `MAGIC_LINK_BASE_URL` | | `http://localhost:3000/magic-link/verify` | Trang frontend xử lý magic link |
 | `PASSWORD_RESET_TTL_MINUTES` | | `30` | Hạn link đặt lại mật khẩu (phút) |

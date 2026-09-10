@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useMe } from '@/features/core/account/account.hooks';
 import { DashboardShell, type ShellNavSection } from '@/components/shell/DashboardShell';
-import { IconDashboard, IconUsers, IconSliders, IconPackage, IconReceipt, IconShield, IconKey, IconTag } from './icons';
+import { IconDashboard, IconUsers, IconSliders, IconPackage, IconReceipt, IconShield, IconKey, IconTag, IconMail } from './icons';
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
@@ -79,6 +79,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         { href: '/admin/categories', label: 'Danh mục', icon: IconTag },
         { href: '/admin/products', label: 'Sản phẩm', icon: IconPackage },
         { href: '/admin/orders', label: 'Đơn hàng', icon: IconReceipt, soon: true },
+        { href: '/admin/contact', label: 'Liên hệ', icon: IconMail },
       ],
     },
   ];
