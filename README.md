@@ -124,7 +124,7 @@ Bắt đầu dự án mới = copy phần core, xoá phần domain, đổi `.env
 |:---:|---|:---:|
 | 1–3 | Foundation · Authentication · RBAC | ✅ |
 | 4 | Infrastructure (Cloudinary, email, jobs) | 🟡 80% |
-| 5 | Domain — nghiệp vụ shop hoa | 🟡 10% |
+| 5 | Domain — nghiệp vụ shop hoa | 🟡 20% |
 | 6 | Quality — testing, tài liệu | 🟡 60% |
 | 7 | Production — Docker, CI/CD, monitoring | ⬜ |
 

@@ -107,10 +107,7 @@ Toàn bộ permission dưới đây được seed sẵn với `is_system = true`
 
 | Phạm vi   | Nhóm        | Permission code              | Ý nghĩa                                                                                            |
 | --------- | ----------- | ---------------------------- | -------------------------------------------------------------------------------------------------- |
-| 🌸 Domain | products    | `products.view`              | Xem danh sách/chi tiết sản phẩm (admin panel)                                                      |
-| 🌸 Domain | products    | `products.create`            | Thêm sản phẩm mới                                                                                  |
-| 🌸 Domain | products    | `products.update`            | Sửa sản phẩm, tồn kho                                                                              |
-| 🌸 Domain | products    | `products.delete`            | Xoá/ẩn sản phẩm                                                                                    |
+| 🌸 Domain | products    | `products.manage` ✅          | Thêm/sửa/xoá sản phẩm, quản lý tồn kho — 1 permission gộp chung (đã cài, xem [modules/domain-products.md](modules/domain-products.md)), KHÔNG tách view/create/update/delete như bản thiết kế đầu, khớp cách `categories.manage` đang làm |
 | 🌸 Domain | categories  | `categories.manage`          | Thêm/sửa/xoá danh mục, dịp lễ                                                                      |
 | 🌸 Domain | orders      | `orders.view_own`            | Khách xem đơn của chính mình                                                                       |
 | 🌸 Domain | orders      | `orders.view_all`            | Xem toàn bộ đơn hàng hệ thống                                                                      |
@@ -138,8 +135,7 @@ Toàn bộ permission dưới đây được seed sẵn với `is_system = true`
 
 | Permission                    | super_admin | admin |  sales_staff  |           florist            |         shipper          |            member             |
 | ----------------------------- | :---------: | :---: | :-----------: | :--------------------------: | :----------------------: | :---------------------------: |
-| products.view                 |     ✅      |  ✅   |      ✅       |              –               |            –             |               –               |
-| products.create/update/delete |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
+| products.manage               |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | categories.manage             |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | orders.view_own               |      –      |   –   |       –       |              –               |            –             |              ✅               |
 | orders.view_all               |     ✅      |  ✅   |      ✅       |              –               |            –             |               –               |
@@ -299,9 +295,9 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 | ------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | ✅ `categories`        | id, name, slug, description, image_file_id (FK → `files`), parent_id, sort_order, is_active | Danh mục con dạng cây; ảnh qua `image_file_id` (tái sử dụng module Files, không lưu URL thô) |
 | ⬜ `occasions`         | id, name (Sinh nhật, Valentine...)                                                          | Tag dịp lễ                                                                                   |
-| ⬜ `products`          | id, name, slug, description, base_price, category_id, thumbnail, status, stock, deleted_at  |                                                                                              |
-| ⬜ `product_images`    | id, product_id, url, sort_order                                                             |                                                                                              |
-| ⬜ `product_variants`  | id, product_id, name (Nhỏ/Vừa/Lớn), price, stock                                            |                                                                                              |
+| ✅ `products`          | id, name, slug, description, base_price (Int, VND không có đơn vị lẻ), category_id, is_active, deleted_at | **Không có tồn kho** — hoa tươi làm theo đơn/theo mẫu, không phải hàng lưu kho theo SKU cố định (chưa có `product_variants`, xem dòng dưới) — soft delete (`deleted_at`, khác `categories` hard delete) vì `order_items` sẽ tham chiếu sau này |
+| ✅ `product_images`    | id, product_id, file_id (FK → `files`), sort_order                                          | Thư viện nhiều ảnh/sản phẩm (khác `categories` chỉ 1 ảnh đại diện) — ảnh qua `file_id`, không lưu URL thô, giống `categories.image_file_id` |
+| ⬜ `product_variants`  | id, product_id, name (Nhỏ/Vừa/Lớn), price                                                   | Chưa làm — nếu làm, KHÔNG kèm tồn kho theo variant (lý do như `products` ở trên)             |
 | ⬜ `product_occasions` | product_id, occasion_id                                                                     | n-n                                                                                          |
 | ⬜ `reviews`           | id, product_id, user_id, rating, comment, images, is_approved, created_at                   |                                                                                              |
 | ⬜ `wishlists`         | user_id, product_id                                                                         |                                                                                              |
@@ -464,7 +460,7 @@ erDiagram
     }
 ```
 
-#### Chi tiết — nhóm Domain (⬜ thiết kế, chưa tạo bảng trừ `categories`)
+#### Chi tiết — nhóm Domain (⬜ thiết kế, chưa tạo bảng trừ `categories`, `products`, `product_images`)
 
 ```mermaid
 erDiagram
@@ -520,7 +516,7 @@ erDiagram
 ### 3.8. Index quan trọng
 
 - `users(email)` unique.
-- `products(slug)` unique, `products(category_id)`, full-text index (`GIN`) trên `products(name, description)`.
+- `products(slug)` unique ✅, `products(deleted_at)` ✅, `products(category_id)` ✅ — đã có. Full-text index (`GIN`) trên `products(name, description)` ⬜ — chưa cần, thêm khi có tính năng tìm kiếm thật.
 - `orders(order_code)` unique, `orders(user_id)`, `orders(status)`.
 - `order_deliveries(delivery_date)` — phục vụ dashboard lịch giao hoa.
 - `order_deliveries(shipper_id)` — truy vấn nhanh đơn của từng shipper.

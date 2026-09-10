@@ -7,10 +7,10 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const DOMAIN_PERMISSIONS = [
-  { code: 'products.view', groupName: 'products', description: 'Xem danh sách/chi tiết sản phẩm' },
-  { code: 'products.create', groupName: 'products', description: 'Thêm sản phẩm mới' },
-  { code: 'products.update', groupName: 'products', description: 'Sửa sản phẩm, tồn kho' },
-  { code: 'products.delete', groupName: 'products', description: 'Xoá/ẩn sản phẩm' },
+  // Gộp 1 permission (không tách view/create/update/delete như bản thiết kế đầu — xem docs/05 §2.3),
+  // khớp đúng cách categories.manage đang làm: sales_staff/florist/shipper chưa cần đụng màn quản trị
+  // sản phẩm này nên chưa cần tách quyền xem riêng, chỉ admin/super_admin dùng permission này.
+  { code: 'products.manage', groupName: 'products', description: 'Thêm/sửa/xoá sản phẩm, quản lý tồn kho' },
   { code: 'categories.manage', groupName: 'categories', description: 'Thêm/sửa/xoá danh mục, dịp lễ' },
   { code: 'orders.view_own', groupName: 'orders', description: 'Khách xem đơn của chính mình' },
   { code: 'orders.view_all', groupName: 'orders', description: 'Xem toàn bộ đơn hàng hệ thống' },
@@ -28,14 +28,17 @@ const DOMAIN_PERMISSIONS = [
 ];
 
 const ADMIN_DOMAIN_PERMISSIONS = [
-  'products.view', 'products.create', 'products.update', 'products.delete', 'categories.manage',
+  'products.manage', 'categories.manage',
   'orders.view_all', 'orders.assign_shipper', 'orders.cancel', 'orders.view_delivery_queue',
   'orders.view_shipping_queue', 'customers.view', 'customers.manage', 'promotions.manage',
   'reviews.moderate', 'reports.view', 'blog.manage',
 ];
 
 const DOMAIN_ROLES = [
-  { code: 'sales_staff', name: 'Nhân viên bán hàng', permissionCodes: ['products.view', 'orders.view_all', 'orders.update_status', 'orders.assign_shipper', 'orders.cancel', 'customers.view'] },
+  // sales_staff KHÔNG có products.manage nữa (permission cũ products.view đã bị gộp — xem
+  // DOMAIN_PERMISSIONS phía trên) — nếu sau này cần cho sales_staff xem (không sửa) sản phẩm, tách
+  // thêm 1 permission `products.view` riêng lúc đó, đừng gán products.manage (bao gồm cả xoá).
+  { code: 'sales_staff', name: 'Nhân viên bán hàng', permissionCodes: ['orders.view_all', 'orders.update_status', 'orders.assign_shipper', 'orders.cancel', 'customers.view'] },
   { code: 'florist', name: 'Nhân viên cắm hoa', permissionCodes: ['orders.view_delivery_queue', 'orders.update_status'] },
   { code: 'shipper', name: 'Người giao hàng', permissionCodes: ['orders.view_shipping_queue', 'orders.update_status'] },
 ];

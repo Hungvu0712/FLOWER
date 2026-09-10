@@ -22,7 +22,7 @@
 | 2 | Authentication — 3 phương thức, session, rotation | ✅ | ██████████ 100% |
 | 3 | RBAC — users, roles, permissions, audit log | ✅ | ██████████ 100% |
 | 4 | Infrastructure — Cloudinary, email, jobs, settings | 🟡 | ████████░░ 80% |
-| 5 | Domain — nghiệp vụ shop hoa | 🟡 | █░░░░░░░░░ 10% |
+| 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██░░░░░░░░ 20% |
 | 6 | Quality — testing, OpenAPI, logging | 🟡 | ██████░░░░ 60% |
 | 7 | Production — Docker, CI/CD, monitoring | ⬜ | ░░░░░░░░░░ 0% |
 
@@ -104,7 +104,10 @@
 - [x] **Categories** — CRUD cây, slug tự sinh bỏ dấu, chống vòng lặp cha-con
 - [x] API công khai `/categories` (không lộ trường nội bộ)
 - [x] UI `/admin/categories`
-- [ ] **Products** ⬜ *(6 ngày — ưu tiên tiếp theo)*
+- [x] **Products** — CRUD, giá, thư viện nhiều ảnh, mô tả rich text (TipTap, sanitize XSS ở backend), soft delete *(không có tồn kho — hoa tươi làm theo đơn; chưa có `product_variants` — xem [docs/modules/domain-products.md §8](docs/modules/domain-products.md))*
+- [x] API công khai `/products` (phân trang, không lộ trường nội bộ)
+- [x] UI `/admin/products`
+- [ ] `product_variants` (size/giá riêng) ⬜
 - [ ] Occasions (dịp lễ) ⬜
 - [ ] Cart (guest cart) ⬜ *(4 ngày)*
 - [ ] **Orders + chọn ngày giờ giao** ⬜ *(8 ngày — cốt lõi ngành hoa)*
@@ -237,7 +240,7 @@ Chi tiết: [docs/07 · Bảo mật](docs/07-bao-mat.md).
 |---|---|:---:|
 | Sửa 6 điểm 🔴 nợ kỹ thuật (`BE-01` → `BE-06`) | 1.5 ngày | ⬜ |
 | Thiết lập CI/CD GitHub Actions | 2 ngày | ⬜ |
-| **Module Products** (CRUD + biến thể + nhiều ảnh + tồn kho) | 6 ngày | ⬜ |
+| **Module Products** (CRUD + nhiều ảnh, không tồn kho) | 6 ngày | ✅ *(10/09/2026 — chưa gồm biến thể/size riêng, xem `product_variants` ở Phase 5)* |
 | Màn hình tra cứu Audit Log | 1 ngày | ⬜ |
 
 **Mốc cuối kỳ**: nhập được sản phẩm thật vào hệ thống qua khu quản trị.

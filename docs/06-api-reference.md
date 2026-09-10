@@ -67,12 +67,14 @@ flowchart LR
     ROOT --> ACC["/account<br/>🔑 authenticate"]
     ROOT --> FILES["/files<br/>🔑 + files.manage cho ghi/xoá"]
     ROOT --> CAT["/categories<br/>— công khai, storefront"]
+    ROOT --> PROD["/products<br/>— công khai, storefront"]
     ROOT --> ADM["/admin/*<br/>🔑 nghiệp vụ domain"]
     ROOT --> SA["/superadmin/*<br/>🔑 quản trị hệ thống"]
 
     AUTH --> A1["register · login · logout · refresh<br/>magic-link/request · magic-link/verify<br/>google · forgot-password · reset-password<br/>login-methods"]
     ACC --> C1["me · profile · change-password<br/>sessions (list · revoke 1 · revoke khác)"]
     ADM --> AD1["/admin/categories<br/>categories.manage"]
+    ADM --> AD2["/admin/products<br/>products.manage"]
     SA --> S1["/users → users.manage 🔒"]
     SA --> S2["/roles → roles.manage 🔒"]
     SA --> S3["/permissions → permissions.manage 🔒"]
@@ -330,7 +332,67 @@ Lỗi: `400 CATEGORY_CYCLE` (chọn danh mục con làm cha) · `404 PARENT_NOT_
 
 ---
 
-## 8. SuperAdmin — Users · `/api/v1/superadmin/users` 🔒 `users.manage`
+## 8. Products 🌸
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `GET` | `/api/v1/products?categoryId=&page=&limit=` | — | Sản phẩm đang bật, cho storefront (phân trang) |
+| `GET` | `/api/v1/admin/products?includeInactive=&categoryId=&page=&limit=` | `products.manage` | Danh sách đầy đủ (phân trang) |
+| `POST` | `/api/v1/admin/products` | `products.manage` | Tạo sản phẩm |
+| `PATCH` | `/api/v1/admin/products/:id` | `products.manage` | Sửa sản phẩm |
+| `DELETE` | `/api/v1/admin/products/:id` | `products.manage` | Xoá mềm sản phẩm |
+
+### `GET /api/v1/products` (công khai)
+
+Trả về dạng phân trang (`data` + `meta`), mỗi sản phẩm kèm `category` và `images` (đã sắp theo `sortOrder`):
+
+```jsonc
+{ "success": true, "data": [
+  { "id": "uuid", "name": "Bó hoa hồng đỏ", "slug": "bo-hoa-hong-do",
+    "description": null, "basePrice": 350000, "categoryId": "uuid", "isActive": true,
+    "category": { "id": "uuid", "name": "Hoa bó", "slug": "hoa-bo" },
+    "images": [{ "id": "uuid", "sortOrder": 0, "file": { "id": "uuid", "url": "https://res.cloudinary.com/..." } }] }
+], "meta": { "page": 1, "limit": 24, "total": 1, "totalPages": 1 } }
+```
+
+`basePrice` là số nguyên VND (không có đơn vị lẻ, không dùng kiểu Decimal) — xem
+[modules/domain-products.md](modules/domain-products.md). `description` là **HTML đã sanitize** (rich
+text — xem [modules/domain-products.md §9](modules/domain-products.md#9-mô-tả-dạng-rich-text)), không
+phải văn bản thuần — client tự chịu trách nhiệm render đúng (hoặc dùng
+`stripHtml()` để lấy bản tóm tắt văn bản thuần nếu chỉ cần preview).
+
+### `POST /api/v1/admin/products`
+
+```jsonc
+{ "name": "Bó hoa hồng đỏ", "slug": "bo-hoa-hong-do",
+  "description": "<p>Bó hoa gồm <strong>10 bông hồng đỏ</strong> tươi.</p>",
+  "basePrice": 350000, "categoryId": "uuid", "isActive": true,
+  "imageFileIds": ["uuid-1", "uuid-2"] }
+```
+
+- `description`: server **sanitize lại** bằng allowlist thẻ trước khi lưu (bỏ mọi thẻ/attribute
+  không nằm trong danh sách cho phép, kể cả `<script>`/`onclick`/`href`) — gửi gì cũng an toàn, không
+  cần tự sanitize phía client trước khi gửi.
+
+- Bỏ trống `slug` → tự sinh từ `name`, trùng thì tự thêm hậu tố `-2`, `-3`... (giống categories).
+- **Đổi `name` không tự đổi `slug`** — chỉ đổi khi sửa `slug` thủ công.
+- `imageFileIds`: **toàn bộ** bộ ảnh hiện tại, ĐÚNG thứ tự hiển thị — gửi lại ở `PATCH` là **thay thế**
+  hoàn toàn bộ ảnh cũ, không phải thêm vào. Bỏ trống field này (không gửi) ở `PATCH` thì không đụng gì
+  tới bộ ảnh hiện có; gửi mảng rỗng `[]` thì xoá hết ảnh.
+
+Lỗi: `404 CATEGORY_NOT_FOUND` (categoryId không tồn tại) · `404 NOT_FOUND` (PATCH/DELETE sản phẩm
+không tồn tại hoặc đã xoá mềm trước đó).
+
+> Xoá là **soft delete** (`deletedAt`) — khác categories (hard delete) — vì sản phẩm sẽ được
+> `order_items` tham chiếu khi module Orders triển khai; đơn hàng cũ vẫn cần hiển thị đúng tên/giá dù
+> sản phẩm đã ngừng bán.
+
+> **Không có `stock`/tồn kho** — hoa tươi làm theo đơn/theo mẫu tại thời điểm đặt, không phải hàng lưu
+> kho theo SKU cố định. Ẩn tạm sản phẩm dùng `isActive`, không phải "hết hàng".
+
+---
+
+## 9. SuperAdmin — Users · `/api/v1/superadmin/users` 🔒 `users.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -386,7 +448,7 @@ tránh tình trạng tài khoản bị đặt mật khẩu mà không ai biết.
 
 ---
 
-## 9. SuperAdmin — Roles · `/api/v1/superadmin/roles` 🔒 `roles.manage`
+## 10. SuperAdmin — Roles · `/api/v1/superadmin/roles` 🔒 `roles.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -410,7 +472,7 @@ Lỗi: `403 SYSTEM_ROLE_LOCKED` (sửa/xoá System Role) · `409 ROLE_IN_USE` (c
 
 ---
 
-## 10. SuperAdmin — Permissions · `/api/v1/superadmin/permissions` 🔒 `permissions.manage`
+## 11. SuperAdmin — Permissions · `/api/v1/superadmin/permissions` 🔒 `permissions.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -434,7 +496,7 @@ Lỗi: `409 PERMISSION_CODE_TAKEN` · `403 SYSTEM_PERMISSION_LOCKED` (đổi `co
 
 ---
 
-## 11. SuperAdmin — Login Methods · `/api/v1/superadmin/login-methods` 🔒 `settings.manage`
+## 12. SuperAdmin — Login Methods · `/api/v1/superadmin/login-methods` 🔒 `settings.manage`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -449,7 +511,7 @@ Lỗi: `409 PERMISSION_CODE_TAKEN` · `403 SYSTEM_PERMISSION_LOCKED` (đổi `co
 
 ---
 
-## 12. SuperAdmin — Audit Logs · `/api/v1/superadmin/audit-logs` 🔒 `audit.view`
+## 13. SuperAdmin — Audit Logs · `/api/v1/superadmin/audit-logs` 🔒 `audit.view`
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -470,11 +532,14 @@ Danh sách `action` đang ghi: [modules/core-audit-log.md](modules/core-audit-lo
 
 ---
 
-## 13. Endpoint dự kiến (🌸 Domain — chưa triển khai)
+## 14. Endpoint dự kiến (🌸 Domain — chưa triển khai)
+
+`GET /api/v1/products` (§8) đã triển khai nhưng **đơn giản hơn** bản phác thảo cũ — chỉ có
+`categoryId`/`page`/`limit`, CHƯA có `search`/`minPrice`/`maxPrice`/`occasion` (occasions chưa có bảng,
+xem [05 §3.4](05-database-va-rbac.md#34-nhóm-sản-phẩm)). Còn thiếu:
 
 ```
-GET    /api/v1/products?category=&occasion=&search=&minPrice=&maxPrice=&page=&limit=
-GET    /api/v1/products/:slug
+GET    /api/v1/products/:slug          # trang chi tiết 1 sản phẩm cho storefront
 POST   /api/v1/cart/items
 POST   /api/v1/orders                  # tạo đơn từ giỏ + delivery info (ngày giờ giao)
 GET    /api/v1/orders/:id              # row-level check: chỉ chủ đơn hoặc orders.view_all

@@ -105,7 +105,7 @@ Ma trận quyền đầy đủ: [05 · Database & RBAC §2.4](05-database-va-rba
 | Nhóm           | Chức năng                                                           | Trạng thái |
 | -------------- | ------------------------------------------------------------------- | :--------: |
 | **Danh mục**   | CRUD danh mục dạng cây, slug tự sinh, chống vòng lặp cha-con        |     ✅     |
-| **Sản phẩm**   | CRUD, nhiều ảnh, biến thể size/giá, tồn kho                         |     ⬜     |
+| **Sản phẩm**   | CRUD, nhiều ảnh, giá — không có tồn kho (hoa tươi làm theo đơn); biến thể size/giá chưa làm |     ✅     |
 | **Giỏ hàng**   | Guest cart, thêm/sửa/xoá                                            |     ⬜     |
 | **Đơn hàng**   | Đặt hàng, **chọn ngày giờ giao**, thiệp chúc, sổ địa chỉ người nhận |     ⬜     |
 | **Thanh toán** | COD, chuyển khoản, VNPay/Momo                                       |     ⬜     |

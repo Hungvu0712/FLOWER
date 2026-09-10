@@ -13,6 +13,7 @@ const PROTECTED = [
   { method: "get" as const, path: "/api/v1/superadmin/login-methods", permission: "settings.manage" },
   { method: "get" as const, path: "/api/v1/superadmin/audit-logs", permission: "audit.view" },
   { method: "get" as const, path: "/api/v1/admin/categories", permission: "categories.manage" },
+  { method: "get" as const, path: "/api/v1/admin/products", permission: "products.manage" },
   { method: "get" as const, path: "/api/v1/files", permission: "files.manage" },
   { method: "get" as const, path: "/api/v1/account/me", permission: null },
 ];
@@ -79,6 +80,8 @@ describe("Tầng 3 — đủ quyền", () => {
     db.auditLog.findMany.mockResolvedValue([]);
     db.auditLog.count.mockResolvedValue(0);
     db.category.findMany.mockResolvedValue([]);
+    db.product.findMany.mockResolvedValue([]);
+    db.product.count.mockResolvedValue(0);
     db.file.findMany.mockResolvedValue([]);
     db.file.count.mockResolvedValue(0);
 
@@ -92,9 +95,12 @@ describe("Endpoint công khai — KHÔNG yêu cầu đăng nhập", () => {
     "/health",
     "/api/v1/auth/login-methods",
     "/api/v1/categories",
+    "/api/v1/products",
   ])("%s trả 200 khi chưa đăng nhập", async (path) => {
     db.loginMethodSetting.findMany.mockResolvedValue([]);
     db.category.findMany.mockResolvedValue([]);
+    db.product.findMany.mockResolvedValue([]);
+    db.product.count.mockResolvedValue(0);
     expect((await request(app).get(path)).status).toBe(200);
   });
 

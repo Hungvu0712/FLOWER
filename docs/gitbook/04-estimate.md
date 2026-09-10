@@ -39,7 +39,7 @@ Bản MVP = khách hàng có thể **đặt hoa và thanh toán được**, cử
 
 | Hạng mục | Ngày công | Bao gồm |
 |---|---:|---|
-| **Sản phẩm** | 6 | Thêm/sửa/xoá, nhiều ảnh, biến thể kích cỡ–giá, tồn kho, danh mục |
+| **Sản phẩm** | 6 | Thêm/sửa/xoá, nhiều ảnh, danh mục — không quản lý tồn kho (hoa tươi làm theo đơn); biến thể kích cỡ–giá để sau |
 | **Giỏ hàng** | 4 | Thêm/sửa/xoá, giữ giỏ khi chưa đăng nhập, tính tiền |
 | **Đơn hàng** | 8 | Đặt hàng, **chọn ngày giờ giao**, người nhận, thiệp chúc, trạng thái đơn |
 | **Thanh toán** | 7 | COD, chuyển khoản, tích hợp 1 cổng online, xác thực giao dịch |

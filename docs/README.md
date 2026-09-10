@@ -50,6 +50,7 @@ Tài liệu **trao đổi với khách hàng** nằm riêng ở [`docs/gitbook/`
 | Audit Log (nhật ký thao tác) | 🔧 Core | [modules/core-audit-log.md](modules/core-audit-log.md) |
 | Settings (phương thức đăng nhập) | 🔧 Core | [modules/core-settings.md](modules/core-settings.md) |
 | Categories (danh mục) | 🌸 Domain | [modules/domain-categories.md](modules/domain-categories.md) |
+| Products (sản phẩm) | 🌸 Domain | [modules/domain-products.md](modules/domain-products.md) |
 
 ---
 

@@ -140,6 +140,28 @@ export async function addFileUsage({
   });
 }
 
+// Đồng bộ TOÀN BỘ usage của 1 entity với ĐÚNG danh sách fileId truyền vào — dùng cho thư viện nhiều
+// ảnh (vd product_images: đăng 5 ảnh, sau đó sửa lại thành 3 ảnh khác). Khác setEntityFile (chỉ 1
+// file, thay thế) và addFileUsage (chỉ thêm, không gỡ file cũ không còn trong danh sách mới) — ở đây
+// file bị loại ra khỏi danh sách mới sẽ hết được đánh dấu "đang dùng" ngay, đúng ngữ nghĩa "đây là bộ
+// ảnh hiện tại của entity", để job dọn mồ côi nhận diện đúng ảnh nào thật sự không còn dùng nữa.
+export async function syncEntityFiles({
+  fileIds,
+  entityType,
+  entityId,
+}: {
+  fileIds: string[];
+  entityType: string;
+  entityId: string;
+}): Promise<void> {
+  await prisma.fileUsage.deleteMany({ where: { entityType, entityId } });
+  if (fileIds.length === 0) return;
+  await prisma.fileUsage.createMany({
+    data: fileIds.map((fileId) => ({ fileId, entityType, entityId })),
+    skipDuplicates: true,
+  });
+}
+
 // Xoá thủ công từ màn quản lý tài nguyên — soft delete ngay, object trên Cloudinary bị purge thật sự
 // ở lượt quét file mồ côi định kỳ (10 ngày/lần) để có khoảng đệm an toàn, tránh xoá nhầm.
 export async function softDeleteFile(id: string): Promise<void> {

@@ -10,6 +10,8 @@ import { filesRouter } from "../../modules/core/files/files.routes";
 import { auditLogRouter } from "../../modules/core/audit-log/auditLog.routes";
 import { categoriesRouter } from "../../modules/domain/categories/categories.routes";
 import { categoriesAdminRouter } from "../../modules/domain/categories/categories.admin.routes";
+import { productsRouter } from "../../modules/domain/products/products.routes";
+import { productsAdminRouter } from "../../modules/domain/products/products.admin.routes";
 
 export const v1Router = Router();
 
@@ -29,3 +31,5 @@ v1Router.use("/superadmin/audit-logs", authenticate, auditLogRouter);
 // là dành riêng cho quản trị hệ thống). Xem docs/02 §2, docs/03 §6.
 v1Router.use("/categories", categoriesRouter); // công khai — storefront đọc danh mục
 v1Router.use("/admin/categories", authenticate, categoriesAdminRouter);
+v1Router.use("/products", productsRouter); // công khai — storefront đọc sản phẩm
+v1Router.use("/admin/products", authenticate, productsAdminRouter);

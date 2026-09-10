@@ -16,7 +16,7 @@ description: Tiến độ thực tế của dự án, cập nhật hai tuần m�
 | Hoàn thành tổng thể | **~40%** |
 | Nền tảng kỹ thuật | ✅ Đã xong và đã kiểm thử |
 | Nghiệp vụ bán hàng | 🟡 Mới có phần danh mục |
-| Số bài kiểm thử tự động đang chạy | **436** (backend 335 · giao diện 101) + ~30 kịch bản mô phỏng người dùng |
+| Số bài kiểm thử tự động đang chạy | **466** (backend 365 · giao diện 101) + ~30 kịch bản mô phỏng người dùng |
 | Dự kiến bản dùng thử (MVP) | **Cuối tháng 12/2026** |
 | Dự kiến bản hoàn chỉnh | **Cuối tháng 2/2027** |
 
@@ -58,7 +58,7 @@ flowchart LR
 
 | Việc | Kết quả |
 |---|---|
-| **Bổ sung 436 bài kiểm thử tự động** | Toàn bộ phần nền tảng nay được kiểm tra tự động mỗi lần sửa code |
+| **Bổ sung 466 bài kiểm thử tự động** | Toàn bộ phần nền tảng nay được kiểm tra tự động mỗi lần sửa code |
 | **Bổ sung ~30 kịch bản mô phỏng người dùng thật** | Máy tự mở trình duyệt, đăng nhập, thao tác và kiểm tra kết quả |
 | **Viết lại toàn bộ tài liệu kỹ thuật** | 13 tài liệu chính + 7 tài liệu chi tiết theo module, có sơ đồ minh hoạ |
 | **Rà soát toàn bộ mã nguồn** | Phát hiện 29 điểm cần cải thiện, đã xếp thứ tự ưu tiên và ước lượng |
@@ -95,7 +95,7 @@ trong tài liệu nội bộ của đội phát triển.
 |---|---|---|
 | Sửa 6 điểm quan trọng từ đợt rà soát | 1,5 ngày | Không thấy trực tiếp — an toàn hơn |
 | Thiết lập kiểm tra tự động khi nộp code | 2 ngày | Chất lượng ổn định hơn theo thời gian |
-| **Xây dựng module Sản phẩm** (thêm/sửa/xoá, nhiều ảnh, biến thể kích cỡ, tồn kho) | 6 ngày | **Có thể bắt đầu nhập sản phẩm thật vào hệ thống** |
+| **Xây dựng module Sản phẩm** (thêm/sửa/xoá, nhiều ảnh — không quản lý tồn kho vì hoa tươi làm theo đơn) | 6 ngày | **Có thể bắt đầu nhập sản phẩm thật vào hệ thống** |
 | Màn hình tra cứu nhật ký thao tác | 1 ngày | Xem được ai đã làm gì trên hệ thống |
 
 **Mốc quan trọng cuối kỳ**: bạn có thể đăng nhập vào khu quản trị và **nhập thử sản phẩm thật** —
