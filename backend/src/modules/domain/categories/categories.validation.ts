@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zBooleanQuery } from '../../../shared/utils/zBooleanQuery';
 
 export const createCategorySchema = z.object({
   name: z.string().min(1),
@@ -17,6 +18,6 @@ export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 export const categoryIdParamSchema = z.object({ id: z.string().uuid() });
 
 export const listCategoriesQuerySchema = z.object({
-  includeInactive: z.coerce.boolean().optional(),
+  includeInactive: zBooleanQuery(),
 });
 export type ListCategoriesQuery = z.infer<typeof listCategoriesQuerySchema>;

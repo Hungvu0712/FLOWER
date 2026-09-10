@@ -14,6 +14,17 @@ beforeEach(() => {
   vi.spyOn(filesService, "setEntityFile").mockResolvedValue(undefined);
 });
 
+describe("GET /api/v1/admin/categories", () => {
+  it("?includeInactive=false KHÔNG bị hiểu nhầm thành true qua query string thật — hồi quy lỗi z.coerce.boolean()", async () => {
+    db.category.findMany.mockResolvedValue([]);
+    const res = await request(app)
+      .get("/api/v1/admin/categories?includeInactive=false")
+      .set("Cookie", adminCookie);
+    expect(res.status).toBe(200);
+    expect(db.category.findMany.mock.calls[0]![0].where).toEqual({ isActive: true });
+  });
+});
+
 describe("POST /api/v1/admin/categories", () => {
   it("tạo danh mục, tự sinh slug từ tên tiếng Việt, trả 201", async () => {
     db.category.findFirst.mockResolvedValue(null);

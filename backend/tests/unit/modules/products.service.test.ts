@@ -21,6 +21,17 @@ describe("listPublic — dữ liệu cho storefront", () => {
     expect(db.product.findMany.mock.calls[0]![0].where).toEqual({ deletedAt: null, isActive: true });
   });
 
+  it("KHÔNG lộ trường nội bộ (isActive, createdAt, updatedAt, categoryId dư thừa) ra API công khai", async () => {
+    db.product.findMany.mockResolvedValue([]);
+    db.product.count.mockResolvedValue(0);
+    await service.listPublic({ page: 1, limit: 24 } as never);
+    const select = db.product.findMany.mock.calls[0]![0].select;
+    expect(select).not.toHaveProperty("isActive");
+    expect(select).not.toHaveProperty("createdAt");
+    expect(select).not.toHaveProperty("updatedAt");
+    expect(select).not.toHaveProperty("categoryId");
+  });
+
   it("lọc theo categoryId khi có truyền", async () => {
     db.product.findMany.mockResolvedValue([]);
     db.product.count.mockResolvedValue(0);

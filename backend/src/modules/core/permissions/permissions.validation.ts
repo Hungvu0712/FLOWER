@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zBooleanQuery } from '../../../shared/utils/zBooleanQuery';
 
 export const createPermissionSchema = z.object({
   code: z.string().regex(/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/, 'Code dạng "group.action", vd products.export'),
@@ -15,7 +16,7 @@ export const updatePermissionSchema = z.object({
 export type UpdatePermissionInput = z.infer<typeof updatePermissionSchema>;
 
 export const listPermissionsQuerySchema = z.object({
-  assignable: z.coerce.boolean().optional(), // true = loại bỏ permission is_restricted (dùng khi tạo/sửa role)
+  assignable: zBooleanQuery(), // true = loại bỏ permission is_restricted (dùng khi tạo/sửa role)
 });
 export type ListPermissionsQuery = z.infer<typeof listPermissionsQuerySchema>;
 

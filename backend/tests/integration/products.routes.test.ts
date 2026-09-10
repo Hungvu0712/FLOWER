@@ -15,6 +15,18 @@ beforeEach(() => {
   db.product.findUniqueOrThrow.mockResolvedValue({ id: "p1" });
 });
 
+describe("GET /api/v1/admin/products", () => {
+  it("?includeInactive=false KHÔNG bị hiểu nhầm thành true qua query string thật — hồi quy lỗi z.coerce.boolean()", async () => {
+    db.product.findMany.mockResolvedValue([]);
+    db.product.count.mockResolvedValue(0);
+    const res = await request(app)
+      .get("/api/v1/admin/products?includeInactive=false")
+      .set("Cookie", adminCookie);
+    expect(res.status).toBe(200);
+    expect(db.product.findMany.mock.calls[0]![0].where).toEqual({ deletedAt: null, isActive: true });
+  });
+});
+
 describe("POST /api/v1/admin/products", () => {
   it("tạo sản phẩm, tự sinh slug từ tên tiếng Việt, trả 201", async () => {
     db.product.findFirst.mockResolvedValue(null);

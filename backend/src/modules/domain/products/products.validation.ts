@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zBooleanQuery } from '../../../shared/utils/zBooleanQuery';
 
 export const createProductSchema = z.object({
   name: z.string().min(1),
@@ -20,7 +21,7 @@ export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export const productIdParamSchema = z.object({ id: z.string().uuid() });
 
 export const listProductsQuerySchema = z.object({
-  includeInactive: z.coerce.boolean().optional(),
+  includeInactive: zBooleanQuery(),
   categoryId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(24),
