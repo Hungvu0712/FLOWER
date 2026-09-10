@@ -78,7 +78,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         { href: '/admin', label: 'Tổng quan', icon: IconDashboard },
         { href: '/admin/categories', label: 'Danh mục', icon: IconTag },
         { href: '/admin/products', label: 'Sản phẩm', icon: IconPackage },
-        { href: '/admin/orders', label: 'Đơn hàng', icon: IconReceipt, soon: true },
+        { href: '/admin/orders', label: 'Đơn hàng', icon: IconReceipt },
         { href: '/admin/contact', label: 'Liên hệ', icon: IconMail },
       ],
     },
