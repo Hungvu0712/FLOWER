@@ -12,10 +12,8 @@ export const presignSchema = z.object({
 export type PresignInput = z.infer<typeof presignSchema>;
 
 export const createFileSchema = z.object({
-  r2Key: z.string().min(1),
+  publicId: z.string().min(1),
   originalName: z.string().min(1),
-  mimeType: z.string().min(1),
-  sizeBytes: z.number().int().positive(),
   folderId: z.string().uuid().nullable().optional(),
 });
 export type CreateFileInput = z.infer<typeof createFileSchema>;

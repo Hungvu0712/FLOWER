@@ -246,35 +246,45 @@ không cần `currentPassword` khớp. Lỗi: `401 INVALID_CURRENT_PASSWORD`.
 
 | Method | Path | Quyền | Mô tả |
 |---|---|---|---|
-| `POST` | `/presign` | 🔑 | Lấy presigned URL để `PUT` thẳng lên R2 |
-| `POST` | `/` | 🔑 | Lưu metadata sau khi upload xong |
+| `POST` | `/presign` | 🔑 | Lấy chữ ký để upload thẳng lên Cloudinary |
+| `POST` | `/` | 🔑 | Lưu metadata sau khi upload xong (server tự tra lại metadata thật từ Cloudinary) |
 | `GET` | `/` | `files.manage` | Danh sách file (phân trang) |
-| `DELETE` | `/:id` | `files.manage` | Xoá mềm (R2 object bị purge ở lượt cron sau) |
+| `DELETE` | `/:id` | `files.manage` | Xoá mềm (Cloudinary object bị purge ở lượt cron sau) |
 
 ### `POST /api/v1/files/presign`
 
 ```jsonc
-// Request
+// Request — zod validate mime/size chỉ để phản hồi sớm cho UX, KHÔNG phải ràng buộc mật mã học
 { "originalName": "hoa-hong.jpg", "mimeType": "image/jpeg", "sizeBytes": 204800, "folderId": null }
 // Response
 { "success": true, "data": {
-    "uploadUrl": "https://<account>.r2.cloudflarestorage.com/...?X-Amz-Signature=...",
-    "r2Key": "uploads/2026-09-09/<uuid>.jpg",
-    "publicUrl": "https://cdn.example.com/uploads/2026-09-09/<uuid>.jpg",
+    "uploadUrl": "https://api.cloudinary.com/v1_1/<cloud_name>/image/upload",
+    "publicId": "uploads/2026-09-09/<uuid>",
+    "timestamp": 1757404800,
+    "signature": "<HMAC-SHA1 hex>",
+    "apiKey": "<CLOUDINARY_API_KEY>",
+    "allowedFormats": "jpg,jpeg,png,webp,gif,pdf",
     "folderId": null
 } }
 ```
 
 Ràng buộc: `mimeType` ∈ `image/jpeg` · `image/png` · `image/webp` · `image/gif` · `application/pdf`;
-`sizeBytes` ≤ **10 MB**. URL hết hạn sau **5 phút**. Tên file trên R2 là UUID ngẫu nhiên
-(không dùng tên gốc — tránh *path traversal* và trùng tên).
+`sizeBytes` ≤ **10 MB** (chỉ ở tầng zod, không chặn được ở bước upload thật lên Cloudinary — xem
+[modules/core-files.md §4](modules/core-files.md#4-bảo-mật)). Chữ ký chỉ ràng buộc **định dạng**
+(`allowedFormats`) — tính cục bộ bằng HMAC-SHA1, không có "hạn 5 phút" như presigned URL S3 trước đây.
+`publicId` là UUID ngẫu nhiên, **không có phần mở rộng** (Cloudinary tự nhận diện định dạng thật) và
+không dùng tên gốc — tránh *path traversal* và trùng tên.
+
+Frontend dùng response này để tự dựng `FormData` (file, `apiKey`, `timestamp`, `signature`,
+`publicId`, `allowedFormats`) và `POST` thẳng lên `uploadUrl`.
 
 ### `POST /api/v1/files`
 
 ```jsonc
-{ "r2Key": "uploads/2026-09-09/<uuid>.jpg", "originalName": "hoa-hong.jpg",
-  "mimeType": "image/jpeg", "sizeBytes": 204800, "folderId": null }
-// 201
+{ "publicId": "uploads/2026-09-09/<uuid>", "originalName": "hoa-hong.jpg", "folderId": null }
+// 201 — server gọi Cloudinary Admin API lấy url/mimeType/sizeBytes THẬT, không tin client khai
+// 404 FILE_NOT_FOUND nếu publicId không tồn tại trên Cloudinary
+// 422 FILE_TOO_LARGE nếu > 10MB (file bị xoá luôn trên Cloudinary, không tạo bản ghi DB)
 ```
 
 ### `GET /api/v1/files?folderId=&view=grid|list&page=1&limit=24`

@@ -74,7 +74,7 @@ Bản thiết kế gốc ở [`.design/`](../.design/) — tài liệu tham chi�
 ## Đã triển khai
 
 - **Auth**: `/login` · `/register` · `/magic-link` (+ `/verify`) · `/forgot-password` · `/reset-password`
-- **Tài khoản**: `/account/profile` (đổi tên/SĐT/avatar qua R2) · `/account/devices` (quản lý thiết bị)
+- **Tài khoản**: `/account/profile` (đổi tên/SĐT/avatar qua Cloudinary) · `/account/devices` (quản lý thiết bị)
 - **SuperAdmin**: `/superadmin/users` · `/roles` · `/permissions` · `/login-methods`
 - **Admin**: `/admin` · `/admin/categories`
 - **Storefront**: `/` (giao diện xong, dữ liệu mẫu)

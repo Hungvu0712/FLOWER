@@ -2,17 +2,15 @@ import { spawn } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import {
-  PutObjectCommand,
-  ListObjectsV2Command,
-  DeleteObjectCommand,
-} from "@aws-sdk/client-s3";
-import { r2Client } from "../config/r2";
+import { cloudinary } from "../config/cloudinary";
 import { env } from "../config/env";
 import { logger } from "../shared/logger/logger";
 
 const BACKUP_PREFIX = "backups/";
 const RETENTION_DAYS = 30;
+// File .dump không phải ảnh/video — resourceType "raw" (khác "image" của module Files, xem
+// files.service.ts) là loại duy nhất Cloudinary chấp nhận cho file nhị phân tuỳ ý.
+const RESOURCE_TYPE = "raw";
 
 // Yêu cầu binary `pg_dump` có sẵn trong môi trường chạy (VPS/Docker image production) — xem
 // docs/02 §5. Chạy 2 ngày/lần (jobs/index.ts).
@@ -39,15 +37,15 @@ export async function backupDatabase(): Promise<void> {
 
   try {
     await dumpToFile(tmpPath);
-    const body = fs.readFileSync(tmpPath);
 
-    await r2Client.send(
-      new PutObjectCommand({
-        Bucket: env.r2.bucket,
-        Key: `${BACKUP_PREFIX}${fileName}`,
-        Body: body,
-      }),
-    );
+    // use_filename/unique_filename: false — publicId phải giữ ĐÚNG tên đã đặt (đã có timestamp riêng
+    // biệt), để cleanupOldBackups tra lại bằng prefix mà không bị Cloudinary tự thêm hậu tố ngẫu nhiên.
+    await cloudinary.uploader.upload(tmpPath, {
+      resource_type: RESOURCE_TYPE,
+      public_id: `${BACKUP_PREFIX}${fileName}`,
+      use_filename: false,
+      unique_filename: false,
+    });
 
     logger.info(`[backupDatabase] Backup thành công: ${fileName}`);
   } catch (err) {
@@ -63,18 +61,21 @@ export async function backupDatabase(): Promise<void> {
 // Tự động xoá backup cũ hơn 30 ngày — xem docs/07 §5.
 export async function cleanupOldBackups(): Promise<void> {
   const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
-  const list = await r2Client.send(
-    new ListObjectsV2Command({ Bucket: env.r2.bucket, Prefix: BACKUP_PREFIX }),
-  );
+  const list = await cloudinary.api.resources({
+    resource_type: RESOURCE_TYPE,
+    type: "upload",
+    prefix: BACKUP_PREFIX,
+    max_results: 500, // giới hạn 1 lần gọi của Cloudinary — đủ dùng vì job chạy 2 ngày/lần, giữ 30
+    // ngày thì tối đa ~15 backup tồn tại cùng lúc, không cần phân trang qua next_cursor.
+  });
 
-  const expired = (list.Contents || []).filter(
-    (obj) => obj.LastModified && obj.LastModified.getTime() < cutoff,
+  const expired = (list.resources as Array<{ public_id: string; created_at: string }>).filter(
+    (resource) => new Date(resource.created_at).getTime() < cutoff,
   );
-  for (const obj of expired) {
-    if (obj.Key)
-      await r2Client.send(
-        new DeleteObjectCommand({ Bucket: env.r2.bucket, Key: obj.Key }),
-      );
+  for (const resource of expired) {
+    await cloudinary.uploader.destroy(resource.public_id, {
+      resource_type: RESOURCE_TYPE,
+    });
   }
 
   logger.info(

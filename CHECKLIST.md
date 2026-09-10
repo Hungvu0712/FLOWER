@@ -21,7 +21,7 @@
 | 1 | Foundation — TS strict, error/response chuẩn, API versioning | ✅ | ██████████ 100% |
 | 2 | Authentication — 3 phương thức, session, rotation | ✅ | ██████████ 100% |
 | 3 | RBAC — users, roles, permissions, audit log | ✅ | ██████████ 100% |
-| 4 | Infrastructure — R2, email, jobs, settings | 🟡 | ████████░░ 80% |
+| 4 | Infrastructure — Cloudinary, email, jobs, settings | 🟡 | ████████░░ 80% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 | █░░░░░░░░░ 10% |
 | 6 | Quality — testing, OpenAPI, logging | 🟡 | ██████░░░░ 60% |
 | 7 | Production — Docker, CI/CD, monitoring | ⬜ | ░░░░░░░░░░ 0% |
@@ -86,11 +86,11 @@
 
 ## Phase 4 — Infrastructure 🟡
 
-- [x] Presigned upload R2 (mime whitelist, ≤10MB, TTL 5 phút, key UUID)
+- [x] Upload ký chữ ký (HMAC) lên Cloudinary trực tiếp từ trình duyệt (mime/format whitelist qua `allowed_formats`, publicId UUID, kích thước kiểm chứng lại qua Admin API sau upload — xem `BE-10` ở [`docs/12`](docs/12-danh-gia-va-de-xuat.md))
 - [x] `file_usages` — đánh dấu tái sử dụng ảnh
 - [x] Xoá mềm file
 - [x] Cron dọn file mồ côi (10 ngày/lần, ngưỡng an toàn 24h)
-- [x] Cron backup DB → R2 (2 ngày/lần) + tự xoá bản > 30 ngày
+- [x] Cron backup DB → Cloudinary (`resource_type: raw`, 2 ngày/lần) + tự xoá bản > 30 ngày
 - [x] Email abstraction Resend / Nodemailer-SMTP (đổi qua env)
 - [x] Ghi `email_logs` cho mọi lần gửi (`sent` / `failed` + `error`)
 - [x] `login_method_settings` + chốt chặn ≥ 1 phương thức bật
@@ -142,7 +142,7 @@
 - [ ] `Dockerfile` frontend (truyền `NEXT_PUBLIC_*` lúc build)
 - [ ] `docker-compose.yml` + reverse proxy (Caddy/Nginx) + TLS
 - [ ] Tách container `worker` cho cron *(`OPS-01`)*
-- [ ] Secret riêng cho production (JWT, cookie, DB, R2)
+- [ ] Secret riêng cho production (JWT, cookie, DB, Cloudinary)
 - [ ] HTTPS + HSTS + redirect HTTP→HTTPS
 - [ ] Domain thật + Resend verify DKIM/SPF/DMARC
 - [ ] Uptime monitor trỏ vào `/health`
@@ -175,7 +175,7 @@ Chi tiết đầy đủ: [docs/12 · Đánh giá & đề xuất](docs/12-danh-gi
 | `BE-07` | Lỗi Prisma (P2002/P2025/P2003) → 500 thay vì 409/404 | 2h | ⬜ |
 | `BE-08` | Chưa có Prettier — style không thống nhất | 2h | ⬜ |
 | `BE-09` | `cleanupOrphanFiles` xoá file vừa xoá mềm, không có cửa sổ 24h | 0.5h | ⬜ |
-| `BE-10` | `createFileRecord` không kiểm chứng `r2Key` | 3h | ⬜ |
+| `BE-10` | `createFileRecord` không kiểm chứng `publicId` | 3h | ✅ |
 | `BE-11` | `env.ts` chỉ kiểm tra tồn tại, không kiểm tra giá trị | 3h | ⬜ |
 | `BE-12` | Chưa có OpenAPI/Swagger | 8h | ⬜ |
 | `BE-13` | Token/session hết hạn tích tụ vô hạn | 3h | ⬜ |

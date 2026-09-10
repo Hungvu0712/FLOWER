@@ -20,12 +20,12 @@ export async function cleanupOrphanFiles(): Promise<void> {
   let purged = 0;
   for (const file of candidates) {
     try {
-      await filesService.purgeFileFromR2(file.r2Key);
+      await filesService.purgeFileFromCloudinary(file.cloudinaryPublicId);
       await prisma.file.delete({ where: { id: file.id } });
       purged += 1;
     } catch (err) {
       logger.error(
-        `Xoá file mồ côi thất bại (id=${file.id}, r2Key=${file.r2Key}):`,
+        `Xoá file mồ côi thất bại (id=${file.id}, publicId=${file.cloudinaryPublicId}):`,
         err instanceof Error ? err.message : err,
       );
     }

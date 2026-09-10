@@ -148,7 +148,7 @@ Ngoài chi phí phát triển, hệ thống cần các dịch vụ sau khi chạ
 |---|---|---|---|
 | **Máy chủ** (VPS hoặc nền tảng đám mây) | Chạy website và hệ thống | 250.000 – 700.000 đ | Gói nhỏ đủ cho giai đoạn đầu |
 | **Cơ sở dữ liệu** | Lưu đơn hàng, khách hàng, sản phẩm | 0 – 500.000 đ | Có gói miễn phí cho giai đoạn đầu |
-| **Lưu trữ ảnh** (Cloudflare R2) | Ảnh sản phẩm | 0 – 250.000 đ | Miễn phí 10GB đầu tiên |
+| **Lưu trữ ảnh** (Cloudinary) | Ảnh sản phẩm | 0 – 250.000 đ | Có gói miễn phí cho giai đoạn đầu |
 | **Gửi email** (Resend) | Email xác nhận đơn, đặt lại mật khẩu | 0 – 500.000 đ | Miễn phí 3.000 email/tháng |
 | **Tên miền** | Địa chỉ website | ~25.000 đ | ~300.000 đ/năm |
 | **Cổng thanh toán** | Nhận tiền online | Theo % giao dịch | Thường 1,5–2,5%/giao dịch |

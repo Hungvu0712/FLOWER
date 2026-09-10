@@ -303,22 +303,22 @@ logic, rồi thêm vào CI.
 ### OPS-01 · Cron chạy trong tiến trình API — chặn scale ngang
 
 `jobs/index.ts` đăng ký cron ngay trong tiến trình backend. Khi chạy **nhiều instance** (điều bắt
-buộc để chịu tải dịp lễ), mỗi instance đều chạy backup → trùng lặp, tốn dung lượng R2, và các job
-xoá file có thể giẫm chân nhau.
+buộc để chịu tải dịp lễ), mỗi instance đều chạy backup → trùng lặp, tốn dung lượng Cloudinary, và các
+job xoá file có thể giẫm chân nhau.
 
 ```mermaid
 flowchart TD
     subgraph NOW["❌ Hiện tại"]
-        A1["backend #1<br/>+ cron"] --> R1[(R2)]
-        A2["backend #2<br/>+ cron"] --> R1
-        A3["backend #3<br/>+ cron"] --> R1
-        R1 --> DUP["3 bản backup trùng<br/>mỗi lần chạy"]
+        A1["backend #1<br/>+ cron"] --> CD1[(Cloudinary)]
+        A2["backend #2<br/>+ cron"] --> CD1
+        A3["backend #3<br/>+ cron"] --> CD1
+        CD1 --> DUP["3 bản backup trùng<br/>mỗi lần chạy"]
     end
     subgraph FIX["✅ Đề xuất"]
         B1["backend #1"] --> LB[/API/]
         B2["backend #2"] --> LB
         B3["backend #3"] --> LB
-        W["worker (1 replica)<br/>RUN_JOBS=true"] --> R2B[(R2)]
+        W["worker (1 replica)<br/>RUN_JOBS=true"] --> CD2[(Cloudinary)]
     end
 
     style DUP fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
@@ -365,8 +365,8 @@ hẹn giờ** nếu sau này tăng tần suất backup hoặc dùng chung bucket
 
 ### BE-09 · `cleanupOrphanFiles` xoá file mới xoá mềm ngay lập tức
 
-Comment trong `files.service.softDeleteFile` nói R2 object bị purge ở lượt cron sau "để có khoảng
-đệm an toàn", nhưng job lại xoá **mọi** file có `deletedAt != null` bất kể xoá cách đây bao lâu:
+Comment trong `files.service.softDeleteFile` nói Cloudinary object bị purge ở lượt cron sau "để có
+khoảng đệm an toàn", nhưng job lại xoá **mọi** file có `deletedAt != null` bất kể xoá cách đây bao lâu:
 
 ```ts
 { deletedAt: { not: null } },   // không có điều kiện thời gian
@@ -380,19 +380,27 @@ Xoá nhầm một ảnh sản phẩm lúc 03:59 thì 04:00 cron chạy là mất
 
 ---
 
-### BE-10 · `createFileRecord` không kiểm chứng `r2Key`
+### BE-10 · `createFileRecord` không kiểm chứng `r2Key` — ✅ ĐÃ XỬ LÝ PHẦN LỚN (10/09/2026)
 
-`POST /api/v1/files` nhận `r2Key` bất kỳ từ client mà không kiểm tra key đó có phải do server vừa
-ký presigned URL hay không, cũng không kiểm tra object thật sự tồn tại trên R2. Người dùng có thể
-tạo bản ghi trỏ tới object của người khác.
+**Vấn đề gốc.** `POST /api/v1/files` nhận `r2Key` bất kỳ từ client mà không kiểm tra key đó có phải
+do server vừa ký presigned URL hay không, cũng không kiểm tra object thật sự tồn tại trên R2. Người
+dùng có thể tạo bản ghi trỏ tới object của người khác.
 
-Tác động hiện tại thấp (key là UUID ngẫu nhiên, khó đoán), nhưng nên siết trước khi mở màn hình
-quản lý tài nguyên.
+**Đã xử lý khi đổi nhà cung cấp lưu trữ sang Cloudinary (xem [modules/core-files.md §4](modules/core-files.md#4-bảo-mật)).**
+`createFileRecord` giờ luôn gọi Cloudinary Admin API (`cloudinary.api.resource`) để xác nhận
+`publicId` có tồn tại thật **trước khi** ghi DB, và lấy `mimeType`/`sizeBytes`/`url` từ dữ liệu
+Cloudinary trả về — không tin metadata client tự khai (client giờ chỉ gửi `publicId` +
+`originalName`, không còn gửi `mimeType`/`sizeBytes`). `publicId` không tồn tại → `404
+FILE_NOT_FOUND`, không tạo được bản ghi rác.
 
-**Đề xuất**: lưu key đã ký vào bảng tạm (hoặc cache) khi presign, đối chiếu khi tạo bản ghi;
-hoặc gọi `HeadObject` xác nhận object tồn tại và đúng chủ.
-
-**Ước lượng**: 3 giờ.
+**Viết trung thực, không tô hồng — phần chưa mạnh hơn flow cũ**: việc này **không** chứng minh được
+`publicId` đó đúng là do **chính user gửi request** vừa upload — cả 2 đời flow (R2 lẫn Cloudinary)
+đều chỉ dựa vào việc UUID khó đoán để chống đoán key của người khác, không có cơ chế sở hữu thật.
+Nhưng cái mà `BE-10` gốc mô tả — tạo bản ghi DB với metadata bịa đặt hoặc trỏ tới object không tồn
+tại — đã bị **chặn hoàn toàn**, nên coi vấn đề chính là đã đóng. Phần "chứng minh chủ sở hữu" còn lại
+chuyển xuống mức ưu tiên thấp ở [modules/core-files.md §7](modules/core-files.md#7-việc-còn-lại) vì
+tác động vẫn thấp (UUID khó đoán) — không cần xử lý gấp trước khi mở màn hình quản lý tài nguyên như
+đánh giá cũ đặt ra.
 
 ---
 
@@ -562,17 +570,26 @@ RETURNING stock;
 -- Trả về 0 dòng = hết hàng, không cần khoá bảng
 ```
 
-### 5.3. Chỉ tách `StorageService` khi thực sự cần
+### 5.3. Chỉ tách `StorageService` khi thực sự cần — ✅ CẬP NHẬT (10/09/2026): điều kiện đã xảy ra, kết luận không đổi
 
 [02 · Kiến trúc §6](02-kien-truc-tong-quan.md) đặt kế hoạch Phase 4 bóc `files.service` thành
 `StorageService` với `upload()/delete()/getUrl()/exists()/move()`.
 
-**Đánh giá**: hiện tại `files.service.ts` đã cô lập R2 khá tốt — business logic không gọi thẳng
+**Đánh giá gốc**: hiện tại `files.service.ts` đã cô lập R2 khá tốt — business logic không gọi thẳng
 AWS SDK. Tách thêm một lớp nữa **chưa giải quyết vấn đề thực tế nào** (dự án chưa có kế hoạch đổi
 khỏi R2), đúng loại over-engineering mà [02 §1](02-kien-truc-tong-quan.md) yêu cầu tránh.
 
-**Đề xuất**: **hoãn** tới khi thực sự cần đổi nhà cung cấp. Ưu tiên `BE-10` (kiểm chứng `r2Key`) —
-đó mới là rủi ro thật.
+**Đề xuất gốc**: **hoãn** tới khi thực sự cần đổi nhà cung cấp. Ưu tiên `BE-10` (kiểm chứng `r2Key`)
+— đó mới là rủi ro thật.
+
+**Cập nhật**: điều kiện "khi thực sự cần đổi nhà cung cấp" **đã xảy ra** — dự án đổi từ Cloudflare R2
+sang Cloudinary (09/2026), cho cả module Files lẫn backup database. Việc đổi **vẫn không tách thêm**
+`StorageService`: toàn bộ thay đổi nằm trong `files.service.ts` (đổi từ gọi AWS SDK sang gọi
+Cloudinary SDK) và `jobs/backupDatabase.job.ts`, không phải sửa business logic ở module khác gọi vào
+đây. Đây là **bằng chứng ủng hộ** lập luận cũ — `files.service` đã cô lập nhà cung cấp đủ tốt để đổi
+provider chỉ cần sửa đúng 1-2 file — không phải bằng chứng ngược lại đòi phải tách thêm lớp.
+`BE-10` (kiểm chứng `r2Key`/`publicId`) cũng đã được xử lý phần lớn trong cùng lần đổi này — xem
+mục `BE-10` ở §3 phía trên.
 
 ### 5.4. Chưa cần Redis
 

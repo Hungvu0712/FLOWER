@@ -69,7 +69,7 @@ Sinh secret nhanh:
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Ý nghĩa và cách lấy giá trị của **từng biến còn lại** (R2, email, Google OAuth...):
+Ý nghĩa và cách lấy giá trị của **từng biến còn lại** (Cloudinary, email, Google OAuth...):
 xem [09 · Môi trường & biến cấu hình](09-moi-truong-va-bien-cau-hinh.md).
 
 Tạo schema + dữ liệu ban đầu:

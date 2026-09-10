@@ -65,7 +65,7 @@ quadrantChart
 | **Rủi ro** | Dự án hiện do một người thực hiện. Người này nghỉ dài ngày hoặc rời dự án → công việc dừng. |
 | **Ảnh hưởng** | Rất lớn nếu xảy ra |
 | **Khả năng** | Thấp–trung bình |
-| **Phương án đã thực hiện** | 1. ✅ **Tài liệu kỹ thuật đầy đủ** — 20 tài liệu có sơ đồ, đủ để người mới tiếp quản trong **1–2 tuần** thay vì 1–2 tháng.<br/>2. ✅ **435 bài kiểm thử tự động** — người mới sửa code biết ngay có làm hỏng gì không.<br/>3. ✅ **Quy ước thống nhất** — mọi module viết theo cùng một khuôn mẫu.<br/>4. ✅ **Mã nguồn có chú thích giải thích lý do**, không chỉ mô tả code làm gì. |
+| **Phương án đã thực hiện** | 1. ✅ **Tài liệu kỹ thuật đầy đủ** — 20 tài liệu có sơ đồ, đủ để người mới tiếp quản trong **1–2 tuần** thay vì 1–2 tháng.<br/>2. ✅ **436 bài kiểm thử tự động** — người mới sửa code biết ngay có làm hỏng gì không.<br/>3. ✅ **Quy ước thống nhất** — mọi module viết theo cùng một khuôn mẫu.<br/>4. ✅ **Mã nguồn có chú thích giải thích lý do**, không chỉ mô tả code làm gì. |
 | **Còn nên làm** | Cân nhắc bổ sung người thứ hai từ giai đoạn 2 để giảm phụ thuộc |
 
 > Đây là lý do đội phát triển đầu tư mạnh vào tài liệu và kiểm thử ngay từ đầu, thay vì để "làm sau" —
@@ -159,7 +159,7 @@ quadrantChart
 
 | Rủi ro | Cách đã xử lý |
 |---|---|
-| ~~Không biết code chạy đúng hay không~~ | ✅ 435 bài kiểm thử tự động chạy mỗi lần sửa code |
+| ~~Không biết code chạy đúng hay không~~ | ✅ 436 bài kiểm thử tự động chạy mỗi lần sửa code |
 | ~~Người mới không hiểu hệ thống~~ | ✅ 20 tài liệu kỹ thuật có sơ đồ, đánh số theo thứ tự đọc |
 | ~~Tắt nhầm hết cách đăng nhập → khoá cứng hệ thống~~ | ✅ Hệ thống chặn, luôn giữ ít nhất một cách đăng nhập |
 | ~~Quản trị viên tự khoá/xoá chính mình~~ | ✅ Chặn ở máy chủ |

@@ -120,8 +120,9 @@ người đại diện ký hồ sơ.
 | 08/2026 | Có làm ứng dụng di động riêng không | **Không** — website tối ưu cho điện thoại | Ứng dụng riêng là dự án tách biệt nếu cần sau |
 | 08/2026 | Số cách đăng nhập | **3 cách**: email/mật khẩu, Google, liên kết qua email | Chủ hệ thống bật/tắt được từng cách |
 | 08/2026 | Nơi lưu ảnh sản phẩm | Cloudflare R2 | Không tính phí băng thông tải xuống — khoản tốn nhất với website nhiều ảnh |
+| 09/2026 | Đổi nơi lưu ảnh sản phẩm & backup dữ liệu | **Cloudinary** (thay Cloudflare R2) | Gộp được cả lưu ảnh và backup database vào một dịch vụ, không ảnh hưởng tính năng hay chi phí đã trao đổi ở [§4.6](04-estimate.md) |
 | 09/2026 | Tách phần nền tảng khỏi nghiệp vụ bán hoa | **Có** | Dùng lại được cho dự án sau, không phát sinh chi phí — [xem §1.5](01-gioi-thieu.md) |
-| 09/2026 | Mức độ đầu tư cho kiểm thử tự động | **Cao** — 435 bài kiểm thử | Giảm rủi ro phụ thuộc một lập trình viên — [xem R3](05-rui-ro.md) |
+| 09/2026 | Mức độ đầu tư cho kiểm thử tự động | **Cao** — 436 bài kiểm thử | Giảm rủi ro phụ thuộc một lập trình viên — [xem R3](05-rui-ro.md) |
 | 09/2026 | Ngôn ngữ tài liệu | **Tiếng Việt**, giữ nguyên thuật ngữ kỹ thuật tiếng Anh kèm chú thích | Để người tiếp quản sau đọc được |
 
 ---
@@ -167,7 +168,7 @@ Bạn tự làm được: thêm/sửa/xoá sản phẩm, danh mục, giá, ảnh
 cần **chức năng mới** mới cần đội phát triển.
 
 **Nếu tôi muốn đổi đơn vị phát triển sau này thì sao?**
-Toàn bộ mã nguồn và tài liệu thuộc về bạn. Dự án có 20 tài liệu kỹ thuật kèm sơ đồ và 435 bài kiểm
+Toàn bộ mã nguồn và tài liệu thuộc về bạn. Dự án có 20 tài liệu kỹ thuật kèm sơ đồ và 436 bài kiểm
 thử tự động — một lập trình viên mới tiếp quản được trong **1–2 tuần**. Đây là lý do đội phát triển
 đầu tư vào tài liệu ngay từ đầu.
 

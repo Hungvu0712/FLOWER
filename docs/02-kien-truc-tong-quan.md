@@ -28,7 +28,7 @@ Mọi module (backend lẫn frontend) gắn nhãn rõ 1 trong 2 loại:
 
 | Loại | Định nghĩa | Ví dụ trong dự án Flower Shop |
 |---|---|---|
-| 🔧 **Core** | Không phụ thuộc nghiệp vụ cụ thể — giữ nguyên khi copy sang dự án PERN khác | Auth (3 phương thức), users/roles/permissions, files/media, email, audit log, settings, routing skeleton |
+| 🔧 **Core** | Không phụ thuộc nghiệp vụ cụ thể — giữ nguyên khi copy sang dự án PERN khác | Auth (3 phương thức), users/roles/permissions, files/media (Cloudinary), email, audit log, settings, routing skeleton |
 | 🌸 **Domain** | Đặc thù nghiệp vụ của dự án hiện tại — viết mới hoàn toàn cho mỗi dự án | Categories, products, occasions, cart, orders, payments, reviews, promotions, blog |
 
 Giữ **1 repository duy nhất** (`backend/`, `frontend/`), không tách repo hay dùng *monorepo tooling*
@@ -41,7 +41,7 @@ flowchart TD
     START([Dự án PERN mới]) --> S1["1 · Copy phần CORE<br/>backend: config/ shared/ modules/core/<br/>routes/ jobs/ core.seed.ts<br/>frontend: lib/ store/ proxy.ts<br/>features/core/ (auth)/ account/ admin/ superadmin/"]
     S1 --> S2["2 · Copy phần model CORE<br/>trong schema.prisma<br/>(nửa trên, có banner phân tách)"]
     S2 --> S3["3 · XOÁ phần DOMAIN<br/>backend/src/modules/domain/*<br/>frontend/src/features/domain/*<br/>model domain trong schema.prisma"]
-    S3 --> S4["4 · Đổi .env<br/>DB mới · bucket R2 mới<br/>domain Resend mới"]
+    S3 --> S4["4 · Đổi .env<br/>DB mới · tài khoản Cloudinary mới<br/>domain Resend mới"]
     S4 --> S5["5 · Viết DOMAIN mới<br/>theo nghiệp vụ dự án đó"]
     S5 --> DONE([Không dòng code CORE nào phải sửa])
 
@@ -83,7 +83,7 @@ flowchart TB
 
     subgraph EXT["Dịch vụ ngoài"]
         PG[("PostgreSQL<br/>Neon / VPS")]
-        R2[("Cloudflare R2<br/>ảnh + backup")]
+        CD[("Cloudinary<br/>ảnh + backup")]
         MAIL["Resend / SMTP"]
         GOOGLE["Google Identity<br/>Services"]
     end
@@ -98,19 +98,19 @@ flowchart TB
 
     MW --> CTRL --> SVC --> REPO --> PG
     SVC --> MAIL
-    SVC --> R2
+    SVC --> CD
     SVC -.->|verify ID token| GOOGLE
-    BROWSER -.->|"PUT trực tiếp<br/>qua presigned URL"| R2
+    BROWSER -.->|"upload trực tiếp<br/>qua chữ ký Cloudinary"| CD
     JOBS --> PG
-    JOBS --> R2
+    JOBS --> CD
 
     style FE fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
     style BE fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
     style EXT fill:#f3f4f6,stroke:#4b5563,stroke-width:2px,color:#1f2937
 ```
 
-**Điểm đáng chú ý**: ảnh **không đi qua server Express**. Backend chỉ cấp *presigned URL*,
-trình duyệt `PUT` thẳng lên R2 — tiết kiệm băng thông và RAM của API.
+**Điểm đáng chú ý**: ảnh **không đi qua server Express**. Backend chỉ ký chữ ký upload (HMAC-SHA1),
+trình duyệt `POST` thẳng lên Cloudinary — tiết kiệm băng thông và RAM của API.
 
 ### 3.2. Luồng một request điển hình
 
@@ -176,7 +176,7 @@ FLOWER/
 │
 ├── backend/                  # Express API — xem 03-backend.md
 │   ├── src/
-│   │   ├── config/           # 🔧 env (validate + fail-fast), prisma, r2
+│   │   ├── config/           # 🔧 env (validate + fail-fast), prisma, cloudinary
 │   │   ├── shared/           # 🔧 hạ tầng dùng chung — KHÔNG chứa business logic
 │   │   │   ├── errors/       #    AppError, ValidationError
 │   │   │   ├── middleware/   #    asyncHandler, authenticate, authorize,
@@ -224,48 +224,51 @@ FLOWER/
 
 | Môi trường | Database | File storage | Chạy ở đâu |
 |---|---|---|---|
-| **Development** | Neon Postgres (*serverless*, free tier) | R2 bucket `-dev` | Máy local, không cần Docker |
-| **Staging** | Neon Postgres (branch riêng) | R2 bucket `-staging` | Render/Railway hoặc VPS |
-| **Production nhỏ** | Managed Postgres (Neon/Supabase) | R2 bucket `-prod` | Vercel (FE) + Render/Railway (BE) |
-| **Production lớn** | VPS + Docker + PostgreSQL tự quản lý | R2 bucket `-prod` | VPS + Docker Compose + reverse proxy |
+| **Development** | Neon Postgres (*serverless*, free tier) | Cloudinary (tài khoản/folder `-dev`) | Máy local, không cần Docker |
+| **Staging** | Neon Postgres (branch riêng) | Cloudinary (tài khoản/folder `-staging`) | Render/Railway hoặc VPS |
+| **Production nhỏ** | Managed Postgres (Neon/Supabase) | Cloudinary (tài khoản/folder `-prod`) | Vercel (FE) + Render/Railway (BE) |
+| **Production lớn** | VPS + Docker + PostgreSQL tự quản lý | Cloudinary (tài khoản/folder `-prod`) | VPS + Docker Compose + reverse proxy |
 
 Chi tiết cấu hình từng môi trường: [10 · Triển khai & vận hành](10-trien-khai-van-hanh.md).
 
-- **Backup**: `pg_dump` **2 ngày/lần** lên R2 (prefix `backups/`), **tự xoá sau 30 ngày** — job
-  `jobs/backupDatabase.job.ts`, chỉ đăng ký khi `NODE_ENV=production`.
+- **Backup**: `pg_dump` **2 ngày/lần** lên Cloudinary (`resource_type: "raw"`, prefix `backups/`),
+  **tự xoá sau 30 ngày** — job `jobs/backupDatabase.job.ts`, chỉ đăng ký khi `NODE_ENV=production`.
 - **Soft delete** (*xoá mềm*) chỉ dùng khi phù hợp (`users`, `products`, `files`) — không lạm dụng
   cho mọi bảng.
 
 ---
 
-## 6. Lưu trữ file (R2) & Media
+## 6. Lưu trữ file (Cloudinary) & Media
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant FE as Frontend
     participant BE as Backend
-    participant R2 as Cloudflare R2
+    participant CD as Cloudinary
     participant DB as PostgreSQL
 
     FE->>BE: POST /api/v1/files/presign<br/>{ originalName, mimeType, sizeBytes }
-    BE->>BE: validate mime type + size (zod)
-    BE->>R2: ký PutObjectCommand (hết hạn 5 phút)
-    BE-->>FE: { uploadUrl, r2Key, publicUrl }
-    FE->>R2: PUT uploadUrl (file nhị phân)
-    R2-->>FE: 200
-    FE->>BE: POST /api/v1/files { r2Key, ... }
-    BE->>DB: INSERT files
+    BE->>BE: validate mime type + size (zod, UX)
+    BE->>BE: ký HMAC-SHA1 cục bộ (api_sign_request)
+    BE-->>FE: { uploadUrl, publicId, timestamp,<br/>signature, apiKey, allowedFormats }
+    FE->>CD: POST uploadUrl (FormData: file + chữ ký)
+    CD-->>FE: { public_id, secure_url, bytes, format }
+    FE->>BE: POST /api/v1/files { publicId, ... }
+    BE->>CD: GET resource (Admin API) — xác nhận tồn tại + lấy metadata thật
+    BE->>DB: INSERT files (url/mimeType/sizeBytes THẬT từ Cloudinary)
     BE-->>FE: { id, url }
     FE->>BE: PATCH /account/profile { avatarFileId }
     BE->>DB: INSERT file_usages (đánh dấu đang dùng)
 
-    Note over DB,R2: Cron 10 ngày/lần: file không còn file_usages<br/>và đã quá 24h → xoá khỏi R2 + DB
+    Note over DB,CD: Cron 10 ngày/lần: file không còn file_usages<br/>và đã quá 24h → xoá khỏi Cloudinary + DB
 ```
 
-- Không hard-code R2 vào business logic — mọi thao tác file đi qua `files.service.ts`.
-  *(Kế hoạch Phase 4: bóc thành `StorageService` với `upload()/delete()/getUrl()/exists()/move()`
-  để đổi R2 → S3/MinIO/Cloudinary mà không sửa business logic.)*
+- Không hard-code Cloudinary vào business logic — mọi thao tác file đi qua `files.service.ts`.
+  Dự án **đã đổi nhà cung cấp một lần** (Cloudflare R2 → Cloudinary, 09/2026) và việc này chỉ cần sửa
+  đúng `files.service.ts` + `jobs/backupDatabase.job.ts`, không phải sửa business logic ở module
+  khác — bằng chứng cho thấy tách thêm `StorageService` riêng vẫn chưa cần thiết, xem
+  [12 §5.3](12-danh-gia-va-de-xuat.md#53-chỉ-tách-storageservice-khi-thực-sự-cần---cập-nhật-10092026-điều-kiện-đã-xảy-ra-kết-luận-không-đổi).
 - **Orphan detection** (*phát hiện file mồ côi*): file không còn `file_usages` nào trỏ tới **và**
   đã quá ngưỡng an toàn 24h → cron dọn. Ngưỡng 24h tránh xoá nhầm ảnh vừa upload nhưng form chưa submit.
 
@@ -314,9 +317,9 @@ Cron chạy **trong tiến trình Node** (`node-cron`, `jobs/index.ts`), chỉ �
 
 | Job | Lịch | Việc |
 |---|---|---|
-| `backupDatabase` | `0 3 */2 * *` (~2 ngày/lần, 03:00) | `pg_dump` → R2 `backups/` |
+| `backupDatabase` | `0 3 */2 * *` (~2 ngày/lần, 03:00) | `pg_dump` → Cloudinary `backups/` (`resource_type: "raw"`) |
 | `cleanupOldBackups` | `30 3 */2 * *` | Xoá backup > 30 ngày |
-| `cleanupOrphanFiles` | `0 4 */10 * *` (~10 ngày/lần) | Xoá file mồ côi khỏi R2 + DB |
+| `cleanupOrphanFiles` | `0 4 */10 * *` (~10 ngày/lần) | Xoá file mồ côi khỏi Cloudinary + DB |
 
 **Không thêm Redis/BullMQ ngay từ đầu** — chỉ dùng khi workload thực sự cần queue mạnh
 (gửi email hàng loạt, xử lý ảnh nặng). Hạn chế đã biết của cách hiện tại và hướng khắc phục:
@@ -354,7 +357,7 @@ login_email_enabled · login_google_enabled · login_magic_link_enabled
 
 ## 12. Docker & Monorepo
 
-- **Development không bắt buộc Docker** toàn stack (FE/BE chạy local, DB Neon, R2 Cloudflare).
+- **Development không bắt buộc Docker** toàn stack (FE/BE chạy local, DB Neon, file Cloudinary).
 - **Production lớn**: VPS + Docker (backend + Postgres + worker) + reverse proxy (Nginx/Caddy).
 - **Không bắt buộc monorepo tooling** (Turborepo/Nx) ở quy mô nhỏ/vừa — chỉ cân nhắc khi thực sự tách
   nhiều app frontend dùng chung nhiều package.

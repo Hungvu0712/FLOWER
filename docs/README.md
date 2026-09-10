@@ -45,7 +45,7 @@ Tài liệu **trao đổi với khách hàng** nằm riêng ở [`docs/gitbook/`
 |---|---|---|
 | Auth (xác thực) | 🔧 Core | [modules/core-auth.md](modules/core-auth.md) |
 | RBAC (users / roles / permissions) | 🔧 Core | [modules/core-rbac.md](modules/core-rbac.md) |
-| Files (lưu trữ R2) | 🔧 Core | [modules/core-files.md](modules/core-files.md) |
+| Files (lưu trữ Cloudinary) | 🔧 Core | [modules/core-files.md](modules/core-files.md) |
 | Email | 🔧 Core | [modules/core-email.md](modules/core-email.md) |
 | Audit Log (nhật ký thao tác) | 🔧 Core | [modules/core-audit-log.md](modules/core-audit-log.md) |
 | Settings (phương thức đăng nhập) | 🔧 Core | [modules/core-settings.md](modules/core-settings.md) |

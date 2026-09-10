@@ -80,7 +80,7 @@ xem [`docs/modules/domain-categories.md`](../docs/modules/domain-categories.md).
 | Hạng mục | Lưu ý |
 |---|---|
 | **Google OAuth** | Cần `GOOGLE_CLIENT_ID` **giống hệt** `NEXT_PUBLIC_GOOGLE_CLIENT_ID` bên frontend. Backend verify ID token, không dùng luồng redirect |
-| **Cloudflare R2** | Cần đủ 5 biến `R2_*`. Tách bucket theo môi trường — dùng chung là công thức để job dọn file ở dev xoá mất ảnh production |
+| **Cloudinary** | Cần đủ 3 biến `CLOUDINARY_*`. Tách tài khoản/folder theo môi trường — dùng chung là công thức để job dọn file ở dev xoá mất ảnh production |
 | **Email** | Mặc định `EMAIL_PROVIDER=smtp`. Đổi sang `resend` khi đã có domain verify DKIM/SPF |
 | **Backup DB** | Job gọi binary `pg_dump` — phải có sẵn trong PATH của môi trường chạy cron |
 | **Cron** | Chỉ đăng ký khi `NODE_ENV=production` (xem `server.ts`) |

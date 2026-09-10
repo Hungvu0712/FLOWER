@@ -23,12 +23,12 @@ flowchart TB
         D8["RBAC permission-based<br/>tra DB mỗi request"]
         D9["Chặn tự block/xoá/đổi role<br/>chặn shadow super_admin"]
         D10["Audit log thao tác nhạy cảm"]
-        D11["Presigned URL giới hạn<br/>mime + size + TTL 5 phút"]
+        D11["Chữ ký Cloudinary giới hạn định dạng<br/>+ kiểm chứng size/tồn tại SAU upload"]
         D12["Không lộ email tồn tại<br/>(magic link · forgot password)"]
     end
 
     subgraph PARTIAL["🟡 Một phần"]
-        P1["Backup DB → R2<br/>CHƯA nén/mã hoá"]
+        P1["Backup DB → Cloudinary<br/>CHƯA nén/mã hoá"]
         P2["Logging<br/>chưa tập trung, chưa cảnh báo"]
         P3["Session revoke<br/>chưa có reuse detection"]
     end
@@ -108,7 +108,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 | Rate limiting API công khai | ⬜ Giới hạn `/api/v1/products`, `/api/v1/cart` theo IP để chống scraping/spam bot |
 | Giới hạn kích thước request | ✅ `express.json({ limit: '1mb' })` tránh payload khổng lồ gây DoS |
 | HTTPS bắt buộc | ⬜ Redirect HTTP→HTTPS, bật HSTS ở production |
-| Upload ảnh sản phẩm/avatar | ✅ Giới hạn loại file (jpg/png/webp), giới hạn dung lượng, đổi tên file ngẫu nhiên (không dùng tên gốc làm key), upload thẳng lên Cloudflare R2 qua **presigned URL** (không đi qua server ứng dụng), quét virus nếu cho khách upload ảnh review |
+| Upload ảnh sản phẩm/avatar | ✅ Giới hạn loại file (jpg/png/webp), đổi tên file ngẫu nhiên (không dùng tên gốc làm `publicId`), upload thẳng lên **Cloudinary** qua chữ ký HMAC-SHA1 (không đi qua server ứng dụng) — chữ ký chỉ ràng buộc được **định dạng** (`allowed_formats`), **không** ràng buộc được kích thước tối đa trong điều kiện ký (khác S3 trước đây); dung lượng được **xác minh SAU khi upload xong** bằng Cloudinary Admin API, trước khi ghi bản ghi DB — vượt hạn mức thì xoá luôn trên Cloudinary, không tạo rác lâu dài. Quét virus nếu cho khách upload ảnh review |
 
 ---
 
@@ -122,13 +122,26 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 
 ---
 
-## 5. Bảo mật lưu trữ file & backup (Cloudflare R2)
+## 5. Bảo mật lưu trữ file & backup (Cloudinary)
 
-- **Bucket private**: file/ảnh không public trực tiếp qua R2 endpoint gốc; phục vụ qua custom domain có kiểm soát hoặc signed URL có thời hạn cho nội dung nhạy cảm (vd hoá đơn), ảnh sản phẩm công khai thì dùng CDN cache bình thường.
-- **Presigned upload có kiểm soát**: URL presigned chỉ cấp sau khi backend xác thực user, giới hạn `content-type` + kích thước tối đa trong điều kiện ký, và có thời gian hết hạn ngắn (vài phút) — tránh bị lợi dụng upload file tuỳ ý.
-- **Dọn file mồ côi (10 ngày/lần)**: cron job xoá file trong `files` không còn `file_usages` tham chiếu và đã quá ngưỡng an toàn (≥ 24h kể từ lúc upload) — vừa tiết kiệm dung lượng, vừa giảm bề mặt tấn công (file rác không ai quản lý). Trước khi xoá cứng trên R2, xoá record DB trong cùng transaction để tránh mất đồng bộ.
-- **Backup PostgreSQL lên R2**: `pg_dump` định kỳ **2 ngày/lần**, nén + **mã hoá** trước khi đẩy lên bucket `backups/` riêng (tách khỏi bucket ảnh công khai), giới hạn quyền truy cập bucket này ở mức tối thiểu (chỉ service account backup được ghi/đọc).
-- **Retention tự động**: cấu hình lifecycle rule của R2 (hoặc cron job riêng) để **tự xoá backup cũ hơn 30 ngày** — tránh backup tồn đọng vô thời hạn vừa tốn chi phí vừa tăng rủi ro rò rỉ nếu bucket bị lộ.
+- **Không phục vụ nội dung nhạy cảm qua URL công khai đoán được**: ảnh sản phẩm/avatar dùng
+  `secure_url` Cloudinary trả về (công khai, dùng CDN cache bình thường); nội dung thật sự nhạy cảm
+  (vd hoá đơn) nên cân nhắc signed URL có thời hạn của Cloudinary thay vì URL công khai mặc định.
+- **Chữ ký upload có kiểm soát**: chữ ký (HMAC-SHA1, `api_sign_request`) chỉ cấp sau khi backend xác
+  thực user, giới hạn **định dạng** (`allowed_formats`) trong điều kiện ký — **không** giới hạn được
+  kích thước tối đa trong điều kiện ký (khác S3 presigned URL trước đây, xem
+  [modules/core-files.md §1](modules/core-files.md#1-luồng-upload--file-không-đi-qua-server)); dung
+  lượng được xác minh **sau khi upload xong** bằng Cloudinary Admin API, trước khi ghi bản ghi DB —
+  vượt hạn mức thì xoá luôn trên Cloudinary, không tạo rác lâu dài.
+- **Dọn file mồ côi (10 ngày/lần)**: cron job xoá file trong `files` không còn `file_usages` tham chiếu và đã quá ngưỡng an toàn (≥ 24h kể từ lúc upload) — vừa tiết kiệm dung lượng, vừa giảm bề mặt tấn công (file rác không ai quản lý). Trước khi xoá cứng trên Cloudinary, xoá record DB trong cùng transaction để tránh mất đồng bộ.
+- **Backup PostgreSQL lên Cloudinary**: `pg_dump` định kỳ **2 ngày/lần**, đẩy lên với `public_id`
+  prefix `backups/`, `resource_type: "raw"` (khác `"image"` của module Files — xem
+  [modules/core-files.md](modules/core-files.md)); **CHƯA nén/mã hoá** trước khi upload (xem cảnh báo
+  ở [§0](#0-tình-trạng-hiện-tại--tóm-tắt)), giới hạn quyền truy cập tài khoản Cloudinary ở mức tối
+  thiểu (chỉ service account backup được ghi/đọc).
+- **Retention tự động**: cron job riêng (`cleanupOldBackups`, không phải lifecycle rule của nhà cung
+  cấp) quét theo `created_at` để **tự xoá backup cũ hơn 30 ngày** — tránh backup tồn đọng vô thời hạn
+  vừa tốn chi phí vừa tăng rủi ro rò rỉ nếu tài khoản bị lộ.
 - **Test khôi phục định kỳ**: backup vô dụng nếu chưa từng thử restore — lên lịch kiểm tra khôi phục thử (staging) theo quý.
 
 ---
@@ -159,7 +172,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 
 ## 8. Hạ tầng & DevOps
 
-- **Biến môi trường**: toàn bộ secret (DB URL Neon/VPS, JWT secret, API key cổng thanh toán, R2 access key, `RESEND_API_KEY` hoặc mật khẩu SMTP tuỳ `EMAIL_PROVIDER`) nằm trong `.env`, **không commit vào Git** (`.gitignore` chuẩn ngay từ đầu). Ở production dùng secret manager (AWS Secrets Manager/Doppler/Vault).
+- **Biến môi trường**: toàn bộ secret (DB URL Neon/VPS, JWT secret, API key cổng thanh toán, `CLOUDINARY_API_SECRET`, `RESEND_API_KEY` hoặc mật khẩu SMTP tuỳ `EMAIL_PROVIDER`) nằm trong `.env`, **không commit vào Git** (`.gitignore` chuẩn ngay từ đầu). Ở production dùng secret manager (AWS Secrets Manager/Doppler/Vault).
 - **Database user riêng cho ứng dụng** với quyền hạn tối thiểu (không dùng user chủ/superuser), chỉ mở cổng DB nội bộ (không public ra internet) khi tự quản lý trên VPS.
 - **Dependency scanning**: chạy `npm audit` / Dependabot / Snyk định kỳ để phát hiện thư viện có lỗ hổng đã biết.
 - **Docker**: build image tối giản (alpine), chạy container với user non-root, không để `node_modules` chứa devDependencies ở production image.
@@ -179,7 +192,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - [x] Validate input toàn bộ API (zod)
 - [x] Helmet + CORS whitelist đúng domain
 - [x] RBAC middleware `authenticate` + `authorize`; chặn cứng ràng buộc "không tự đổi role", "không tự nâng super_admin" ở tầng service
-- [x] Presigned URL R2 có kiểm soát content-type/size/thời hạn
+- [x] Chữ ký upload Cloudinary có kiểm soát định dạng (`allowed_formats`); dung lượng kiểm chứng sau upload qua Admin API trước khi ghi DB
 - [x] `.env` không commit, có `.env.example`
 
 **Giai đoạn 2 — Thanh toán**
@@ -197,7 +210,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - [x] API tạo/sửa/xoá permission chặn đúng permission `is_system = true` (không đổi được `code`, không xoá được)
 - [x] Test tự block/tự xoá/tự đổi role chính mình đều bị chặn (không chỉ test riêng đổi role)
 - [ ] Cron job xoá file mồ côi (10 ngày/lần) chạy đúng, không xoá nhầm file mới upload
-- [ ] Cron backup DB → R2 (2 ngày/lần) + retention tự xoá sau 30 ngày hoạt động đúng
+- [ ] Cron backup DB → Cloudinary (2 ngày/lần) + retention tự xoá sau 30 ngày hoạt động đúng
 - [ ] Trang chính sách bảo mật + cơ chế xoá dữ liệu cá nhân
 
 **Giai đoạn 4 — Mở rộng**

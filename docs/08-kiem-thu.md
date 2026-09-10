@@ -18,7 +18,7 @@ flowchart TD
         I["82 test<br/>App Express thật + Prisma mock<br/>Nhanh (giây) · Chạy mỗi lần commit"]
     end
     subgraph UNIT["🟩 Unit · Vitest — backend/tests/unit · frontend/tests/"]
-        U["334 + 101 test<br/>Không I/O · Rất nhanh (ms)<br/>Chạy liên tục khi code"]
+        U["335 + 101 test<br/>Không I/O · Rất nhanh (ms)<br/>Chạy liên tục khi code"]
     end
 
     UNIT --> INT --> E2E
@@ -30,7 +30,7 @@ flowchart TD
 
 | Tầng | Công cụ | Ở đâu | Cần gì để chạy | Số test |
 |---|---|---|---|---|
-| **Unit — backend** | Vitest | `backend/tests/unit/` | Không cần gì | 252 |
+| **Unit — backend** | Vitest | `backend/tests/unit/` | Không cần gì | 253 |
 | **Integration — backend** | Vitest + Supertest | `backend/tests/integration/` | Không cần gì (Prisma được mock) | 82 |
 | **Unit/Component — frontend** | Vitest + Testing Library | `frontend/tests/` | Không cần gì | 101 |
 | **E2E** | Playwright | `frontend/e2e/` | Backend + frontend + PostgreSQL **thật** | ~30 kịch bản |
@@ -44,7 +44,7 @@ flowchart TD
 ## 2. Chạy test
 
 ```bash
-# Backend — 334 test, khoảng 4 giây
+# Backend — 335 test, khoảng 4 giây
 cd backend
 npm test                  # toàn bộ unit + integration
 npm run test:unit         # chỉ unit
@@ -214,7 +214,7 @@ Biến môi trường điều chỉnh được:
 | **Permissions** | Không tự tạo permission `is_restricted`, khoá đổi `code` của permission hệ thống, `PERMISSION_IN_USE` |
 | **Login methods** | **Luôn còn ≥ 1 phương thức bật**, tính trạng thái *sau* khi áp thay đổi |
 | **Users self-service** | `getMe` trả role/permission tươi, **không bao giờ trả `passwordHash`**, **chống IDOR khi thu hồi phiên**, `revokeOtherSessions` giữ phiên hiện tại |
-| **Files** | Key là UUID (**không dùng tên file gốc**), TTL 5 phút, ràng buộc mime/size trong chữ ký, xoá mềm không purge R2 ngay |
+| **Files** | `publicId` là UUID (**không dùng tên file gốc**), chữ ký chỉ ràng buộc **định dạng** (`allowed_formats`) — kích thước xác minh **sau** upload qua Cloudinary Admin API trước khi ghi DB, `404 FILE_NOT_FOUND` khi `publicId` không tồn tại thật, xoá mềm không purge Cloudinary ngay |
 | **Email** | Chọn provider theo env, ghi `email_logs` `sent`/`failed`, **không ghi nội dung email (có thể chứa token)** |
 | **Audit log** | Ghi đủ before/after, **lỗi ghi log không làm hỏng nghiệp vụ chính** |
 | **Categories** | Slug tự sinh + hậu tố khi trùng, **đổi tên không đổi slug**, **chống vòng lặp cha-con** (kể cả dữ liệu đã có vòng lặp sẵn) |
@@ -307,7 +307,7 @@ await waitFor(() => expect(result.current.isSuccess).toBe(true));
 | Hạng mục | Ưu tiên | Ghi chú |
 |---|---|---|
 | **CI chạy test tự động** trên mỗi PR | 🔴 Cao | Mẫu workflow ở [10 · Triển khai §6](10-trien-khai-van-hanh.md) |
-| Test cho `jobs/` (backup, dọn file mồ côi) | 🟡 Vừa | Cần mock `child_process.spawn` và R2 client |
+| Test cho `jobs/` (backup, dọn file mồ côi) | 🟡 Vừa | Cần mock `child_process.spawn` và client Cloudinary |
 | Test cho seed (`core.seed.ts`, `domain.seed.ts`) | 🟡 Vừa | Chạy trên DB thật ở CI với Postgres service container |
 | Integration test **với PostgreSQL thật** (Testcontainers) | 🟡 Vừa | Bắt được lỗi ràng buộc/migration mà mock bỏ sót |
 | Test truy cập (a11y) tự động | 🟢 Thấp | `@axe-core/playwright` |

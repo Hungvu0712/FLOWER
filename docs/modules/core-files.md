@@ -1,19 +1,25 @@
 # Module: Files 🔧 Core
 
-Upload và quản lý file/ảnh trên **Cloudflare R2** (S3-compatible), kèm cơ chế đánh dấu tái sử dụng
-và dọn file mồ côi.
+Upload và quản lý file/ảnh trên **Cloudinary** (dịch vụ lưu trữ đám mây cho ảnh/file — dùng
+`resource_type: "image"` cho module này, và `"raw"` cho backup database, xem
+[§5](#5-job-dọn-file-mồ-côi) và [10 · Triển khai §7](../10-trien-khai-van-hanh.md)),
+kèm cơ chế đánh dấu tái sử dụng và dọn file mồ côi.
 
 | | |
 |---|---|
 | **Loại** | 🔧 Core |
-| **Backend** | `modules/core/files/` · `jobs/cleanupOrphanFiles.job.ts` · `config/r2.ts` |
+| **Backend** | `modules/core/files/` · `jobs/cleanupOrphanFiles.job.ts` · `config/cloudinary.ts` |
 | **Frontend** | `features/core/files/` |
 | **Bảng DB** | `files` · `file_usages` · `folders` |
 | **Endpoint** | `/api/v1/files/*` — xem [06 · API §6](../06-api-reference.md) |
 
 > **Kế hoạch Phase 4** trong tài liệu cũ là đổi tên `files` → `media` + tách `StorageService`.
-> Đánh giá lại ở [12 §5.3](../12-danh-gia-va-de-xuat.md): **hoãn** — hiện `files.service` đã cô lập R2
-> đủ tốt, tách thêm lớp nữa là over-engineering khi chưa có kế hoạch đổi nhà cung cấp.
+> Đánh giá lại ở [12 §5.3](../12-danh-gia-va-de-xuat.md): dự án **đã đổi nhà cung cấp lưu trữ**
+> (Cloudflare R2 → Cloudinary, 09/2026) — đúng điều kiện "khi thực sự cần đổi nhà cung cấp" mà tài
+> liệu cũ đặt ra để cân nhắc tách `StorageService` — nhưng **vẫn hoãn** việc tách: `files.service.ts`
+> là nơi duy nhất chạm Cloudinary, đổi provider chỉ cần sửa đúng 1 file này, không phải sửa business
+> logic ở nơi khác. Đây là bằng chứng ủng hộ lập luận cũ (tách thêm lớp là over-engineering khi
+> `files.service` đã cô lập nhà cung cấp đủ tốt), không phải phản bác nó.
 
 ---
 
@@ -24,32 +30,53 @@ sequenceDiagram
     autonumber
     participant U as Trình duyệt
     participant BE as Backend
-    participant R2 as Cloudflare R2
+    participant CD as Cloudinary
     participant DB as PostgreSQL
 
-    U->>BE: POST /api/v1/files/presign<br/>{ originalName, mimeType, sizeBytes }
-    BE->>BE: zod validate:<br/>mime ∈ danh sách cho phép<br/>size ≤ 10MB
-    BE->>BE: r2Key = uploads/<ngày>/<uuid>.<ext><br/>KHÔNG dùng tên file gốc
-    BE->>R2: ký PutObjectCommand<br/>(ContentType + ContentLength ràng buộc trong chữ ký)
-    R2-->>BE: presigned URL (hạn 5 phút)
-    BE-->>U: { uploadUrl, r2Key, publicUrl }
+    U->>BE: POST /api/v1/files/presign<br/>{ originalName, mimeType, sizeBytes, folderId }
+    BE->>BE: zod validate (UX phản hồi sớm):<br/>mime ∈ danh sách cho phép · size ≤ 10MB
+    BE->>BE: publicId = uploads/<ngày>/<uuid><br/>KHÔNG có phần mở rộng, KHÔNG dùng tên file gốc
+    BE->>BE: ký HMAC-SHA1 CỤC BỘ (api_sign_request)<br/>{ public_id, timestamp, allowed_formats }<br/>không gọi mạng, không có TTL 5 phút như trước
+    BE-->>U: { uploadUrl, publicId, timestamp,<br/>signature, apiKey, allowedFormats, folderId }
 
-    Note over U,R2: 🚀 File nhị phân đi THẲNG lên R2 —<br/>không qua RAM/băng thông của server Express
-    U->>R2: PUT uploadUrl (file)
-    R2-->>U: 200
+    Note over U,CD: 🚀 File nhị phân đi THẲNG lên Cloudinary —<br/>không qua RAM/băng thông của server Express
+    U->>CD: POST uploadUrl<br/>FormData: file, api_key, timestamp,<br/>signature, public_id, allowed_formats
+    CD->>CD: Kiểm chữ ký + allowed_formats<br/>(từ chối nếu định dạng thật không khớp)
+    CD-->>U: { public_id, secure_url, bytes, format, ... }
 
-    U->>BE: POST /api/v1/files { r2Key, ... }
-    BE->>DB: INSERT files
-    BE-->>U: 201 { id, url }
+    U->>BE: POST /api/v1/files { publicId, originalName, folderId }
+    BE->>CD: GET resource (Admin API) — xác nhận publicId có thật
+    alt Không tồn tại trên Cloudinary
+        CD-->>BE: not found
+        BE-->>U: 404 FILE_NOT_FOUND
+    else Tồn tại nhưng bytes > 10MB
+        CD-->>BE: { bytes, ... }
+        BE->>CD: destroy(publicId)
+        BE-->>U: 422 FILE_TOO_LARGE — KHÔNG tạo bản ghi DB
+    else Hợp lệ
+        CD-->>BE: { secure_url, bytes, format, ... }
+        BE->>DB: INSERT files<br/>(cloudinaryPublicId, url + mimeType + sizeBytes THẬT<br/>từ Cloudinary, không phải client tự khai)
+        BE-->>U: 201 { id, url }
+    end
 
     U->>BE: PATCH /account/profile { avatarFileId }
     BE->>DB: DELETE file_usages cũ của entity<br/>INSERT file_usages mới
     Note over DB: Đánh dấu "file này đang được dùng"<br/>→ job dọn mồ côi sẽ chừa ra
 ```
 
-**Vì sao presigned URL?** Ảnh hoa có thể vài MB. Nếu đi qua Express, mỗi lượt upload chiếm RAM và
-băng thông của API server — với dịp cao điểm nhiều admin cùng đăng sản phẩm, đó là điểm nghẽn không
-cần thiết. R2 nhận file trực tiếp còn backend chỉ ký một chuỗi.
+**Vì sao upload trực tiếp lên Cloudinary?** Ảnh hoa có thể vài MB. Nếu đi qua Express, mỗi lượt
+upload chiếm RAM và băng thông của API server — với dịp cao điểm nhiều admin cùng đăng sản phẩm, đó
+là điểm nghẽn không cần thiết. Cloudinary nhận file trực tiếp còn backend chỉ ký một chuỗi (HMAC-SHA1,
+tính cục bộ bằng `cloudinary.utils.api_sign_request`, không gọi mạng lúc ký).
+
+> **Khác biệt bảo mật so với R2 trước đây — viết thật, không tô hồng.** S3 `PutObjectCommand` ràng
+> buộc được CẢ content-type VÀ kích thước ngay trong chữ ký — client không lách được. Chữ ký
+> `api_sign_request` của Cloudinary **không có tham số tương đương để ràng buộc kích thước**, chỉ
+> ràng buộc được định dạng qua `allowed_formats`. Bù lại, kích thước được xác minh **ngay sau khi
+> upload xong** (gọi Cloudinary Admin API lấy `bytes` thật), **trước khi** tạo bất kỳ bản ghi DB nào
+> — file vượt hạn mức bị xoá luôn trên Cloudinary, không tạo rác lâu dài. Đây là "kiểm chứng sau khi
+> upload", không phải "chặn trước khi upload" như S3 — một đánh đổi hợp lý, không phải lỗ hổng bị bỏ
+> sót. Xem thêm bảng §4.
 
 ---
 
@@ -57,7 +84,7 @@ cần thiết. R2 nhận file trực tiếp còn backend chỉ ký một chuỗi
 
 ```mermaid
 flowchart LR
-    F["files<br/>id · r2_key · url"] --> FU["file_usages<br/>file_id · entity_type · entity_id"]
+    F["files<br/>id · cloudinary_public_id · url"] --> FU["file_usages<br/>file_id · entity_type · entity_id"]
     FU --> E1["user_avatar / u-123"]
     FU --> E2["category_image / cat-1"]
     FU --> E3["product / prod-9"]
@@ -73,7 +100,7 @@ flowchart LR
 | `addFileUsage()` | **Thêm** — `upsert`, không gỡ cái cũ | Bộ sưu tập ảnh (1 entity ↔ nhiều ảnh): thư viện ảnh sản phẩm |
 
 Đổi avatar không xoá ảnh cũ ngay — ảnh cũ chỉ **hết được tính là đang dùng**, job dọn sẽ xử lý sau.
-Nghĩa là nếu đổi nhầm, ảnh cũ vẫn còn trên R2 trong ít nhất 24 giờ.
+Nghĩa là nếu đổi nhầm, ảnh cũ vẫn còn trên Cloudinary trong ít nhất 24 giờ.
 
 ---
 
@@ -92,7 +119,7 @@ stateDiagram-v2
     MoCoi --> XoaHan: cron cleanupOrphanFiles<br/>(10 ngày/lần)
     XoaMem --> XoaHan: cron — ⚠️ HIỆN XOÁ NGAY,<br/>không có cửa sổ 24h (BE-09)
 
-    XoaHan --> [*]: DeleteObject R2 + DELETE files
+    XoaHan --> [*]: destroy() Cloudinary + DELETE files
 
     note right of MoCoi
         Điều kiện mồ côi:
@@ -105,8 +132,9 @@ stateDiagram-v2
 ```
 
 > ⚠️ **Khác biệt giữa comment và code** (`BE-09` ở [12](../12-danh-gia-va-de-xuat.md)):
-> `softDeleteFile` nói R2 object bị purge "ở lượt quét sau để có khoảng đệm an toàn", nhưng job xoá
-> **mọi** file có `deletedAt != null` bất kể xoá cách đây bao lâu. Xoá nhầm lúc 03:59 thì 04:00 là mất.
+> `softDeleteFile` nói Cloudinary object bị purge "ở lượt quét sau để có khoảng đệm an toàn", nhưng
+> job xoá **mọi** file có `deletedAt != null` bất kể xoá cách đây bao lâu. Xoá nhầm lúc 03:59 thì
+> 04:00 là mất. Đổi nhà cung cấp lưu trữ **không** thay đổi bug này — vẫn còn nguyên, chưa fix.
 
 ---
 
@@ -114,16 +142,20 @@ stateDiagram-v2
 
 | Biện pháp | Cài đặt | Chống điều gì |
 |---|---|---|
-| Giới hạn loại file | zod `enum`: jpeg, png, webp, gif, pdf | Upload mã độc / file thực thi |
-| Giới hạn dung lượng | 10 MB | Làm đầy dung lượng lưu trữ |
-| Ràng buộc trong **chữ ký** | `ContentType` + `ContentLength` nằm trong presigned URL | Client tự đổi loại/kích thước sau khi lấy URL |
-| Tên file ngẫu nhiên | `crypto.randomUUID()` | *Path traversal*, trùng tên, đoán được đường dẫn file người khác |
-| URL hết hạn ngắn | 5 phút | URL bị chia sẻ lại để upload tuỳ ý |
+| Giới hạn loại file | zod `enum` ở bước presign (jpeg/png/webp/gif/pdf, chỉ để phản hồi sớm cho UX) **+** Cloudinary `allowed_formats` ký trong chữ ký HMAC-SHA1 ở bước upload thật (ràng buộc mật mã học, client không lách được) | Upload mã độc / file thực thi |
+| Giới hạn dung lượng | zod ở bước presign (UX, **không** phải ràng buộc mật mã học) **+** kiểm chứng lại bằng Cloudinary Admin API ngay sau khi upload — vượt 10MB thì xoá luôn trên Cloudinary, không tạo bản ghi DB | Làm đầy dung lượng lưu trữ |
+| Ràng buộc trong **chữ ký** | Chỉ `allowed_formats` nằm trong chữ ký — **khác S3 trước đây**: Cloudinary không có tham số tương đương `ContentLength` để ràng buộc kích thước ngay trong chữ ký | Client tự đổi định dạng sau khi lấy chữ ký (kích thước xử lý bằng kiểm chứng sau upload, xem trên) |
+| Tên file ngẫu nhiên | `crypto.randomUUID()` trong `publicId` | *Path traversal*, trùng tên, đoán được đường dẫn file người khác |
+| Kiểm chứng `publicId` tồn tại thật | `createFileRecord` luôn gọi Cloudinary Admin API (`cloudinary.api.resource`) trước khi ghi DB — `publicId` không có object thật trả `404 FILE_NOT_FOUND` | Tạo bản ghi DB trỏ tới file không tồn tại/không do server tạo |
 | Phân quyền | Presign/create: mọi user đã đăng nhập (để tự đổi avatar)<br/>List/delete: cần `files.manage` | Người dùng thường xem/xoá kho file chung |
 
-**Còn thiếu** (`BE-10`): `POST /files` nhận `r2Key` bất kỳ mà không kiểm chứng key đó do server ký ra,
-cũng không kiểm tra object tồn tại. Tác động hiện tại thấp (UUID khó đoán) nhưng nên siết trước khi
-mở màn quản lý tài nguyên.
+**Đã xử lý phần lớn** (`BE-10` — trước đây `POST /files` nhận `r2Key` bất kỳ mà không kiểm chứng):
+`createFileRecord` giờ luôn gọi Cloudinary Admin API để xác nhận `publicId` có tồn tại thật, và lấy
+`mimeType`/`sizeBytes` từ dữ liệu Cloudinary trả về — không tin metadata client tự khai nữa. Còn lại
+một điểm chưa mạnh hơn flow cũ: việc này **không** chứng minh được `publicId` đó đúng là do **chính
+user gửi request** vừa upload (cả 2 đời flow đều chỉ dựa vào việc UUID khó đoán) — nhưng đã **chặn
+hoàn toàn** việc tạo bản ghi DB với metadata bịa đặt hoặc file không tồn tại, đó chính là lỗ hổng gốc
+mà `BE-10` mô tả, nên coi là đã đóng.
 
 ---
 
@@ -136,7 +168,7 @@ flowchart TD
     Q --> C2["deletedAt = null<br/>AND createdAt < now - 24h<br/>AND KHÔNG có file_usages"]
     C1 --> LOOP
     C2 --> LOOP["Với từng file:"]
-    LOOP --> D1["DeleteObject trên R2"]
+    LOOP --> D1["destroy() trên Cloudinary<br/>(resource_type: image)"]
     D1 --> D2["DELETE bản ghi files"]
     D2 --> LOG["logger.info: quét N, xoá thành công M"]
     D1 -->|lỗi| ERR["logger.error + bỏ qua file này<br/>KHÔNG dừng cả job"]
@@ -145,20 +177,25 @@ flowchart TD
     style C1 fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
 ```
 
-Job **không dừng** khi một file lỗi — ghi log rồi đi tiếp, để một object hỏng trên R2 không chặn việc
-dọn toàn bộ phần còn lại.
+Job **không dừng** khi một file lỗi — ghi log rồi đi tiếp, để một object hỏng trên Cloudinary không
+chặn việc dọn toàn bộ phần còn lại.
 
 ---
 
 ## 6. Kiểm thử
 
 `backend/tests/unit/modules/files.service.test.ts` — 14 test:
-key là UUID không dùng tên gốc · giữ phần mở rộng · TTL 5 phút · `ContentType`/`ContentLength` trong
-chữ ký · `publicUrl` · loại trừ file xoá mềm khi liệt kê · `setEntityFile` gỡ usage cũ trước ·
-`softDeleteFile` **không** purge R2 ngay.
+`publicId` là UUID không dùng tên gốc · ký HMAC đúng bộ tham số `public_id`/`timestamp`/
+`allowed_formats` · giới hạn định dạng qua `allowed_formats` · `uploadUrl` đúng `cloud_name` +
+`resourceType: image` (Cloudinary xem PDF là ảnh) · tra `publicId` qua Admin API trước khi ghi DB
+(không tin metadata client khai) · `404 FILE_NOT_FOUND` khi `publicId` không tồn tại trên Cloudinary
+(đóng lỗ hổng `BE-10`) · vượt 10MB thì xoá trên Cloudinary và **không** tạo bản ghi DB · loại trừ
+file xoá mềm khi liệt kê · `setEntityFile` gỡ usage cũ trước · `softDeleteFile` **không** purge
+Cloudinary ngay.
 
-Kiểm chứng ràng buộc qua HTTP: `backend/tests/integration/rbac.test.ts` — từ chối mime lạ,
-từ chối file > 10MB, member được presign nhưng không được liệt kê.
+Kiểm chứng ràng buộc qua HTTP: `backend/tests/integration/rbac.test.ts` — từ chối mime lạ và file
+vượt quá 10MB **ở bước presign** (zod, phản hồi sớm cho UX — không phải ràng buộc mật mã học cuối
+cùng, xem §1/§4), member được presign nhưng không được liệt kê.
 
 ---
 
@@ -166,8 +203,8 @@ từ chối file > 10MB, member được presign nhưng không được liệt k
 
 | Việc | Ưu tiên | Mã |
 |---|:---:|---|
-| Kiểm chứng `r2Key` khi tạo bản ghi | 🟡 | `BE-10` |
 | Cửa sổ an toàn 24h cho file xoá mềm | 🟡 | `BE-09` |
+| Chứng minh `publicId` do đúng user gửi request vừa upload (hiện chỉ chứng minh publicId có thật, chưa chứng minh chủ sở hữu — tác động thấp vì UUID khó đoán) | 🟢 | `BE-10` (phần còn lại) |
 | CRUD `folders` (bảng đã có, API chưa có) | 🟢 | `BE-19` |
 | Màn quản lý tài nguyên (cây thư mục, grid/list) | 🟢 | — |
 | Tạo ảnh thumbnail / nhiều kích thước | 🟢 | Quan trọng cho trang danh sách sản phẩm |

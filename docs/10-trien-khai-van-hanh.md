@@ -18,7 +18,7 @@ flowchart LR
     subgraph DEV["🖥️ Development"]
         D1["FE: next dev :3000<br/>BE: tsx watch :4000"]
         D2[("Neon<br/>branch dev")]
-        D3["R2 flower-dev"]
+        D3["Cloudinary flower-dev"]
         D4["Email: SMTP"]
         D5["❌ Cron TẮT"]
     end
@@ -26,7 +26,7 @@ flowchart LR
     subgraph STG["🧪 Staging"]
         S1["FE: Vercel preview<br/>BE: Render/Railway"]
         S2[("Neon<br/>branch staging")]
-        S3["R2 flower-staging"]
+        S3["Cloudinary flower-staging"]
         S4["Email: Resend"]
         S5["✅ Cron BẬT"]
     end
@@ -34,7 +34,7 @@ flowchart LR
     subgraph PRD["🚀 Production"]
         P1["FE: Vercel<br/>BE: VPS + Docker"]
         P2[("Postgres<br/>VPS/Neon prod")]
-        P3["R2 flower-prod"]
+        P3["Cloudinary flower-prod"]
         P4["Email: Resend"]
         P5["✅ Cron + Backup"]
     end
@@ -71,7 +71,7 @@ cd backend && npm run dev      # :4000
 cd frontend && npm run dev     # :3000
 ```
 
-Không cần Docker. Database dùng Neon (cloud), file dùng R2 (cloud).
+Không cần Docker. Database dùng Neon (cloud), file dùng Cloudinary (cloud).
 
 ---
 
@@ -84,7 +84,7 @@ Checklist bắt buộc — **không bỏ qua mục nào**:
 - [ ] `NODE_ENV=production` (bật cookie `secure`, bật cron)
 - [ ] `FRONTEND_URL` trỏ đúng domain thật (HTTPS)
 - [ ] `NEXT_PUBLIC_API_URL` trỏ đúng API thật (HTTPS) — và **build lại** frontend sau khi đổi
-- [ ] Bucket R2 riêng cho production
+- [ ] Tài khoản/folder Cloudinary riêng cho production
 - [ ] `EMAIL_PROVIDER=resend` + domain đã verify DKIM/SPF/DMARC
 - [ ] `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` đặt giá trị thật **trước** khi seed
 - [ ] Đăng nhập lần đầu bằng super_admin và **đổi mật khẩu ngay**
@@ -106,7 +106,7 @@ flowchart LR
     U[Người dùng] --> V["Vercel<br/>Next.js frontend"]
     V -->|"/api/v1/*"| R["Render / Railway<br/>Express backend"]
     R --> N[("Neon Postgres")]
-    R --> R2[("Cloudflare R2")]
+    R --> CD[("Cloudinary")]
     R --> RS["Resend"]
 
     style V fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
@@ -153,8 +153,8 @@ flowchart TB
     CADDY -->|"hoaxinh.vn"| FE["Container: frontend<br/>next start :3000"]
     CADDY -->|"api.hoaxinh.vn"| BE["Container: backend<br/>node dist/server.js :4000"]
     BE --> PG[("Container: postgres:16<br/>volume pgdata")]
-    BE --> R2[("Cloudflare R2<br/>ảnh + backup")]
-    BE -.->|"cron 2 ngày/lần<br/>pg_dump"| R2
+    BE --> CD[("Cloudinary<br/>ảnh + backup")]
+    BE -.->|"cron 2 ngày/lần<br/>pg_dump"| CD
 
     style CADDY fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
     style PG fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
@@ -343,7 +343,7 @@ jobs:
       - run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test          # 334 test, không cần database
+      - run: npm test          # 335 test, không cần database
 
   frontend:
     runs-on: ubuntu-latest
@@ -416,7 +416,7 @@ xem [07 · Bảo mật §8](07-bao-mat.md).
 ```mermaid
 flowchart LR
     CRON["node-cron trong tiến trình backend<br/>chỉ chạy khi NODE_ENV=production"] -->|"0 3 */2 * *"| DUMP["pg_dump --format=custom"]
-    DUMP --> UP["PutObject → R2<br/>backups/db-<timestamp>.dump"]
+    DUMP --> UP["upload → Cloudinary<br/>resource_type: raw<br/>backups/db-<timestamp>.dump"]
     CRON -->|"30 3 */2 * *"| CLEAN["Xoá backup > 30 ngày"]
     CRON -->|"0 4 */10 * *"| ORPHAN["Xoá file mồ côi<br/>(không còn file_usages, > 24h)"]
 
@@ -425,14 +425,14 @@ flowchart LR
 
 | Job | Lịch | Việc |
 |---|---|---|
-| `backupDatabase` | ~2 ngày/lần, 03:00 | `pg_dump` → R2 prefix `backups/` |
+| `backupDatabase` | ~2 ngày/lần, 03:00 | `pg_dump` → Cloudinary (`resource_type: "raw"`, prefix `backups/`) |
 | `cleanupOldBackups` | ~2 ngày/lần, 03:30 | Xoá backup cũ hơn 30 ngày |
-| `cleanupOrphanFiles` | ~10 ngày/lần, 04:00 | Xoá file R2 không còn ai dùng |
+| `cleanupOrphanFiles` | ~10 ngày/lần, 04:00 | Xoá file Cloudinary (`resource_type: "image"`) không còn ai dùng |
 
 ### Khôi phục từ backup
 
 ```bash
-# 1. Tải bản backup từ R2 (qua dashboard hoặc rclone/aws-cli trỏ vào endpoint R2)
+# 1. Tải bản backup từ Cloudinary (qua Media Library hoặc gọi Admin API resource_type=raw)
 # 2. Khôi phục vào database TRỐNG
 pg_restore --clean --if-exists --no-owner \
   --dbname "$DATABASE_URL" db-2026-09-09T03-00-00-000Z.dump
@@ -450,8 +450,8 @@ psql "$DATABASE_URL" -c "SELECT count(*) FROM users;"
 |---|---|---|
 | Cron chạy **trong tiến trình backend** | Chạy nhiều instance → backup trùng lặp; instance chết → không backup | Tách thành container `worker` riêng (chỉ 1 replica), hoặc dùng cron của hệ điều hành |
 | `*/2` trên trường ngày-trong-tháng | Đếm lại từ ngày 1 mỗi tháng, khoảng cách không đều tuyệt đối | Chạy hằng ngày + so mốc thời gian lần chạy trước lưu trong DB |
-| Backup **chưa nén, chưa mã hoá** | Tốn dung lượng; lộ bucket = lộ toàn bộ dữ liệu | `gzip` + `gpg`/`age` trước khi upload — xem [12 · Đề xuất](12-danh-gia-va-de-xuat.md) |
-| Backup chung bucket với ảnh công khai | Bề mặt rủi ro rộng hơn cần thiết | Bucket riêng, API token quyền hẹp |
+| Backup **chưa nén, chưa mã hoá** | Tốn dung lượng; lộ tài khoản Cloudinary = lộ toàn bộ dữ liệu | `gzip` + `gpg`/`age` trước khi upload — xem [12 · Đề xuất](12-danh-gia-va-de-xuat.md) |
+| Backup chung tài khoản Cloudinary với ảnh công khai (khác `resource_type`, nhưng cùng tài khoản/quyền API) | Bề mặt rủi ro rộng hơn cần thiết | Tài khoản Cloudinary riêng cho backup, API key quyền hẹp |
 
 ---
 
@@ -482,7 +482,7 @@ docker compose logs backend | grep "<X-Request-Id khách gửi>"
 | Không ai đăng nhập được | Cấu hình `login_method_settings` | Có chốt chặn ≥ 1 phương thức; nếu DB bị sửa tay thì bật lại trực tiếp trong DB |
 | Người dùng bị đăng xuất hàng loạt | `JWT_ACCESS_SECRET` có bị đổi? | Khôi phục giá trị cũ nếu đổi nhầm |
 | Lỗi CORS sau khi đổi domain | `FRONTEND_URL` | Cập nhật rồi restart backend |
-| Ảnh không hiển thị | `R2_PUBLIC_URL`, quyền bucket | So `files.url` trong DB với URL truy cập thật |
+| Ảnh không hiển thị | `CLOUDINARY_CLOUD_NAME`/`API_KEY`/`API_SECRET`, `publicId` có khớp không | So `files.url` trong DB (là `secure_url` Cloudinary trả về) với URL truy cập thật |
 | Email không gửi được | `SELECT * FROM email_logs WHERE status='failed' ORDER BY sent_at DESC LIMIT 20;` | Đọc cột `error` |
 | Không có backup mới | Log cron, `pg_dump` có trong PATH? | Cài `postgresql-client` vào image |
 | Đơn hàng chậm vào dịp lễ | Chỉ số DB, số kết nối | Tăng pool, thêm index, cân nhắc cache |

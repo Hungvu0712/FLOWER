@@ -1,5 +1,5 @@
 import request from "supertest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { app } from "@/app";
 import { resetPrismaMock } from "../mocks/prisma.mock";
 import { db, loginAs, SUPER_ADMIN_PERMISSIONS } from "./helpers";
@@ -109,10 +109,7 @@ describe("Endpoint công khai — KHÔNG yêu cầu đăng nhập", () => {
 });
 
 describe("Upload file — mở cho mọi user đã đăng nhập, quản lý cần files.manage", () => {
-  it("member ĐƯỢC lấy presigned URL (để tự đổi avatar)", async () => {
-    vi.mock("@aws-sdk/s3-request-presigner", () => ({
-      getSignedUrl: vi.fn().mockResolvedValue("https://r2.test/presigned"),
-    }));
+  it("member ĐƯỢC lấy chữ ký upload (để tự đổi avatar) — api_sign_request tính cục bộ, không gọi Cloudinary", async () => {
     const cookie = loginAs("member-1", ["member"], []);
     const res = await request(app)
       .post("/api/v1/files/presign")

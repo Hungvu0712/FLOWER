@@ -95,10 +95,10 @@ Ma trận quyền đầy đủ: [05 · Database & RBAC §2.4](05-database-va-rba
 |               | CRUD Permission                                            |               ✅               |               ✅               |
 |               | Bật/tắt phương thức đăng nhập                              |               ✅               |               ✅               |
 | **Audit Log** | Ghi mọi thao tác nhạy cảm (ai/khi nào/trước/sau)           |               ✅               |     ⬜ chưa có màn tra cứu     |
-| **Files**     | Presigned upload lên Cloudflare R2, đánh dấu tái sử dụng   |               ✅               |     🟡 mới dùng cho avatar     |
+| **Files**     | Upload trực tiếp lên Cloudinary (chữ ký HMAC), đánh dấu tái sử dụng   |               ✅               |     🟡 mới dùng cho avatar     |
 |               | Màn quản lý tài nguyên (cây thư mục, grid/list)            | 🟡 API có, chưa có folder CRUD |               ⬜               |
 | **Email**     | Abstraction Resend / Nodemailer-SMTP                       |               ✅               |               —                |
-| **Jobs**      | Backup DB → R2 (2 ngày/lần), dọn file mồ côi (10 ngày/lần) |               ✅               |               —                |
+| **Jobs**      | Backup DB → Cloudinary (2 ngày/lần), dọn file mồ côi (10 ngày/lần) |               ✅               |               —                |
 
 ### 3.2. 🌸 Domain — nghiệp vụ shop hoa
 
@@ -147,7 +147,7 @@ Ma trận quyền đầy đủ: [05 · Database & RBAC §2.4](05-database-va-rba
 | Backend      | Node.js + Express 4 + TypeScript strict                                        | Modular + MVC + Service Layer                 |
 | ORM          | Prisma 5                                                                       | Migration, transaction, type-safe query       |
 | Database     | PostgreSQL (Neon khi dev, VPS + Docker khi scale)                              |                                               |
-| File storage | Cloudflare R2 (S3-compatible)                                                  | Miễn phí _egress_, presigned upload           |
+| File storage | Cloudinary                                                                     | Upload trực tiếp qua chữ ký (không đi qua server), dùng chung cho ảnh/file **và** backup DB |
 | Email        | Resend (production) / Nodemailer + SMTP (fallback)                             | Đổi qua `EMAIL_PROVIDER`                      |
 | Cron         | `node-cron` trong tiến trình Node                                              | Chưa cần queue riêng (Redis/BullMQ)           |
 | Test         | Vitest + Supertest (backend), Vitest + Testing Library + Playwright (frontend) | Xem [08 · Kiểm thử](08-kiem-thu.md)           |
@@ -161,7 +161,7 @@ Ma trận quyền đầy đủ: [05 · Database & RBAC §2.4](05-database-va-rba
 | **1 — Foundation**     | TypeScript strict, error/response chuẩn, API versioning, request ID, graceful shutdown | 1 tuần    |          ✅          |
 | **2 — Authentication** | 3 phương thức đăng nhập, session, refresh rotation, quên mật khẩu                      | 1.5 tuần  |          ✅          |
 | **3 — RBAC**           | Users, roles, permissions, audit log, SuperAdmin UI                                    | 1.5 tuần  |          ✅          |
-| **4 — Infrastructure** | R2 (`files` → `media` + `StorageService`), System Settings tổng quát, cleanup jobs     | 1 tuần    |          🟡          |
+| **4 — Infrastructure** | Cloudinary (`files` → `media` + `StorageService`), System Settings tổng quát, cleanup jobs     | 1 tuần    |          🟡          |
 | **5 — Domain**         | Products, cart, orders, payments — nghiệp vụ thật của shop hoa                         | 4–5 tuần  | 🟡 mới có categories |
 | **6 — Quality**        | Testing, OpenAPI/Swagger, logging, security review                                     | 1.5 tuần  |  🟡 test đã có nền   |
 | **7 — Production**     | Docker, VPS, reverse proxy, backup, monitoring, CI/CD                                  | 1 tuần    |          ⬜          |

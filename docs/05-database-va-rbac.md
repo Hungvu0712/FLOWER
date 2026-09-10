@@ -276,16 +276,22 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 
 > Không lưu token thô (magic link, reset password, refresh token) — chỉ lưu `*_hash` (sha256), so khớp hash khi verify, giống nguyên tắc lưu password.
 
-### 3.3. Nhóm Quản lý File & Tài nguyên (Cloudflare R2)
+### 3.3. Nhóm Quản lý File & Tài nguyên (Cloudinary)
 
-| Bảng          | Cột chính                                                                                                        | Ghi chú                                                                                                                |
-| ------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| ✅ `folders`     | id, name, parent_id (cây thư mục), created_by, created_at                                                        | Phục vụ màn hình quản lý tài nguyên theo folder                                                                        |
-| ✅ `files`       | id, folder_id (nullable), r2_key, url, mime_type, size_bytes, original_name, uploaded_by, created_at, deleted_at | `r2_key` là đường dẫn thật trên bucket R2                                                                              |
-| ✅ `file_usages` | id, file_id, entity_type (`product`, `user_avatar`, `blog_post`...), entity_id, created_at                       | 1 file được gắn vào nhiều nơi → **tái sử dụng ảnh cũ** thay vì upload trùng; `UNIQUE(file_id, entity_type, entity_id)` |
+| Bảng          | Cột chính                                                                                                                       | Ghi chú                                                                                                                |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| ✅ `folders`     | id, name, parent_id (cây thư mục), created_by, created_at                                                                        | Phục vụ màn hình quản lý tài nguyên theo folder                                                                        |
+| ✅ `files`       | id, folder_id (nullable), cloudinary_public_id, url, mime_type, size_bytes, original_name, uploaded_by, created_at, deleted_at | `cloudinary_public_id` là định danh thật trên Cloudinary (`resource_type: "image"`) |
+| ✅ `file_usages` | id, file_id, entity_type (`product`, `user_avatar`, `blog_post`...), entity_id, created_at                                       | 1 file được gắn vào nhiều nơi → **tái sử dụng ảnh cũ** thay vì upload trùng; `UNIQUE(file_id, entity_type, entity_id)` |
 
 - File được coi là **mồ côi (orphan)** khi không còn dòng nào trong `file_usages` trỏ tới, và đã tạo quá một ngưỡng an toàn (vd 24h, để không xoá nhầm ảnh vừa upload nhưng form chưa submit xong).
-- Cron job **10 ngày/lần**: quét file mồ côi → xoá trên R2 + xoá record `files` (xem thêm [Kiến trúc §6](02-kien-truc-tong-quan.md#8-lưu-trữ-file-r2--media-management), [Bảo mật](07-bao-mat.md)).
+- Cron job **10 ngày/lần**: quét file mồ côi → xoá trên Cloudinary + xoá record `files` (xem thêm [Kiến trúc §6](02-kien-truc-tong-quan.md#6-lưu-trữ-file-cloudinary--media), [Bảo mật](07-bao-mat.md)).
+- Cột đổi tên từ `r2_key` sang `cloudinary_public_id` bằng `ALTER TABLE ... RENAME COLUMN` (migration
+  `20260910100000_rename_r2_key_to_cloudinary_public_id`) — giữ nguyên dữ liệu, không phải drop+add.
+  Với môi trường **đã có dữ liệu R2 thật** trước khi migrate: các dòng cũ sẽ có `cloudinary_public_id`
+  mang giá trị THỰC RA là `r2Key` cũ, không phải `publicId` Cloudinary thật — job dọn mồ côi gọi
+  `destroy()` cho các dòng này sẽ lỗi "not found" (bị bắt, ghi log, không crash job) nhưng cũng không
+  dọn được. Cần xử lý riêng khi migrate dữ liệu thật sang production (ngoài phạm vi dev hiện tại).
 
 ### 3.4. Nhóm Sản phẩm
 
@@ -434,7 +440,7 @@ erDiagram
     files {
         uuid id PK
         uuid folder_id FK
-        string r2_key UK
+        string cloudinary_public_id UK
         string url
         string mime_type
         int size_bytes

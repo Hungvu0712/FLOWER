@@ -4,7 +4,7 @@ import * as filesService from "./files.service";
 import type { ListFilesQuery } from "./files.validation";
 
 export const presign = asyncHandler(async (req, res) => {
-  const result = await filesService.getPresignedUploadUrl(req.body);
+  const result = await filesService.getUploadSignature(req.body);
   ok(res, result);
 });
 

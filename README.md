@@ -11,7 +11,7 @@ Website thương mại điện tử bán hoa tươi, cho phép khách đặt hoa
 | **Frontend** | Next.js 16 (App Router) · React 19 · TypeScript strict · TailwindCSS 4 |
 | **Backend** | Node.js · Express 4 · TypeScript strict · Prisma 5 · Zod |
 | **Database** | PostgreSQL (Neon khi dev · VPS + Docker khi scale) |
-| **Lưu trữ file** | Cloudflare R2 (S3-compatible, presigned upload) |
+| **Lưu trữ file** | Cloudinary (upload trực tiếp từ trình duyệt bằng chữ ký HMAC) |
 | **Email** | Resend (production) · Nodemailer + SMTP (fallback) |
 | **Kiểm thử** | Vitest · Supertest · Testing Library · Playwright |
 
@@ -123,7 +123,7 @@ Bắt đầu dự án mới = copy phần core, xoá phần domain, đổi `.env
 | Phase | Nội dung | Trạng thái |
 |:---:|---|:---:|
 | 1–3 | Foundation · Authentication · RBAC | ✅ |
-| 4 | Infrastructure (R2, email, jobs) | 🟡 80% |
+| 4 | Infrastructure (Cloudinary, email, jobs) | 🟡 80% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 10% |
 | 6 | Quality — testing, tài liệu | 🟡 60% |
 | 7 | Production — Docker, CI/CD, monitoring | ⬜ |

@@ -11,12 +11,21 @@ export type FileRecord = {
   createdAt: string;
 };
 
+type PresignResponse = {
+  uploadUrl: string;
+  publicId: string;
+  timestamp: number;
+  signature: string;
+  apiKey: string;
+  allowedFormats: string;
+};
+
 export const filesService = {
-  // Bước 1: backend cấp presigned URL — bước 2: PUT thẳng file lên R2 (không qua server Express) —
-  // bước 3: báo backend lưu metadata. Xem docs/02 §6.
+  // Bước 1: backend ký tham số upload (publicId/timestamp/signature) — bước 2: POST thẳng file lên
+  // Cloudinary (không qua server Express) — bước 3: báo backend lưu metadata. Xem docs/02 §6.
   async upload(file: File, folderId?: string | null): Promise<FileRecord> {
     const presign = await api
-      .post<{ data: { uploadUrl: string; r2Key: string } }>('/api/v1/files/presign', {
+      .post<{ data: PresignResponse }>('/api/v1/files/presign', {
         originalName: file.name,
         mimeType: file.type,
         sizeBytes: file.size,
@@ -24,15 +33,23 @@ export const filesService = {
       })
       .then((r) => r.data.data);
 
-    // Dùng axios thuần (không qua instance `api`) — R2 là host khác, không được gửi kèm cookie.
-    await axios.put(presign.uploadUrl, file, { headers: { 'Content-Type': file.type } });
+    // Dùng axios thuần (không qua instance `api`) — Cloudinary là host khác, không được gửi kèm
+    // cookie. Cloudinary nhận multipart form (khác PUT nhị phân thuần của R2/S3).
+    const form = new FormData();
+    form.append('file', file);
+    form.append('api_key', presign.apiKey);
+    form.append('timestamp', String(presign.timestamp));
+    form.append('signature', presign.signature);
+    form.append('public_id', presign.publicId);
+    form.append('allowed_formats', presign.allowedFormats);
+    const uploadResult = await axios
+      .post<{ public_id: string }>(presign.uploadUrl, form)
+      .then((r) => r.data);
 
     return api
       .post<{ data: FileRecord }>('/api/v1/files', {
-        r2Key: presign.r2Key,
+        publicId: uploadResult.public_id,
         originalName: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
         folderId: folderId ?? null,
       })
       .then((r) => r.data.data);

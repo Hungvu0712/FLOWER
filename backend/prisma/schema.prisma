@@ -168,7 +168,7 @@ model Folder {
 model File {
   id           String    @id @default(uuid())
   folderId     String?   @map("folder_id")
-  r2Key        String    @unique @map("r2_key")
+  cloudinaryPublicId String @unique @map("cloudinary_public_id")
   url          String
   mimeType     String    @map("mime_type")
   sizeBytes    Int       @map("size_bytes")

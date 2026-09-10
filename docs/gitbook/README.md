@@ -28,7 +28,7 @@ từ mã nguồn nên thông tin luôn khớp với thực tế công việc.
 
 ## Tình hình một dòng
 
-> **Nền tảng kỹ thuật đã xong và đã được kiểm thử tự động (435 bài kiểm thử).**
+> **Nền tảng kỹ thuật đã xong và đã được kiểm thử tự động (436 bài kiểm thử).**
 > Đang bước vào giai đoạn xây dựng nghiệp vụ bán hàng: sản phẩm → giỏ hàng → đơn hàng → thanh toán.
 
 | Chỉ số | Giá trị |

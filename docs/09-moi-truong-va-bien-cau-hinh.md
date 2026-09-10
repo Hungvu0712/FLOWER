@@ -28,7 +28,7 @@ rõ ràng, thay vì chạy được rồi lỗi mập mờ giữa chừng một 
 | Quy tắc | Chi tiết |
 |---|---|
 | **Không commit `.env`** | Đã có trong `.gitignore`. Chỉ commit `.env.example` |
-| **Mỗi môi trường một bộ secret** | dev / staging / production dùng JWT secret, bucket R2, DB khác nhau |
+| **Mỗi môi trường một bộ secret** | dev / staging / production dùng JWT secret, tài khoản/folder Cloudinary, DB khác nhau |
 | **`.env.example` luôn đủ mọi biến** | Kể cả biến tuỳ chọn — người mới không phải đọc code để biết có biến gì |
 | **Đổi biến trong code → cập nhật `.env.example` ngay trong cùng PR** | Xem [11 · Quy trình §5](11-quy-trinh-phat-trien.md) |
 | **Production dùng secret manager** | Doppler / Vault / AWS Secrets Manager / biến môi trường của nền tảng hosting — không phải file `.env` trên đĩa |
@@ -50,11 +50,9 @@ rõ ràng, thay vì chạy được rồi lỗi mập mờ giữa chừng một 
 | `JWT_REFRESH_EXPIRES_IN` | | `30d` | ⚠️ Hiện **chưa có tác dụng** — giá trị 30 ngày hard-code trong `config/env.ts` |
 | `COOKIE_SECRET` | | `dev-only-secret` | Khoá ký cookie — **bắt buộc đổi ở production** |
 | `GOOGLE_CLIENT_ID` | tính năng | `""` | `audience` khi verify Google ID token |
-| `R2_ACCOUNT_ID` | tính năng | `""` | Dựng endpoint R2 |
-| `R2_ACCESS_KEY_ID` | tính năng | `""` | 🔑 Secret |
-| `R2_SECRET_ACCESS_KEY` | tính năng | `""` | 🔑 Secret |
-| `R2_BUCKET` | tính năng | `""` | Tên bucket (ảnh **và** backup) |
-| `R2_PUBLIC_URL` | tính năng | `""` | Tiền tố URL công khai của file |
+| `CLOUDINARY_CLOUD_NAME` | tính năng | `""` | Tên định danh tài khoản — dùng dựng URL upload/URL công khai file. **Không** phải secret |
+| `CLOUDINARY_API_KEY` | tính năng | `""` | Nửa còn lại của cặp khoá API (không tự đứng riêng là secret, nhưng đi kèm `API_SECRET`) |
+| `CLOUDINARY_API_SECRET` | tính năng | `""` | 🔑 Secret — ký chữ ký HMAC upload + gọi Admin API (ảnh/file **và** backup DB) |
 | `EMAIL_PROVIDER` | | `smtp` | `resend` \| `smtp` |
 | `EMAIL_FROM` | | `no-reply@example.com` | Địa chỉ người gửi |
 | `RESEND_API_KEY` | tính năng | `""` | 🔑 Secret — khi `EMAIL_PROVIDER=resend` |
@@ -116,29 +114,28 @@ flowchart LR
 - **Không cần Client Secret** — dự án verify *ID token*, không dùng luồng redirect.
 - Client ID là thông tin **công khai** theo thiết kế của Google, an toàn khi nhúng vào bundle frontend.
 
-### 3.4. Cloudflare R2
+### 3.4. Cloudinary
 
 ```mermaid
 flowchart TD
-    A["dash.cloudflare.com → R2"] --> B["Create bucket<br/>flower-dev / flower-staging / flower-prod"]
-    B --> C["Manage R2 API Tokens<br/>→ Create API Token<br/>quyền: Object Read & Write"]
-    C --> D["Copy Access Key ID<br/>+ Secret Access Key<br/>⚠️ secret chỉ hiện MỘT LẦN"]
-    B --> E["Bucket → Settings<br/>→ Public Development URL<br/>hoặc gắn custom domain"]
-    A --> F["Account ID: góc phải Dashboard<br/>hoặc trong URL"]
+    A["cloudinary.com → đăng ký<br/>(free tier đủ dùng cho dev)"] --> B["Console → Dashboard<br/>'Product Environment Credentials'"]
+    B --> C1["Cloud name<br/>KHÔNG phải secret — nằm sẵn<br/>trong URL công khai mọi file"]
+    B --> C2["API Key"]
+    B --> C3["API Secret<br/>nút 'Reveal' để hiện<br/>⚠️ SECRET thật"]
 
-    D --> ENV["R2_ACCESS_KEY_ID<br/>R2_SECRET_ACCESS_KEY"]
-    E --> ENV2["R2_PUBLIC_URL<br/>(không có / ở cuối)"]
-    F --> ENV3["R2_ACCOUNT_ID"]
-    B --> ENV4["R2_BUCKET"]
+    C1 --> ENV1["CLOUDINARY_CLOUD_NAME"]
+    C2 --> ENV2["CLOUDINARY_API_KEY"]
+    C3 --> ENV3["CLOUDINARY_API_SECRET"]
 
-    style D fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
+    style C3 fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
 ```
 
-> **Tách bucket theo môi trường.** Dev và production dùng chung bucket là công thức để một lượt
-> `cleanupOrphanFiles` ở dev xoá mất ảnh production.
+> **Tách tài khoản/folder theo môi trường.** Dev và production dùng chung tài khoản Cloudinary là
+> công thức để một lượt `cleanupOrphanFiles` ở dev xoá mất ảnh production.
 >
-> Bucket này chứa **cả ảnh lẫn backup database** (prefix `backups/`). Với production, cân nhắc
-> bucket riêng cho backup với quyền chặt hơn — xem [07 · Bảo mật §5](07-bao-mat.md).
+> Cùng bộ 3 biến này phục vụ **cả module Files (ảnh/PDF, `resource_type: "image"`) lẫn backup
+> database** (`.dump`, `resource_type: "raw"`) — xem [modules/core-files.md](modules/core-files.md)
+> và [07 · Bảo mật §5](07-bao-mat.md).
 
 ### 3.5. Email
 
@@ -228,14 +225,14 @@ Giá trị `NEXT_PUBLIC_*` được **thay thế lúc build**, không phải lú
 | `FRONTEND_URL` | `http://localhost:3000` | `https://staging.…` | `https://hoaxinh.vn` |
 | `LOG_LEVEL` | `debug` | `info` | `info` |
 | JWT/Cookie secret | Giá trị dev | **Khác dev** | **Khác staging** |
-| `R2_BUCKET` | `flower-dev` | `flower-staging` | `flower-prod` |
+| Tài khoản/folder Cloudinary | `flower-dev` | `flower-staging` | `flower-prod` |
 | `EMAIL_PROVIDER` | `smtp` | `resend` | `resend` |
 | `SUPER_ADMIN_PASSWORD` | Tuỳ ý | Mạnh | **Mạnh + đổi ngay sau seed** |
 | Cron jobs | ❌ không chạy | ✅ chạy | ✅ chạy |
 | Cookie `secure` | ❌ (cho phép http) | ✅ | ✅ |
 
 > Cron **chỉ đăng ký khi `NODE_ENV=production`** (`server.ts`). Muốn thử backup/dọn file ở dev,
-> tạm đặt `NODE_ENV=production` — nhưng nhớ trỏ `DATABASE_URL`/`R2_BUCKET` vào tài nguyên dev.
+> tạm đặt `NODE_ENV=production` — nhưng nhớ trỏ `DATABASE_URL`/tài khoản Cloudinary vào tài nguyên dev.
 
 ---
 
@@ -249,6 +246,6 @@ Giá trị `NEXT_PUBLIC_*` được **thay thế lúc build**, không phải lú
 | Đăng nhập xong bị đăng xuất ngay | Cookie không được gửi kèm | Kiểm tra `FRONTEND_URL` + `NEXT_PUBLIC_API_URL`; ở production phải dùng HTTPS vì cookie `secure` |
 | `401 INVALID_GOOGLE_TOKEN` | `GOOGLE_CLIENT_ID` hai bên lệch nhau | Đặt lại cho giống hệt, build lại frontend |
 | Email không tới | Chưa cấu hình / domain chưa verify | Kiểm tra `email_logs.error` |
-| Ảnh upload xong không hiển thị | `R2_PUBLIC_URL` sai hoặc bucket chưa mở public | Kiểm tra URL trong bản ghi `files.url` |
+| Ảnh upload xong không hiển thị | `CLOUDINARY_CLOUD_NAME`/`API_KEY`/`API_SECRET` sai, hoặc `publicId` không khớp | Kiểm tra URL trong bản ghi `files.url` (là `secure_url` Cloudinary trả về thật) |
 | `pg_dump: command not found` | Thiếu binary trên máy chạy cron | Cài `postgresql-client` (chỉ ảnh hưởng production) |
 | Đổi `NEXT_PUBLIC_*` mà không có tác dụng | Giá trị nhúng lúc build | Build lại frontend, không chỉ restart |
