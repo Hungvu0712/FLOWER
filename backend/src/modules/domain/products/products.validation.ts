@@ -19,6 +19,7 @@ export const updateProductSchema = createProductSchema.partial();
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 
 export const productIdParamSchema = z.object({ id: z.string().uuid() });
+export const productSlugParamSchema = z.object({ slug: z.string().min(1) });
 
 export const listProductsQuerySchema = z.object({
   includeInactive: zBooleanQuery(),

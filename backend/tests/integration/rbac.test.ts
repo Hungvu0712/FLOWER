@@ -15,6 +15,7 @@ const PROTECTED = [
   { method: "get" as const, path: "/api/v1/admin/categories", permission: "categories.manage" },
   { method: "get" as const, path: "/api/v1/admin/products", permission: "products.manage" },
   { method: "get" as const, path: "/api/v1/admin/contact-messages", permission: "contact.manage" },
+  { method: "get" as const, path: "/api/v1/admin/orders", permission: "orders.view_all" },
   { method: "get" as const, path: "/api/v1/files", permission: "files.manage" },
   { method: "get" as const, path: "/api/v1/account/me", permission: null },
 ];
@@ -87,6 +88,8 @@ describe("Tầng 3 — đủ quyền", () => {
     db.contactMessage.count.mockResolvedValue(0);
     db.file.findMany.mockResolvedValue([]);
     db.file.count.mockResolvedValue(0);
+    db.order.findMany.mockResolvedValue([]);
+    db.order.count.mockResolvedValue(0);
 
     const res = await request(app)[method](path).set("Cookie", cookie);
     expect([401, 403]).not.toContain(res.status);

@@ -8,6 +8,11 @@ export const listPublic = asyncHandler(async (req, res) => {
   paginated(res, items, meta);
 });
 
+export const getBySlug = asyncHandler(async (req, res) => {
+  const product = await service.getPublicBySlug(req.params.slug as string);
+  ok(res, product);
+});
+
 export const list = asyncHandler(async (req, res) => {
   const { items, meta } = await service.list(req.query as unknown as ListProductsQuery);
   paginated(res, items, meta);

@@ -114,6 +114,18 @@ export async function listPublic({ categoryId, page, limit }: ListProductsQuery)
   return { items, meta: buildPaginationMeta(page, limit, total) };
 }
 
+// Dùng cho trang chi tiết sản phẩm (storefront) — luôn isActive + chưa xoá, giống listPublic(). Cần
+// endpoint riêng (không tận dụng listPublic rồi lọc ở FE như categories) vì danh sách sản phẩm có
+// phân trang, không thể tải hết để tìm 1 slug — xem docs/modules/domain-products.md.
+export async function getPublicBySlug(slug: string) {
+  const product = await prisma.product.findFirst({
+    where: { slug, deletedAt: null, isActive: true },
+    select: PRODUCT_PUBLIC_SELECT,
+  });
+  if (!product) throw new AppError("Sản phẩm không tồn tại", 404, "NOT_FOUND");
+  return product;
+}
+
 export async function create(actorId: string, input: CreateProductInput, ipAddress?: string) {
   const slug = await ensureUniqueSlug(slugify(input.slug || input.name));
 

@@ -14,6 +14,8 @@ import { categoriesRouter } from "../../modules/domain/categories/categories.rou
 import { categoriesAdminRouter } from "../../modules/domain/categories/categories.admin.routes";
 import { productsRouter } from "../../modules/domain/products/products.routes";
 import { productsAdminRouter } from "../../modules/domain/products/products.admin.routes";
+import { ordersRouter } from "../../modules/domain/orders/orders.routes";
+import { ordersAdminRouter } from "../../modules/domain/orders/orders.admin.routes";
 
 export const v1Router = Router();
 
@@ -36,6 +38,10 @@ v1Router.use("/categories", categoriesRouter); // công khai — storefront đ�
 v1Router.use("/admin/categories", authenticate, categoriesAdminRouter);
 v1Router.use("/products", productsRouter); // công khai — storefront đọc sản phẩm
 v1Router.use("/admin/products", authenticate, productsAdminRouter);
+// /orders: công khai (guest checkout) — bản thân router tự gắn `attachUserIfPresent` cho POST, không
+// dùng `authenticate` ở đây vì sẽ bắt buộc đăng nhập (chặn khách vãng lai đặt hàng).
+v1Router.use("/orders", ordersRouter);
+v1Router.use("/admin/orders", authenticate, ordersAdminRouter);
 // contact-messages nằm ở modules/core (tính năng chung mọi dự án), nhưng mount dưới /admin/* như
 // domain — quy ước /admin/* vs /superadmin/* phân theo MỨC TRUY CẬP (admin hay chỉ super_admin),
 // không phải theo code nằm ở core hay domain, xem docs/02 §14.1.

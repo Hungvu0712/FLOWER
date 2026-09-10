@@ -15,6 +15,22 @@ beforeEach(() => {
   db.product.findUniqueOrThrow.mockResolvedValue({ id: "p1" });
 });
 
+describe("GET /api/v1/products/:slug (công khai)", () => {
+  it("trả sản phẩm đang bật theo slug, KHÔNG cần đăng nhập", async () => {
+    db.product.findFirst.mockResolvedValue({ id: "p1", slug: "hoa-cuoi", name: "Hoa cưới" });
+    const res = await request(app).get("/api/v1/products/hoa-cuoi");
+    expect(res.status).toBe(200);
+    expect(res.body.data.slug).toBe("hoa-cuoi");
+  });
+
+  it("404 khi slug không tồn tại (hoặc sản phẩm đã ẩn/xoá)", async () => {
+    db.product.findFirst.mockResolvedValue(null);
+    const res = await request(app).get("/api/v1/products/khong-ton-tai");
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("NOT_FOUND");
+  });
+});
+
 describe("GET /api/v1/admin/products", () => {
   it("?includeInactive=false KHÔNG bị hiểu nhầm thành true qua query string thật — hồi quy lỗi z.coerce.boolean()", async () => {
     db.product.findMany.mockResolvedValue([]);

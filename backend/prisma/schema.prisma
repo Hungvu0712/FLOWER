@@ -32,6 +32,7 @@ model User {
   auditLogs     AuditLog[]    @relation("AuditActor")
   uploadedFiles File[]        @relation("UploadedBy")
   folders       Folder[]      @relation("FolderCreatedBy")
+  orders        Order[]
 
   @@map("users")
 }
@@ -291,8 +292,9 @@ model Product {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  category Category?      @relation(fields: [categoryId], references: [id])
-  images   ProductImage[]
+  category   Category?      @relation(fields: [categoryId], references: [id])
+  images     ProductImage[]
+  orderItems OrderItem[]
 
   @@index([deletedAt])
   @@index([categoryId])
@@ -312,4 +314,61 @@ model ProductImage {
   @@unique([productId, fileId])
   @@index([productId])
   @@map("product_images")
+}
+
+// Giai đoạn "cơ bản" (xem docs/modules/domain-orders.md) — CHƯA có: order_deliveries riêng (nhúng
+// thẳng field giao hàng vào orders, chưa cần shipperId vì chưa có màn phân công), payments/
+// payment_status (chỉ COD, xác nhận qua điện thoại), discount/shipping_fee (chưa có coupon/phí ship),
+// order_status_history riêng (dùng lại AuditLog chung, action "order.update_status"). Đây là các bảng
+// ⬜ trong docs/05 §3.4/§3.7 — xây tiếp khi làm thanh toán online / phân công shipper thật.
+model Order {
+  id       String @id @default(uuid())
+  // Mã đơn NGẮN, DỄ ĐỌC để khách đọc qua điện thoại — KHÁC `id` (UUID): id dùng làm token tra cứu
+  // công khai (GET /orders/:id không cần đăng nhập), orderCode chỉ để hiển thị/tìm kiếm nội bộ, không
+  // đủ khó đoán để dùng làm quyền truy cập (tránh IDOR — xem docs/07 §2).
+  orderCode String @unique @map("order_code")
+  userId    String? @map("user_id") // null = khách đặt không đăng nhập (guest checkout)
+
+  status        String @default("pending") @map("status") // 'pending'|'confirmed'|'preparing'|'delivering'|'completed'|'cancelled' — xem ORDER_STATUSES
+  paymentMethod String @default("cod") @map("payment_method") // chỉ 'cod' ở giai đoạn này
+
+  subtotal Int // tổng tiền hàng (= tổng subtotal của order_items)
+  total    Int // = subtotal (chưa có discount/shipping_fee)
+
+  recipientName    String   @map("recipient_name") // người NHẬN hoa — có thể khác người đặt
+  recipientPhone   String   @map("recipient_phone")
+  deliveryAddress  String   @map("delivery_address")
+  deliveryDate     DateTime @map("delivery_date") @db.Date // ĐẶC THÙ ngành hoa — giao đúng ngày hẹn
+  deliveryTimeSlot String   @map("delivery_time_slot") // 'sang'|'chieu'|'toi'
+  note             String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User?       @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([deliveryDate])
+  @@map("orders")
+}
+
+model OrderItem {
+  id      String @id @default(uuid())
+  orderId String @map("order_id")
+
+  // Sao chép (snapshot) tên/giá TẠI THỜI ĐIỂM ĐẶT — sản phẩm sau này có thể đổi tên/giá/bị xoá mềm,
+  // đơn hàng cũ vẫn phải hiển thị đúng những gì khách đã đặt lúc đó (khác kiểu JOIN sống tới products).
+  productId   String? @map("product_id")
+  productName String  @map("product_name")
+  unitPrice   Int     @map("unit_price")
+  quantity    Int
+  subtotal    Int // unitPrice * quantity, lưu sẵn tránh tính lại
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_items")
 }

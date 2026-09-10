@@ -101,6 +101,8 @@ export interface PrismaMockClient {
   product: ModelMock;
   productImage: ModelMock;
   contactMessage: ModelMock;
+  order: ModelMock;
+  orderItem: ModelMock;
   $transaction: AnyFn;
 }
 

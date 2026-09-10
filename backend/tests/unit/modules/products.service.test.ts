@@ -44,6 +44,36 @@ describe("listPublic — dữ liệu cho storefront", () => {
   });
 });
 
+describe("getPublicBySlug — trang chi tiết sản phẩm", () => {
+  it("chỉ tìm sản phẩm đang bật, chưa xoá theo slug", async () => {
+    db.product.findFirst.mockResolvedValue({ id: "prod-1", slug: "hoa-cuoi" });
+    await service.getPublicBySlug("hoa-cuoi");
+    expect(db.product.findFirst.mock.calls[0]![0].where).toEqual({
+      slug: "hoa-cuoi",
+      deletedAt: null,
+      isActive: true,
+    });
+  });
+
+  it("KHÔNG lộ trường nội bộ, giống listPublic()", async () => {
+    db.product.findFirst.mockResolvedValue({ id: "prod-1", slug: "hoa-cuoi" });
+    await service.getPublicBySlug("hoa-cuoi");
+    const select = db.product.findFirst.mock.calls[0]![0].select;
+    expect(select).not.toHaveProperty("isActive");
+    expect(select).not.toHaveProperty("createdAt");
+    expect(select).not.toHaveProperty("updatedAt");
+    expect(select).not.toHaveProperty("categoryId");
+  });
+
+  it("404 khi không tìm thấy slug (hoặc sản phẩm đã ẩn/xoá)", async () => {
+    db.product.findFirst.mockResolvedValue(null);
+    await expect(service.getPublicBySlug("khong-ton-tai")).rejects.toMatchObject({
+      statusCode: 404,
+      code: "NOT_FOUND",
+    });
+  });
+});
+
 describe("list — dữ liệu cho admin", () => {
   it("mặc định chỉ lấy sản phẩm đang bật", async () => {
     db.product.findMany.mockResolvedValue([]);

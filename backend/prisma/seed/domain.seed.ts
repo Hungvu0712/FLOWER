@@ -27,11 +27,16 @@ const DOMAIN_PERMISSIONS = [
   { code: 'blog.manage', groupName: 'blog', description: 'Quản lý bài viết blog, banner' },
 ];
 
+// BUG THẬT đã tìm thấy khi làm module Orders: mảng này trước đây THIẾU 'orders.update_status', dù ma
+// trận đã chốt ở docs/05 §2.4 ghi rõ admin/super_admin đều có quyền này — nghĩa là trước khi sửa dòng
+// này, kể cả super_admin cũng sẽ bị 403 khi đổi trạng thái đơn hàng sang bất kỳ giá trị nào ngoài
+// 'cancelled' (huỷ đơn dùng orders.cancel riêng, không bị ảnh hưởng). Đối chiếu kỹ bảng ma trận với
+// mảng seed mỗi khi thêm permission mới, đừng chỉ tin permission đã "trông có vẻ" đủ.
 const ADMIN_DOMAIN_PERMISSIONS = [
   'products.manage', 'categories.manage',
-  'orders.view_all', 'orders.assign_shipper', 'orders.cancel', 'orders.view_delivery_queue',
-  'orders.view_shipping_queue', 'customers.view', 'customers.manage', 'promotions.manage',
-  'reviews.moderate', 'reports.view', 'blog.manage',
+  'orders.view_all', 'orders.update_status', 'orders.assign_shipper', 'orders.cancel',
+  'orders.view_delivery_queue', 'orders.view_shipping_queue', 'customers.view', 'customers.manage',
+  'promotions.manage', 'reviews.moderate', 'reports.view', 'blog.manage',
 ];
 
 const SAMPLE_CATEGORIES = [
