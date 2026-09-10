@@ -23,7 +23,7 @@ function VerifyMagicLinkInner() {
   return <p className="text-sm text-ink-soft">Đang xác thực đăng nhập...</p>;
 }
 
-// MAGIC_LINK_BASE_URL ở backend/.env trỏ về route này — xem ARCHITECTURE.md §2.
+// MAGIC_LINK_BASE_URL ở backend/.env trỏ về route này — xem docs/02 §2.
 export default function VerifyMagicLinkPage() {
   return (
     <Suspense fallback={<p className="text-sm text-ink-soft">Đang tải...</p>}>

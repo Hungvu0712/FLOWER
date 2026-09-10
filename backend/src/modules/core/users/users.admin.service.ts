@@ -1,30 +1,40 @@
-import crypto from 'crypto';
-import { prisma } from '../../../config/prisma';
-import { AppError } from '../../../core/errors';
-import { buildPaginationMeta } from '../../../core/response/ApiResponse';
-import { hashPassword } from '../../../core/utils/hash';
-import { emailService } from '../email/email.service';
-import { newPasswordTemplate } from '../email/email.templates';
-import * as auditLog from '../audit-log/auditLog.service';
-import type { ListUsersQuery } from './users.admin.validation';
+import crypto from "crypto";
+import { prisma } from "../../../config/prisma";
+import { AppError } from "../../../shared/errors";
+import { buildPaginationMeta } from "../../../shared/response/ApiResponse";
+import { hashPassword } from "../../../shared/utils/hash";
+import { emailService } from "../email/email.service";
+import { newPasswordTemplate } from "../email/email.templates";
+import * as auditLog from "../audit-log/auditLog.service";
+import type { ListUsersQuery } from "./users.admin.validation";
 
 // Mọi hàm ở đây chỉ được gọi sau khi qua authorize('users.manage') (chỉ super_admin có permission
-// này — xem DATABASE.md §2.1/2.3). Các ràng buộc chống tự thao tác lên chính mình và chống leo thang
-// quyền được chặn cứng ở đây, không chỉ dựa vào UI — xem SECURITY.md §2.
-function assertNotSelf(actorId: string, targetId: string, message: string): void {
+// này — xem docs/05 §2.1/2.3). Các ràng buộc chống tự thao tác lên chính mình và chống leo thang
+// quyền được chặn cứng ở đây, không chỉ dựa vào UI — xem docs/07 §2.
+function assertNotSelf(
+  actorId: string,
+  targetId: string,
+  message: string,
+): void {
   if (actorId === targetId) {
-    throw new AppError(message, 400, 'CANNOT_TARGET_SELF');
+    throw new AppError(message, 400, "CANNOT_TARGET_SELF");
   }
 }
 
-export async function listUsers({ status, role, search, page, limit }: ListUsersQuery) {
+export async function listUsers({
+  status,
+  role,
+  search,
+  page,
+  limit,
+}: ListUsersQuery) {
   const where = {
     deletedAt: null,
     ...(status && { status }),
     ...(search && {
       OR: [
-        { fullName: { contains: search, mode: 'insensitive' as const } },
-        { email: { contains: search, mode: 'insensitive' as const } },
+        { fullName: { contains: search, mode: "insensitive" as const } },
+        { email: { contains: search, mode: "insensitive" as const } },
       ],
     }),
     ...(role && { roles: { some: { role: { code: role } } } }),
@@ -34,10 +44,14 @@ export async function listUsers({ status, role, search, page, limit }: ListUsers
     prisma.user.findMany({
       where,
       select: {
-        id: true, fullName: true, email: true, status: true, createdAt: true,
+        id: true,
+        fullName: true,
+        email: true,
+        status: true,
+        createdAt: true,
         roles: { select: { role: { select: { code: true, name: true } } } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
     }),
@@ -47,78 +61,138 @@ export async function listUsers({ status, role, search, page, limit }: ListUsers
   return { items, meta: buildPaginationMeta(page, limit, total) };
 }
 
-export async function setBlocked(actorId: string, targetId: string, blocked: boolean, ipAddress?: string): Promise<void> {
-  assertNotSelf(actorId, targetId, blocked ? 'Không thể tự khoá chính mình' : 'Không thể tự mở khoá chính mình');
+export async function setBlocked(
+  actorId: string,
+  targetId: string,
+  blocked: boolean,
+  ipAddress?: string,
+): Promise<void> {
+  assertNotSelf(
+    actorId,
+    targetId,
+    blocked
+      ? "Không thể tự khoá chính mình"
+      : "Không thể tự mở khoá chính mình",
+  );
 
-  const before = await prisma.user.findUnique({ where: { id: targetId }, select: { status: true } });
-  if (!before) throw new AppError('Không tìm thấy người dùng', 404, 'NOT_FOUND');
+  const before = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { status: true },
+  });
+  if (!before)
+    throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
 
-  await prisma.user.update({ where: { id: targetId }, data: { status: blocked ? 'blocked' : 'active' } });
+  await prisma.user.update({
+    where: { id: targetId },
+    data: { status: blocked ? "blocked" : "active" },
+  });
 
   await auditLog.record({
     actorId,
-    action: blocked ? 'user.block' : 'user.unblock',
-    entityType: 'user',
+    action: blocked ? "user.block" : "user.unblock",
+    entityType: "user",
     entityId: targetId,
     before,
-    after: { status: blocked ? 'blocked' : 'active' },
+    after: { status: blocked ? "blocked" : "active" },
     ...(ipAddress && { ipAddress }),
   });
 }
 
-export async function softDeleteUser(actorId: string, targetId: string, ipAddress?: string): Promise<void> {
-  assertNotSelf(actorId, targetId, 'Không thể tự xoá chính mình');
+export async function softDeleteUser(
+  actorId: string,
+  targetId: string,
+  ipAddress?: string,
+): Promise<void> {
+  assertNotSelf(actorId, targetId, "Không thể tự xoá chính mình");
 
   const user = await prisma.user.findUnique({ where: { id: targetId } });
-  if (!user || user.deletedAt) throw new AppError('Không tìm thấy người dùng', 404, 'NOT_FOUND');
+  if (!user || user.deletedAt)
+    throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
 
-  // `email` có unique constraint toàn cục (DATABASE.md §3.8) — soft delete vẫn giữ lại row để không mất
+  // `email` có unique constraint toàn cục (docs/05 §3.8) — soft delete vẫn giữ lại row để không mất
   // lịch sử (đơn hàng, audit log tham chiếu theo user_id), nhưng phải "giải phóng" email gốc bằng cách
   // gắn thêm hậu tố, nếu không email đó bị khoá vĩnh viễn, không đăng ký lại được dù tài khoản đã xoá.
   await prisma.user.update({
     where: { id: targetId },
-    data: { deletedAt: new Date(), status: 'blocked', email: `${user.email}.deleted.${targetId}` },
+    data: {
+      deletedAt: new Date(),
+      status: "blocked",
+      email: `${user.email}.deleted.${targetId}`,
+    },
   });
-  await prisma.session.updateMany({ where: { userId: targetId, revokedAt: null }, data: { revokedAt: new Date() } });
+  await prisma.session.updateMany({
+    where: { userId: targetId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
 
-  await auditLog.record({ actorId, action: 'user.delete', entityType: 'user', entityId: targetId, ...(ipAddress && { ipAddress }) });
+  await auditLog.record({
+    actorId,
+    action: "user.delete",
+    entityType: "user",
+    entityId: targetId,
+    ...(ipAddress && { ipAddress }),
+  });
 }
 
-export async function resetPassword(actorId: string, targetId: string, ipAddress?: string): Promise<void> {
+export async function resetPassword(
+  actorId: string,
+  targetId: string,
+  ipAddress?: string,
+): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: targetId } });
-  if (!user || user.deletedAt) throw new AppError('Không tìm thấy người dùng', 404, 'NOT_FOUND');
+  if (!user || user.deletedAt)
+    throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
 
-  const newPassword = crypto.randomBytes(9).toString('base64url'); // đủ mạnh, dễ đọc để paste
+  const newPassword = crypto.randomBytes(9).toString("base64url"); // đủ mạnh, dễ đọc để paste
 
   // Gửi email TRƯỚC khi ghi mật khẩu mới vào DB — nếu gửi thất bại (vd chưa cấu hình SMTP/Resend),
   // mật khẩu cũ của user vẫn còn nguyên thay vì bị ghi đè bằng 1 chuỗi ngẫu nhiên không ai biết.
   // Mật khẩu bản rõ chỉ tồn tại trong bộ nhớ đủ lâu để gửi email — không log, không trả về API.
   await emailService.sendEmail({
     to: user.email,
-    subject: 'Mật khẩu mới của bạn',
+    subject: "Mật khẩu mới của bạn",
     html: newPasswordTemplate({ password: newPassword }),
-    type: 'password_reset',
+    type: "password_reset",
   });
 
   const passwordHash = await hashPassword(newPassword);
   await prisma.user.update({ where: { id: targetId }, data: { passwordHash } });
 
-  await auditLog.record({ actorId, action: 'user.reset_password', entityType: 'user', entityId: targetId, ...(ipAddress && { ipAddress }) });
+  await auditLog.record({
+    actorId,
+    action: "user.reset_password",
+    entityType: "user",
+    entityId: targetId,
+    ...(ipAddress && { ipAddress }),
+  });
 }
 
-export async function updateRole(actorId: string, targetId: string, roleCode: string, ipAddress?: string): Promise<void> {
-  assertNotSelf(actorId, targetId, 'Không thể tự đổi role của chính mình');
+export async function updateRole(
+  actorId: string,
+  targetId: string,
+  roleCode: string,
+  ipAddress?: string,
+): Promise<void> {
+  assertNotSelf(actorId, targetId, "Không thể tự đổi role của chính mình");
 
-  if (roleCode === 'super_admin') {
-    throw new AppError('Không thể gán quyền super_admin qua chức năng này', 403, 'CANNOT_GRANT_SUPER_ADMIN');
+  if (roleCode === "super_admin") {
+    throw new AppError(
+      "Không thể gán quyền super_admin qua chức năng này",
+      403,
+      "CANNOT_GRANT_SUPER_ADMIN",
+    );
   }
 
   const [user, role] = await Promise.all([
-    prisma.user.findUnique({ where: { id: targetId }, include: { roles: { include: { role: true } } } }),
+    prisma.user.findUnique({
+      where: { id: targetId },
+      include: { roles: { include: { role: true } } },
+    }),
     prisma.role.findUnique({ where: { code: roleCode } }),
   ]);
-  if (!user || user.deletedAt) throw new AppError('Không tìm thấy người dùng', 404, 'NOT_FOUND');
-  if (!role) throw new AppError('Role không tồn tại', 404, 'ROLE_NOT_FOUND');
+  if (!user || user.deletedAt)
+    throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
+  if (!role) throw new AppError("Role không tồn tại", 404, "ROLE_NOT_FOUND");
 
   const before = user.roles.map((r) => r.role.code);
 
@@ -129,8 +203,8 @@ export async function updateRole(actorId: string, targetId: string, roleCode: st
 
   await auditLog.record({
     actorId,
-    action: 'user.role_update',
-    entityType: 'user',
+    action: "user.role_update",
+    entityType: "user",
     entityId: targetId,
     before: { roles: before },
     after: { roles: [roleCode] },

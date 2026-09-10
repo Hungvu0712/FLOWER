@@ -17,7 +17,7 @@ type FormState = { code: string; groupName: string; description: string };
 const emptyForm: FormState = { code: '', groupName: '', description: '' };
 
 // Permission mới tạo qua trang này chỉ là dữ liệu — nó KHÔNG tự chặn được request nào cho tới khi có
-// route backend thật sự gọi authorize('code-này'). Xem permissions.service.ts (backend), SECURITY.md §2.
+// route backend thật sự gọi authorize('code-này'). Xem permissions.service.ts (backend), docs/07 §2.
 export default function PermissionsPage() {
   const { data: permissions, isLoading } = useAdminPermissions();
   const createPermission = useCreatePermission();

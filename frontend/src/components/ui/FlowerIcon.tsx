@@ -4,7 +4,7 @@ type Props = {
 };
 
 // Icon hoa trang trí dùng chung (logo, placeholder ảnh sản phẩm khi chưa có ảnh thật) — vẽ SVG thay vì
-// emoji để scale/đổi màu được, theo quy ước ARCHITECTURE.md §13.3.
+// emoji để scale/đổi màu được, theo quy ước docs/04 §5.
 export function FlowerIcon({ className, color = 'currentColor' }: Props) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">

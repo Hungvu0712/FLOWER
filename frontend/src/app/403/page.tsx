@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 // Đích redirect khi user ĐÃ đăng nhập nhưng không đủ quyền vào /admin, /superadmin (xem
 // components/admin/AdminShell.tsx) — cố tình khác /login (không phải chưa đăng nhập) và khác trang
 // chủ (không âm thầm redirect, người dùng cần biết vì sao bị chặn). Đây chỉ là lớp UX — quyền thật sự
-// luôn được backend authorize() kiểm tra độc lập ở từng API. Xem ARCHITECTURE.md §10, §14.
+// luôn được backend authorize() kiểm tra độc lập ở từng API. Xem docs/02 §8, docs/04 §3.
 export default function ForbiddenPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-ivory px-4 text-center">

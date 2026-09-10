@@ -36,9 +36,15 @@ lerna-debug.log*
 *.sln
 *.sw?
 
+# Test output
+coverage/
+playwright-report/
+test-results/
+.playwright/
+blob-report/
+
 # Misc
 *.local
-coverage/
 
 # Design canvas build output (regenerated from .dc.html + canvas.json via
 # the Claude Design skill's seed-canvas.mjs — not source, don't commit)

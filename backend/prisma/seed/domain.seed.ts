@@ -1,5 +1,5 @@
 // Seed dữ liệu DOMAIN — riêng cho dự án Flower Shop, KHÔNG copy sang dự án khác.
-// Đây là seed tối thiểu cho các role/permission domain đã chốt trong DATABASE.md §2.1/§2.3.
+// Đây là seed tối thiểu cho các role/permission domain đã chốt trong docs/05 §2.1/§2.3.
 // Mở rộng dần khi các module domain (products, orders...) được triển khai thật.
 
 import { PrismaClient } from '@prisma/client';
@@ -50,7 +50,7 @@ async function main() {
     });
   }
 
-  // Theo đúng ma trận Vai trò × Quyền đã chốt (DATABASE.md §2.4): super_admin có hầu hết quyền domain
+  // Theo đúng ma trận Vai trò × Quyền đã chốt (docs/05 §2.4): super_admin có hầu hết quyền domain
   // giống admin (ngoại trừ các quyền 🔒 core is_restricted đã seed riêng ở core.seed.ts). super_admin
   // KHÔNG tự động có mọi permission chỉ vì là super_admin — authorize() chỉ check permissions thật sự
   // được gán, nên thiếu bước này thì super_admin cũng bị FORBIDDEN như user thường (đã từng xảy ra).

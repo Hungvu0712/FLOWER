@@ -5,7 +5,7 @@ import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/Toaster";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
-// Design system "Soft Petal" — xem .design/flower-storefront (canvas đã chọt) và ARCHITECTURE.md §13.
+// Design system "Soft Petal" — xem .design/flower-storefront (canvas đã chốt) và docs/04.
 const cormorant = Cormorant_Garamond({
   variable: "--font-display",
   subsets: ["latin", "latin-ext"],

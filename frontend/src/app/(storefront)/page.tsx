@@ -3,7 +3,7 @@ import { FlowerIcon } from '@/components/ui/FlowerIcon';
 import { Button } from '@/components/ui/Button';
 
 // Dữ liệu mẫu — thay bằng API thật khi module domain `products` được triển khai
-// (xem ARCHITECTURE.md §2, DATABASE.md §3.4).
+// (xem docs/02 §2, docs/05 §3.4).
 const CATEGORIES = ['Sinh nhật', 'Khai trương', 'Cưới hỏi', 'Chia buồn'];
 
 const PRODUCTS = [

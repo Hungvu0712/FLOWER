@@ -1,7 +1,7 @@
-import 'dotenv/config';
+import "dotenv/config";
 
 // Validate env lúc khởi động — thiếu biến bắt buộc thì fail fast với lỗi rõ ràng thay vì lỗi mập mờ
-// lúc runtime giữa chừng request. Xem ARCHITECTURE.md §16, master prompt §31.
+// lúc runtime giữa chừng request. Xem docs/09 · docs/03 §7.
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
   if (value === undefined) {
@@ -11,49 +11,51 @@ function required(name: string, fallback?: string): string {
 }
 
 export const env = {
-  nodeEnv: process.env.NODE_ENV || 'development',
-  isProd: process.env.NODE_ENV === 'production',
+  nodeEnv: process.env.NODE_ENV || "development",
+  isProd: process.env.NODE_ENV === "production",
   port: Number(process.env.PORT || 4000),
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
 
-  databaseUrl: required('DATABASE_URL'),
+  databaseUrl: required("DATABASE_URL"),
 
   jwt: {
-    accessSecret: required('JWT_ACCESS_SECRET'),
-    refreshSecret: required('JWT_REFRESH_SECRET'), // dự phòng nếu sau này đổi refresh token sang JWT
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '5m',
+    accessSecret: required("JWT_ACCESS_SECRET"),
+    refreshSecret: required("JWT_REFRESH_SECRET"), // dự phòng nếu sau này đổi refresh token sang JWT
+    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "5m",
     refreshExpiresInDays: 30,
   },
 
-  cookieSecret: process.env.COOKIE_SECRET || 'dev-only-secret',
+  cookieSecret: process.env.COOKIE_SECRET || "dev-only-secret",
 
   google: {
-    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    clientId: process.env.GOOGLE_CLIENT_ID || "",
   },
 
   r2: {
-    accountId: process.env.R2_ACCOUNT_ID || '',
-    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
-    bucket: process.env.R2_BUCKET || '',
-    publicUrl: process.env.R2_PUBLIC_URL || '',
+    accountId: process.env.R2_ACCOUNT_ID || "",
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
+    bucket: process.env.R2_BUCKET || "",
+    publicUrl: process.env.R2_PUBLIC_URL || "",
   },
 
   email: {
-    provider: (process.env.EMAIL_PROVIDER || 'smtp') as 'resend' | 'smtp',
-    from: process.env.EMAIL_FROM || 'no-reply@example.com',
-    resendApiKey: process.env.RESEND_API_KEY || '',
+    provider: (process.env.EMAIL_PROVIDER || "smtp") as "resend" | "smtp",
+    from: process.env.EMAIL_FROM || "no-reply@example.com",
+    resendApiKey: process.env.RESEND_API_KEY || "",
     smtp: {
-      host: process.env.SMTP_HOST || '',
+      host: process.env.SMTP_HOST || "",
       port: Number(process.env.SMTP_PORT || 587),
-      user: process.env.SMTP_USER || '',
-      pass: process.env.SMTP_PASS || '',
+      user: process.env.SMTP_USER || "",
+      pass: process.env.SMTP_PASS || "",
     },
   },
 
   magicLink: {
     ttlMinutes: Number(process.env.MAGIC_LINK_TTL_MINUTES || 15),
-    baseUrl: process.env.MAGIC_LINK_BASE_URL || 'http://localhost:3000/magic-link/verify',
+    baseUrl:
+      process.env.MAGIC_LINK_BASE_URL ||
+      "http://localhost:3000/magic-link/verify",
   },
 
   passwordReset: {

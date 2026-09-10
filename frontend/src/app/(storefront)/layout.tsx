@@ -1,7 +1,7 @@
 import { Nav } from '@/components/layout/Nav';
 import { Footer } from '@/components/layout/Footer';
 
-// Route group PUBLIC (domain) — xem ARCHITECTURE.md §14.2. Nav/Footer dùng chung cho mọi trang
+// Route group PUBLIC (domain) — xem docs/03 §6. Nav/Footer dùng chung cho mọi trang
 // storefront (trang chủ, sản phẩm, giỏ hàng...) khi các route đó được thêm sau này.
 export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -1,7 +1,7 @@
 // Giải mã (KHÔNG verify chữ ký) phần payload của JWT — CHỈ dùng để đọc `exp` cho mục đích xác thực
-// (còn hạn hay không) ở proxy.ts. JWT không còn nhúng role/permission (xem backend core/utils/jwt.ts)
+// (còn hạn hay không) ở proxy.ts. JWT không còn nhúng role/permission (xem backend shared/utils/jwt.ts)
 // — mọi quyết định phân quyền đều dựa vào dữ liệu tươi từ GET /api/v1/account/me hoặc backend
-// authorize(), không đọc từ token. Xem SECURITY.md §2.
+// authorize(), không đọc từ token. Xem docs/07 §2.
 export type AccessTokenPayload = {
   sub: string;
   exp: number;

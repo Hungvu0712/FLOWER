@@ -17,7 +17,7 @@ import { Avatar } from '@/components/admin/Avatar';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { confirmDialog } from '@/store/useConfirmStore';
 
-// Ràng buộc "không tự block/xoá/đổi role chính mình" đã bị chặn cứng ở backend (SECURITY.md §2) —
+// Ràng buộc "không tự block/xoá/đổi role chính mình" đã bị chặn cứng ở backend (docs/07 §2) —
 // ở đây chỉ disable nút cho gọn UI, không phải lớp bảo mật.
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('');

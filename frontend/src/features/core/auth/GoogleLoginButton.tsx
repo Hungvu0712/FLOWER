@@ -18,7 +18,7 @@ declare global {
 }
 
 // Dùng Google Identity Services (ID token, không phải luồng redirect passport truyền thống) — backend
-// verify token qua google-auth-library ở POST /api/v1/auth/google. Xem ARCHITECTURE.md §10.
+// verify token qua google-auth-library ở POST /api/v1/auth/google. Xem docs/02 §8.
 export function GoogleLoginButton() {
   const containerRef = useRef<HTMLDivElement>(null);
   const loginWithGoogle = useLoginWithGoogle();

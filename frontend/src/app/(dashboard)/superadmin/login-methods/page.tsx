@@ -10,7 +10,7 @@ const METHOD_INFO: Record<string, { label: string; description: string }> = {
   magic_link: { label: 'Magic link', description: 'Gửi liên kết đăng nhập một lần qua email, không cần mật khẩu.' },
 };
 
-// Luôn phải còn >= 1 phương thức bật — backend chặn cứng (SECURITY.md §1), ở đây chỉ disable nút +
+// Luôn phải còn >= 1 phương thức bật — backend chặn cứng (docs/07 §1), ở đây chỉ disable nút +
 // hiện cảnh báo sớm cho UX tốt hơn.
 export default function LoginMethodsPage() {
   const { data: methods, isLoading } = useAdminLoginMethods();

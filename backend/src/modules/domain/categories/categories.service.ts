@@ -1,9 +1,13 @@
-import { prisma } from '../../../config/prisma';
-import { AppError } from '../../../core/errors';
-import { slugify } from '../../../core/utils/slugify';
-import * as filesService from '../../core/files/files.service';
-import * as auditLog from '../../core/audit-log/auditLog.service';
-import type { CreateCategoryInput, UpdateCategoryInput, ListCategoriesQuery } from './categories.validation';
+import { prisma } from "../../../config/prisma";
+import { AppError } from "../../../shared/errors";
+import { slugify } from "../../../shared/utils/slugify";
+import * as filesService from "../../core/files/files.service";
+import * as auditLog from "../../core/audit-log/auditLog.service";
+import type {
+  CreateCategoryInput,
+  UpdateCategoryInput,
+  ListCategoriesQuery,
+} from "./categories.validation";
 
 const CATEGORY_SELECT = {
   id: true,
@@ -21,36 +25,60 @@ const CATEGORY_SELECT = {
 } as const;
 
 // Tự thêm hậu tố -2, -3... nếu slug đã tồn tại — hiếm khi lặp quá 1-2 lần với dữ liệu thực tế.
-async function ensureUniqueSlug(base: string, excludeId?: string): Promise<string> {
+async function ensureUniqueSlug(
+  base: string,
+  excludeId?: string,
+): Promise<string> {
   let slug = base;
   let suffix = 2;
-  while (await prisma.category.findFirst({ where: { slug, ...(excludeId && { id: { not: excludeId } }) } })) {
+  while (
+    await prisma.category.findFirst({
+      where: { slug, ...(excludeId && { id: { not: excludeId } }) },
+    })
+  ) {
     slug = `${base}-${suffix++}`;
   }
   return slug;
 }
 
 // Chặn gán danh mục con (hoặc chính nó) làm cha — tránh vòng lặp vô hạn khi duyệt cây sau này.
-async function assertNoCycle(categoryId: string, proposedParentId: string): Promise<void> {
+async function assertNoCycle(
+  categoryId: string,
+  proposedParentId: string,
+): Promise<void> {
   if (categoryId === proposedParentId) {
-    throw new AppError('Danh mục không thể là cha của chính nó', 400, 'CATEGORY_CYCLE');
+    throw new AppError(
+      "Danh mục không thể là cha của chính nó",
+      400,
+      "CATEGORY_CYCLE",
+    );
   }
   const visited = new Set<string>();
-  let current = await prisma.category.findUnique({ where: { id: proposedParentId }, select: { id: true, parentId: true } });
+  let current = await prisma.category.findUnique({
+    where: { id: proposedParentId },
+    select: { id: true, parentId: true },
+  });
   while (current?.parentId) {
     if (current.parentId === categoryId) {
-      throw new AppError('Không thể chọn danh mục con làm danh mục cha (tạo vòng lặp)', 400, 'CATEGORY_CYCLE');
+      throw new AppError(
+        "Không thể chọn danh mục con làm danh mục cha (tạo vòng lặp)",
+        400,
+        "CATEGORY_CYCLE",
+      );
     }
     if (visited.has(current.parentId)) break; // dữ liệu lỡ có vòng lặp sẵn — thoát an toàn, không loop vô hạn
     visited.add(current.parentId);
-    current = await prisma.category.findUnique({ where: { id: current.parentId }, select: { id: true, parentId: true } });
+    current = await prisma.category.findUnique({
+      where: { id: current.parentId },
+      select: { id: true, parentId: true },
+    });
   }
 }
 
 export async function list({ includeInactive }: ListCategoriesQuery) {
   return prisma.category.findMany({
     where: includeInactive ? undefined : { isActive: true },
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: CATEGORY_SELECT,
   });
 }
@@ -59,7 +87,7 @@ export async function list({ includeInactive }: ListCategoriesQuery) {
 export async function listPublic() {
   return prisma.category.findMany({
     where: { isActive: true },
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: {
       id: true,
       name: true,
@@ -71,12 +99,19 @@ export async function listPublic() {
   });
 }
 
-export async function create(actorId: string, input: CreateCategoryInput, ipAddress?: string) {
+export async function create(
+  actorId: string,
+  input: CreateCategoryInput,
+  ipAddress?: string,
+) {
   const slug = await ensureUniqueSlug(slugify(input.slug || input.name));
 
   if (input.parentId) {
-    const parent = await prisma.category.findUnique({ where: { id: input.parentId } });
-    if (!parent) throw new AppError('Danh mục cha không tồn tại', 404, 'PARENT_NOT_FOUND');
+    const parent = await prisma.category.findUnique({
+      where: { id: input.parentId },
+    });
+    if (!parent)
+      throw new AppError("Danh mục cha không tồn tại", 404, "PARENT_NOT_FOUND");
   }
 
   const category = await prisma.category.create({
@@ -93,13 +128,17 @@ export async function create(actorId: string, input: CreateCategoryInput, ipAddr
   });
 
   if (input.imageFileId) {
-    await filesService.setEntityFile({ fileId: input.imageFileId, entityType: 'category_image', entityId: category.id });
+    await filesService.setEntityFile({
+      fileId: input.imageFileId,
+      entityType: "category_image",
+      entityId: category.id,
+    });
   }
 
   await auditLog.record({
     actorId,
-    action: 'category.create',
-    entityType: 'category',
+    action: "category.create",
+    entityType: "category",
     entityId: category.id,
     after: category,
     ...(ipAddress && { ipAddress }),
@@ -107,26 +146,41 @@ export async function create(actorId: string, input: CreateCategoryInput, ipAddr
   return category;
 }
 
-export async function update(actorId: string, id: string, input: UpdateCategoryInput, ipAddress?: string) {
+export async function update(
+  actorId: string,
+  id: string,
+  input: UpdateCategoryInput,
+  ipAddress?: string,
+) {
   const before = await prisma.category.findUnique({ where: { id } });
-  if (!before) throw new AppError('Danh mục không tồn tại', 404, 'NOT_FOUND');
+  if (!before) throw new AppError("Danh mục không tồn tại", 404, "NOT_FOUND");
 
   if (input.parentId !== undefined && input.parentId !== null) {
     await assertNoCycle(id, input.parentId);
-    const parent = await prisma.category.findUnique({ where: { id: input.parentId } });
-    if (!parent) throw new AppError('Danh mục cha không tồn tại', 404, 'PARENT_NOT_FOUND');
+    const parent = await prisma.category.findUnique({
+      where: { id: input.parentId },
+    });
+    if (!parent)
+      throw new AppError("Danh mục cha không tồn tại", 404, "PARENT_NOT_FOUND");
   }
 
   // Đổi tên KHÔNG tự đổi slug (tránh gãy link đã chia sẻ) — chỉ đổi khi người dùng chủ động sửa slug.
-  const slug = input.slug !== undefined ? await ensureUniqueSlug(slugify(input.slug), id) : undefined;
+  const slug =
+    input.slug !== undefined
+      ? await ensureUniqueSlug(slugify(input.slug), id)
+      : undefined;
 
   const updated = await prisma.category.update({
     where: { id },
     data: {
       ...(input.name !== undefined && { name: input.name }),
       ...(slug !== undefined && { slug }),
-      ...(input.description !== undefined && { description: input.description }),
-      ...(input.imageFileId !== undefined && { imageFileId: input.imageFileId }),
+      ...(input.description !== undefined && {
+        description: input.description,
+      }),
+      ...(input.imageFileId !== undefined && {
+        imageFileId: input.imageFileId,
+      }),
       ...(input.parentId !== undefined && { parentId: input.parentId }),
       ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
@@ -135,13 +189,17 @@ export async function update(actorId: string, id: string, input: UpdateCategoryI
   });
 
   if (input.imageFileId) {
-    await filesService.setEntityFile({ fileId: input.imageFileId, entityType: 'category_image', entityId: id });
+    await filesService.setEntityFile({
+      fileId: input.imageFileId,
+      entityType: "category_image",
+      entityId: id,
+    });
   }
 
   await auditLog.record({
     actorId,
-    action: 'category.update',
-    entityType: 'category',
+    action: "category.update",
+    entityType: "category",
     entityId: id,
     before,
     after: updated,
@@ -150,18 +208,29 @@ export async function update(actorId: string, id: string, input: UpdateCategoryI
   return updated;
 }
 
-export async function remove(actorId: string, id: string, ipAddress?: string): Promise<void> {
-  const category = await prisma.category.findUnique({ where: { id }, include: { _count: { select: { children: true } } } });
-  if (!category) throw new AppError('Danh mục không tồn tại', 404, 'NOT_FOUND');
+export async function remove(
+  actorId: string,
+  id: string,
+  ipAddress?: string,
+): Promise<void> {
+  const category = await prisma.category.findUnique({
+    where: { id },
+    include: { _count: { select: { children: true } } },
+  });
+  if (!category) throw new AppError("Danh mục không tồn tại", 404, "NOT_FOUND");
   if (category._count.children > 0) {
-    throw new AppError('Vẫn còn danh mục con — xoá hoặc chuyển danh mục con trước', 409, 'CATEGORY_HAS_CHILDREN');
+    throw new AppError(
+      "Vẫn còn danh mục con — xoá hoặc chuyển danh mục con trước",
+      409,
+      "CATEGORY_HAS_CHILDREN",
+    );
   }
 
   await prisma.category.delete({ where: { id } });
   await auditLog.record({
     actorId,
-    action: 'category.delete',
-    entityType: 'category',
+    action: "category.delete",
+    entityType: "category",
     entityId: id,
     before: category,
     ...(ipAddress && { ipAddress }),
