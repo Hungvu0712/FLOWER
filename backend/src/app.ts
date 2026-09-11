@@ -6,6 +6,7 @@ import { env } from "./config/env";
 import { requestId, errorHandler } from "./shared/middleware";
 import { AppError } from "./shared/errors";
 import { v1Router } from "./routes/v1";
+import { openApiRouter } from "./openapi/routes";
 
 export const app = express();
 
@@ -25,6 +26,10 @@ app.use(cookieParser(env.cookieSecret));
 
 // Health check — ngoài versioning, dùng cho load balancer/uptime monitor. Xem docs/03 §5, §8.
 app.get("/health", (_req, res) => res.json({ success: true, data: { status: "ok" } }));
+
+// OpenAPI/Swagger — cũng ngoài versioning (hạ tầng mô tả API, không phải bản thân API), sinh từ chính
+// các zod schema trong *.validation.ts — xem docs/12 BE-12, src/openapi/generate.ts.
+app.use(openApiRouter);
 
 app.use("/api/v1", v1Router);
 

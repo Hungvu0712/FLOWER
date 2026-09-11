@@ -6,6 +6,7 @@ import { usersAdminRouter } from "../../modules/core/users/users.admin.routes";
 import { rolesRouter } from "../../modules/core/roles/roles.routes";
 import { permissionsRouter } from "../../modules/core/permissions/permissions.routes";
 import { loginMethodsRouter } from "../../modules/core/settings/loginMethods.routes";
+import { systemSettingsRouter } from "../../modules/core/settings/systemSettings.routes";
 import { filesRouter } from "../../modules/core/files/files.routes";
 import { foldersRouter } from "../../modules/core/files/folders.routes";
 import { auditLogRouter } from "../../modules/core/audit-log/auditLog.routes";
@@ -35,6 +36,7 @@ v1Router.use("/superadmin/users", authenticate, usersAdminRouter);
 v1Router.use("/superadmin/roles", authenticate, rolesRouter);
 v1Router.use("/superadmin/permissions", authenticate, permissionsRouter);
 v1Router.use("/superadmin/login-methods", authenticate, loginMethodsRouter);
+v1Router.use("/superadmin/settings", authenticate, systemSettingsRouter);
 v1Router.use("/superadmin/audit-logs", authenticate, auditLogRouter);
 
 // /admin/* — nghiệp vụ domain, admin/super_admin đều dùng được tuỳ permission (khác /superadmin ở trên

@@ -85,6 +85,29 @@ describe("register", () => {
     ).rejects.toMatchObject({ statusCode: 403, code: "LOGIN_METHOD_DISABLED" });
     expect(db.user.create).not.toHaveBeenCalled();
   });
+
+  it("403 REGISTRATION_DISABLED khi system_setting registration_enabled = false (docs/12, Phase 4)", async () => {
+    db.user.findUnique.mockResolvedValue(null);
+    db.systemSetting.findUnique.mockResolvedValue({
+      key: "registration_enabled",
+      value: JSON.stringify(false),
+    });
+    await expect(
+      authService.register({ fullName: "A", email: "a@example.com", password: "matkhau123" }),
+    ).rejects.toMatchObject({ statusCode: 403, code: "REGISTRATION_DISABLED" });
+    expect(db.user.create).not.toHaveBeenCalled();
+  });
+
+  it("chưa seed registration_enabled (key vắng mặt) → mặc định vẫn CHO đăng ký, không tự khoá cứng", async () => {
+    db.user.findUnique.mockResolvedValue(null);
+    db.role.findUnique.mockResolvedValue(MEMBER_ROLE);
+    db.user.create.mockResolvedValue(ACTIVE_USER);
+    db.systemSetting.findUnique.mockResolvedValue(null);
+
+    await expect(
+      authService.register({ fullName: "A", email: "a@example.com", password: "matkhau123" }),
+    ).resolves.toBeDefined();
+  });
 });
 
 describe("loginWithPassword", () => {
@@ -494,6 +517,38 @@ describe("loginWithGoogle", () => {
     expect(user.id).toBe("user-1");
     expect(db.user.create).not.toHaveBeenCalled();
     expect(db.authAccount.create).not.toHaveBeenCalled();
+  });
+
+  it("403 REGISTRATION_DISABLED khi tài khoản Google là MỚI (chưa có user nào) và registration_enabled = false", async () => {
+    mockGooglePayload({ email: "moi@example.com", email_verified: true, sub: GOOGLE_SUB });
+    db.authAccount.findUnique.mockResolvedValue(null);
+    db.user.findUnique.mockResolvedValue(null);
+    db.systemSetting.findUnique.mockResolvedValue({
+      key: "registration_enabled",
+      value: JSON.stringify(false),
+    });
+
+    await expect(authService.loginWithGoogle("id-token")).rejects.toMatchObject({
+      statusCode: 403,
+      code: "REGISTRATION_DISABLED",
+    });
+    expect(db.user.create).not.toHaveBeenCalled();
+  });
+
+  it("registration_enabled = false KHÔNG chặn user ĐÃ TỒN TẠI đăng nhập lại qua Google lần đầu liên kết", async () => {
+    mockGooglePayload({ email: "a@example.com", email_verified: true, sub: GOOGLE_SUB });
+    db.authAccount.findUnique.mockResolvedValue(null);
+    db.user.findUnique.mockResolvedValue(ACTIVE_USER); // email đã có tài khoản — KHÔNG phải tạo mới
+    db.authAccount.create.mockResolvedValue({});
+    db.systemSetting.findUnique.mockResolvedValue({
+      key: "registration_enabled",
+      value: JSON.stringify(false),
+    });
+
+    await expect(authService.loginWithGoogle("id-token")).resolves.toMatchObject({
+      id: ACTIVE_USER.id,
+    });
+    expect(db.user.create).not.toHaveBeenCalled();
   });
 
   it("403 LOGIN_METHOD_DISABLED khi super_admin đã tắt đăng nhập Google", async () => {

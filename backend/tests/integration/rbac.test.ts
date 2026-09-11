@@ -19,6 +19,11 @@ const PROTECTED = [
     path: "/api/v1/superadmin/login-methods",
     permission: "settings.manage",
   },
+  {
+    method: "get" as const,
+    path: "/api/v1/superadmin/settings",
+    permission: "settings.manage",
+  },
   { method: "get" as const, path: "/api/v1/superadmin/audit-logs", permission: "audit.view" },
   { method: "get" as const, path: "/api/v1/admin/categories", permission: "categories.manage" },
   { method: "get" as const, path: "/api/v1/admin/products", permission: "products.manage" },

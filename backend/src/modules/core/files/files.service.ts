@@ -81,10 +81,13 @@ export async function createFileRecord(input: CreateFileInput, userId: string) {
   });
 }
 
+// Bỏ trống `folderId` = chỉ file ở CẤP GỐC (folderId null), khớp đúng quy ước của folders.service.ts
+// (`parentId` bỏ trống = cấp gốc) — màn quản lý tài nguyên cần duyệt đúng từng thư mục một, không
+// phải liệt kê lẫn lộn toàn bộ file mọi thư mục khi chưa chọn thư mục nào. Xem docs/12 (Phase 4).
 export async function listFiles({ folderId, page, limit }: ListFilesQuery) {
   const where = {
     deletedAt: null,
-    ...(folderId !== undefined && { folderId: folderId || null }),
+    folderId: folderId ?? null,
   };
   const [items, total] = await Promise.all([
     prisma.file.findMany({
@@ -117,6 +120,12 @@ export async function setEntityFile({
 
   await prisma.fileUsage.deleteMany({ where: { entityType, entityId } });
   await prisma.fileUsage.create({ data: { fileId, entityType, entityId } });
+}
+
+// Gỡ usage hiện tại của 1 entity mà KHÔNG gán file mới thay thế (vd bỏ trống logo hiện tại) — khác
+// setEntityFile (luôn cần 1 fileId mới). File không bị xoá ngay, chỉ hết được đánh dấu đang dùng.
+export async function clearEntityFile(entityType: string, entityId: string): Promise<void> {
+  await prisma.fileUsage.deleteMany({ where: { entityType, entityId } });
 }
 
 export async function addFileUsage({

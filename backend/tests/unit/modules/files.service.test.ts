@@ -119,6 +119,20 @@ describe("listFiles", () => {
     expect(db.file.findMany.mock.calls[0]![0].where).toMatchObject({ deletedAt: null });
   });
 
+  it("bỏ trống folderId → chỉ file cấp gốc (folderId: null), khớp quy ước folders.service.ts", async () => {
+    db.file.findMany.mockResolvedValue([]);
+    db.file.count.mockResolvedValue(0);
+    await service.listFiles({ page: 1, limit: 24 } as never);
+    expect(db.file.findMany.mock.calls[0]![0].where).toMatchObject({ folderId: null });
+  });
+
+  it("có folderId → lọc đúng theo thư mục đó, không lẫn file thư mục khác", async () => {
+    db.file.findMany.mockResolvedValue([]);
+    db.file.count.mockResolvedValue(0);
+    await service.listFiles({ folderId: "folder-1", page: 1, limit: 24 } as never);
+    expect(db.file.findMany.mock.calls[0]![0].where).toMatchObject({ folderId: "folder-1" });
+  });
+
   it("phân trang đúng", async () => {
     db.file.findMany.mockResolvedValue([]);
     db.file.count.mockResolvedValue(50);

@@ -122,6 +122,23 @@ async function main() {
     });
   }
 
+  console.log("Seeding CORE: system settings...");
+  // `update: {}` — không ghi đè giá trị admin đã đổi ở lần seed sau, giống hệt cách làm với
+  // login method settings ở trên. Xem docs/12 (Phase 4), systemSettings.validation.ts.
+  const DEFAULT_SYSTEM_SETTINGS: Record<string, unknown> = {
+    site_name: "Hoa Xinh",
+    site_logo: null,
+    timezone: "Asia/Ho_Chi_Minh",
+    registration_enabled: true,
+  };
+  for (const [key, value] of Object.entries(DEFAULT_SYSTEM_SETTINGS)) {
+    await prisma.systemSetting.upsert({
+      where: { key },
+      create: { key, value: JSON.stringify(value) },
+      update: {},
+    });
+  }
+
   console.log("Seeding CORE: default super_admin account...");
   const email = process.env.SUPER_ADMIN_EMAIL || "superadmin@example.com";
   const password = process.env.SUPER_ADMIN_PASSWORD || "ChangeMe123!";

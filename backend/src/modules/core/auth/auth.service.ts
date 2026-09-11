@@ -18,6 +18,7 @@ import {
   securityAlertTemplate,
 } from "../email/email.templates";
 import * as auditLog from "../audit-log/auditLog.service";
+import * as systemSettings from "../settings/systemSettings.service";
 import * as repo from "./auth.repository";
 import type { RequestMeta } from "./device.util";
 import type {
@@ -83,6 +84,17 @@ async function assertMethodEnabled(method: string, label: string): Promise<void>
   if (!enabled) throw new AppError(`${label} hiện đang tắt`, 403, "LOGIN_METHOD_DISABLED");
 }
 
+// docs/12, Phase 4 — khoá TẠO TÀI KHOẢN MỚI (mọi phương thức: email/password, magic-link tự đăng ký,
+// Google tự tạo lần đầu), KHÁC với `login_method_settings` (khoá riêng TỪNG phương thức ĐĂNG NHẬP,
+// kể cả cho user đã có tài khoản). undefined (chưa seed) → coi như bật, tránh khoá cứng đăng ký nếu
+// seed chưa chạy.
+async function assertRegistrationEnabled(): Promise<void> {
+  const enabled = await systemSettings.getValue("registration_enabled");
+  if (enabled === false) {
+    throw new AppError("Đăng ký tài khoản mới hiện đang tạm khoá", 403, "REGISTRATION_DISABLED");
+  }
+}
+
 // ---- Helper dùng chung cho mọi luồng login (password/magic-link/google) ----
 export async function issueSession(user: User, meta?: RequestMeta): Promise<AuthSession> {
   // Access token CHỈ chứa sub (định danh) — role/permission được authenticate middleware tra lại từ
@@ -124,6 +136,7 @@ export async function getLoginMethods() {
 // (frontend hiện toast + redirect). Xem auth.controller.ts.
 export async function register(input: RegisterInput): Promise<SafeUser> {
   await assertMethodEnabled("email_password", "Đăng ký bằng email/mật khẩu");
+  await assertRegistrationEnabled();
 
   const existing = await repo.findUserByEmail(input.email);
   if (existing) throw new AppError("Email đã được sử dụng", 409, "EMAIL_TAKEN");
@@ -210,7 +223,11 @@ export async function verifyMagicLink(token: string): Promise<User> {
     ? await repo.findUserById(record.userId)
     : await repo.findUserByEmail(record.email);
   if (!user) {
-    // Email chưa từng có tài khoản — magic link đóng luôn vai trò "đăng ký nhanh".
+    // Email chưa từng có tài khoản — magic link đóng luôn vai trò "đăng ký nhanh". LƯU Ý: nhánh này
+    // hiện KHÔNG reachable qua luồng thật — requestMagicLink() chỉ tạo token khi email đã có tài
+    // khoản (xem hàm đó phía trên), nên record.userId luôn có giá trị thật. Giữ nguyên nhánh phòng hờ
+    // (và để assertRegistrationEnabled ở đây nếu sau này được nối lại) — xem docs/12 BE-20.
+    await assertRegistrationEnabled();
     user = await repo.createUserWithMemberRole({
       fullName: record.email.split("@")[0] ?? record.email,
       email: record.email,
@@ -250,6 +267,7 @@ export async function loginWithGoogle(idToken: string): Promise<User> {
   } else {
     user = await repo.findUserByEmail(payload.email);
     if (!user) {
+      await assertRegistrationEnabled();
       user = await repo.createUserWithMemberRole({
         fullName: payload.name || payload.email.split("@")[0] || payload.email,
         email: payload.email,

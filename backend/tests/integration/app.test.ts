@@ -77,6 +77,21 @@ describe("Trust proxy (docs/12 BE-02)", () => {
   });
 });
 
+describe("OpenAPI/Swagger (docs/12 BE-12) — ngoài versioning, giống /health", () => {
+  it("GET /openapi.json trả document hợp lệ, không cần đăng nhập", async () => {
+    const res = await request(app).get("/openapi.json");
+    expect(res.status).toBe(200);
+    expect(res.body.openapi).toBe("3.0.0");
+    expect(res.body.paths["/api/v1/auth/login"]).toBeDefined();
+  });
+
+  it("GET /docs trả trang Swagger UI (HTML), không cần đăng nhập", async () => {
+    const res = await request(app).get("/docs/");
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/html");
+  });
+});
+
 describe("404 handler", () => {
   it("endpoint không tồn tại → 404 theo đúng envelope chuẩn", async () => {
     const res = await request(app).get("/api/v1/khong-ton-tai");

@@ -92,6 +92,7 @@ export interface PrismaMockClient {
   magicLinkToken: ModelMock;
   passwordResetToken: ModelMock;
   loginMethodSetting: ModelMock;
+  systemSetting: ModelMock;
   folder: ModelMock;
   file: ModelMock;
   fileUsage: ModelMock;
