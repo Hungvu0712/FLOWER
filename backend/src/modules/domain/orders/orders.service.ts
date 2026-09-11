@@ -5,6 +5,7 @@ import * as auditLog from "../../core/audit-log/auditLog.service";
 import type {
   CreateOrderInput,
   ListOrdersQuery,
+  ListOwnOrdersQuery,
   UpdateOrderStatusInput,
 } from "./orders.validation";
 
@@ -163,6 +164,26 @@ export async function getById(id: string) {
   const order = await prisma.order.findUnique({ where: { id }, select: ORDER_SELECT });
   if (!order) throw new AppError("Không tìm thấy đơn hàng", 404, "NOT_FOUND");
   return order;
+}
+
+// docs/12 §5.1 — row-level check: lọc NGAY trong câu truy vấn (`where: { userId }`) thay vì lấy hết
+// rồi lọc ở tầng ứng dụng — không có đường nào để 1 khách nhìn thấy đơn của khách khác, kể cả nếu
+// service có bug ở chỗ khác sau này (đúng nguyên tắc chống IDOR: không tin dữ liệu trả về, tự giới
+// hạn phạm vi truy vấn ngay từ đầu). Đơn guest checkout (userId null) không hiện ở đây — khách vãng
+// lai tra cứu qua link `/don-hang/:id` đã lưu, không qua danh sách này.
+export async function listOwn(userId: string, { page, limit }: ListOwnOrdersQuery) {
+  const where = { userId };
+  const [items, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+      select: ORDER_SELECT,
+    }),
+    prisma.order.count({ where }),
+  ]);
+  return { items, meta: buildPaginationMeta(page, limit, total) };
 }
 
 export async function listAdmin({ status, page, limit }: ListOrdersQuery) {

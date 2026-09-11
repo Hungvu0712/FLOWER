@@ -46,6 +46,31 @@ describe("config/env — validate GIÁ TRỊ, không chỉ sự tồn tại (doc
     expect(env.trustProxyHops).toBe(1);
   });
 
+  describe("RUN_JOBS — tách cron khỏi tiến trình API (docs/12 OPS-01)", () => {
+    it("mặc định false khi không cấu hình — không instance nào tự ý chạy cron", async () => {
+      delete process.env.RUN_JOBS;
+      const { env } = await loadEnv();
+      expect(env.runJobs).toBe(false);
+    });
+
+    it("RUN_JOBS=true → env.runJobs = true", async () => {
+      process.env.RUN_JOBS = "true";
+      const { env } = await loadEnv();
+      expect(env.runJobs).toBe(true);
+    });
+
+    it("RUN_JOBS=false → env.runJobs = false", async () => {
+      process.env.RUN_JOBS = "false";
+      const { env } = await loadEnv();
+      expect(env.runJobs).toBe(false);
+    });
+
+    it("giá trị ngoài 'true'/'false' bị từ chối khởi động", async () => {
+      process.env.RUN_JOBS = "yes";
+      await expect(loadEnv()).rejects.toThrow(/RUN_JOBS/);
+    });
+  });
+
   describe("JWT_REFRESH_EXPIRES_IN đọc THẬT từ env (docs/12 BE-15)", () => {
     it("mặc định 30d → refreshExpiresInDays = 30 khi không cấu hình", async () => {
       delete process.env.JWT_REFRESH_EXPIRES_IN;

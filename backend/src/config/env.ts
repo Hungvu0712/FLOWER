@@ -13,6 +13,12 @@ const rawEnvSchema = z.object({
   // không có proxy nào (tin thẳng req.ip từ socket), không dùng số âm.
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(1),
 
+  // docs/12 OPS-01: cron KHÔNG còn tự chạy chỉ dựa vào NODE_ENV=production — khi chạy nhiều instance
+  // API (scale ngang), mỗi instance tự chạy cron sẽ backup/dọn file trùng lặp. Mặc định "false" (opt-in
+  // bắt buộc) để không có instance API nào vô tình chạy cron — chỉ container `worker` riêng đặt
+  // RUN_JOBS=true. Xem docs/09 và docs/10 §5.3.
+  RUN_JOBS: z.enum(["true", "false"]).default("false"),
+
   DATABASE_URL: z.string().url("DATABASE_URL phải là connection string hợp lệ (postgresql://...)"),
 
   JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET phải ≥ 32 ký tự"),
@@ -95,6 +101,7 @@ export const env = {
   port: raw.PORT,
   frontendUrl: raw.FRONTEND_URL,
   trustProxyHops: raw.TRUST_PROXY_HOPS,
+  runJobs: raw.RUN_JOBS === "true",
 
   databaseUrl: raw.DATABASE_URL,
 

@@ -62,3 +62,11 @@ export const listOrdersQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(24),
 });
 export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>;
+
+// docs/12 §5.1 — row-level check: khách chỉ xem ĐƯỢC đơn của chính mình, không có filter theo status
+// (khác listOrdersQuerySchema dành cho admin) — lịch sử đơn cá nhân không cần lọc trạng thái phức tạp.
+export const listOwnOrdersQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(24),
+});
+export type ListOwnOrdersQuery = z.infer<typeof listOwnOrdersQuerySchema>;

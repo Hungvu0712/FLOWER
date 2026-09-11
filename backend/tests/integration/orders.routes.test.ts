@@ -115,6 +115,43 @@ describe("GET /api/v1/orders/:id (công khai — tra cứu qua link)", () => {
   });
 });
 
+describe("GET /api/v1/account/orders — row-level check cho module domain (docs/12 §5.1)", () => {
+  it("401 khi chưa đăng nhập", async () => {
+    const res = await request(app).get("/api/v1/account/orders");
+    expect(res.status).toBe(401);
+  });
+
+  it("403 khi thiếu orders.view_own (đăng nhập nhưng chưa được gán quyền)", async () => {
+    const cookie = loginAs("member-1", ["member"], []);
+    const res = await request(app).get("/api/v1/account/orders").set("Cookie", cookie);
+    expect(res.status).toBe(403);
+  });
+
+  it("đủ quyền → CHỈ truy vấn đơn của ĐÚNG user đang đăng nhập, không phải toàn bộ đơn", async () => {
+    const cookie = loginAs("member-1", ["member"], ["orders.view_own"]);
+    db.order.findMany.mockResolvedValue([]);
+    db.order.count.mockResolvedValue(0);
+
+    const res = await request(app).get("/api/v1/account/orders").set("Cookie", cookie);
+
+    expect(res.status).toBe(200);
+    expect(db.order.findMany.mock.calls[0]![0].where).toEqual({ userId: "member-1" });
+  });
+
+  it("2 khách khác nhau gọi cùng endpoint → mỗi lần lọc đúng userId của CHÍNH người gọi đó", async () => {
+    db.order.findMany.mockResolvedValue([]);
+    db.order.count.mockResolvedValue(0);
+
+    const cookieA = loginAs("member-a", ["member"], ["orders.view_own"]);
+    await request(app).get("/api/v1/account/orders").set("Cookie", cookieA);
+    const cookieB = loginAs("member-b", ["member"], ["orders.view_own"]);
+    await request(app).get("/api/v1/account/orders").set("Cookie", cookieB);
+
+    expect(db.order.findMany.mock.calls[0]![0].where).toEqual({ userId: "member-a" });
+    expect(db.order.findMany.mock.calls[1]![0].where).toEqual({ userId: "member-b" });
+  });
+});
+
 describe("GET /api/v1/admin/orders", () => {
   it("liệt kê đơn cho staff có orders.view_all", async () => {
     const cookie = loginAs("staff-1", ["sales_staff"], ["orders.view_all"]);

@@ -7,10 +7,14 @@ import { registerJobs } from "./jobs";
 const server = app.listen(env.port, () => {
   logger.info(`API đang chạy tại http://localhost:${env.port} (env=${env.nodeEnv})`);
 
-  if (env.isProd) {
+  // docs/12 OPS-01: RUN_JOBS tách rời khỏi NODE_ENV — cho phép chạy nhiều instance API (scale ngang)
+  // mà chỉ 1 container `worker` riêng (RUN_JOBS=true) chạy cron, tránh backup/dọn file trùng lặp.
+  if (env.isProd && env.runJobs) {
     registerJobs();
+  } else if (!env.isProd) {
+    logger.info("Cron jobs không chạy ở development — bật bằng NODE_ENV=production + RUN_JOBS=true.");
   } else {
-    logger.info("Cron jobs không chạy ở development — bật bằng NODE_ENV=production nếu cần test.");
+    logger.info("Cron jobs không chạy trên instance này (RUN_JOBS != true) — xem docs/10 §5.3.");
   }
 });
 

@@ -15,7 +15,7 @@ import { categoriesRouter } from "../../modules/domain/categories/categories.rou
 import { categoriesAdminRouter } from "../../modules/domain/categories/categories.admin.routes";
 import { productsRouter } from "../../modules/domain/products/products.routes";
 import { productsAdminRouter } from "../../modules/domain/products/products.admin.routes";
-import { ordersRouter } from "../../modules/domain/orders/orders.routes";
+import { ordersRouter, accountOrdersRouter } from "../../modules/domain/orders/orders.routes";
 import { ordersAdminRouter } from "../../modules/domain/orders/orders.admin.routes";
 
 export const v1Router = Router();
@@ -23,6 +23,9 @@ export const v1Router = Router();
 // Gom router theo mức độ truy cập tăng dần, không route nào "quên" authenticate — xem docs/03 §6.
 v1Router.use("/auth", authRouter); // công khai (bản thân route tự kiểm tra token khi cần)
 v1Router.use("/account", authenticate, usersRouter); // cần đăng nhập (bất kỳ role nào)
+// docs/12 §5.1 — lịch sử đơn của chính khách, cần thêm orders.view_own (khác /account ở trên, chỉ
+// cần đăng nhập) vì đây là permission có thể thu hồi riêng, không gắn liền với việc "là chính mình".
+v1Router.use("/account/orders", authenticate, accountOrdersRouter);
 v1Router.use("/files", authenticate, filesRouter); // cần đăng nhập; ghi/xoá cần thêm files.manage
 v1Router.use("/folders", authenticate, foldersRouter); // cần files.manage cho MỌI route (BE-19)
 v1Router.use("/contact", contactRouter); // công khai — form Liên hệ, có rate limit riêng

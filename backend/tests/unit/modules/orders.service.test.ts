@@ -165,6 +165,39 @@ describe("getById", () => {
   });
 });
 
+describe("listOwn — row-level check cho module domain (docs/12 §5.1)", () => {
+  it("CHỈ lọc theo userId — không cho truyền filter nào khác lộ ra đơn của người khác", async () => {
+    db.order.findMany.mockResolvedValue([]);
+    db.order.count.mockResolvedValue(0);
+    await service.listOwn("user-1", { page: 1, limit: 24 } as never);
+    expect(db.order.findMany.mock.calls[0]![0].where).toEqual({ userId: "user-1" });
+    expect(db.order.count.mock.calls[0]![0].where).toEqual({ userId: "user-1" });
+  });
+
+  it("2 khách khác nhau → truy vấn với where.userId khác nhau, không lẫn dữ liệu", async () => {
+    db.order.findMany.mockResolvedValue([]);
+    db.order.count.mockResolvedValue(0);
+
+    await service.listOwn("user-1", { page: 1, limit: 24 } as never);
+    await service.listOwn("user-2", { page: 1, limit: 24 } as never);
+
+    expect(db.order.findMany.mock.calls[0]![0].where).toEqual({ userId: "user-1" });
+    expect(db.order.findMany.mock.calls[1]![0].where).toEqual({ userId: "user-2" });
+  });
+
+  it("sắp xếp mới nhất trước và phân trang đúng skip/take", async () => {
+    db.order.findMany.mockResolvedValue([]);
+    db.order.count.mockResolvedValue(50);
+    const { meta } = await service.listOwn("user-1", { page: 2, limit: 10 } as never);
+    expect(db.order.findMany.mock.calls[0]![0]).toMatchObject({
+      orderBy: { createdAt: "desc" },
+      skip: 10,
+      take: 10,
+    });
+    expect(meta).toEqual({ page: 2, limit: 10, total: 50, totalPages: 5 });
+  });
+});
+
 describe("listAdmin", () => {
   it("lọc theo status khi có truyền", async () => {
     db.order.findMany.mockResolvedValue([]);

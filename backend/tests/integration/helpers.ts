@@ -27,6 +27,7 @@ export const SUPER_ADMIN_PERMISSIONS = [
   "orders.view_all",
   "orders.update_status",
   "orders.cancel",
+  "orders.view_own",
 ];
 
 export { db };

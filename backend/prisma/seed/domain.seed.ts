@@ -192,6 +192,24 @@ async function main() {
     });
   }
 
+  // docs/05 §2.4 (ma trận Vai trò × Quyền): member có orders.view_own — dùng ADDITIVE giống vòng lặp
+  // admin/super_admin phía trên (createMany + skipDuplicates, KHÔNG deleteMany trước), vì role `member`
+  // do core.seed.ts tạo và có thể được gán thêm permission core khác sau này — domain.seed.ts không
+  // nên xoá sạch rồi ghi đè permission của 1 role mà mình không sở hữu hoàn toàn.
+  console.log("Seeding DOMAIN: member permissions...");
+  const memberRole = await prisma.role.findUnique({ where: { code: "member" } });
+  if (!memberRole) {
+    console.warn('  -> Role "member" chưa tồn tại — chạy `npm run seed:core` trước.');
+  } else {
+    const memberPerms = await prisma.permission.findMany({
+      where: { code: { in: ["orders.view_own"] } },
+    });
+    await prisma.rolePermission.createMany({
+      data: memberPerms.map((p) => ({ roleId: memberRole.id, permissionId: p.id })),
+      skipDuplicates: true,
+    });
+  }
+
   console.log("Seeding DOMAIN: roles (sales_staff, florist, shipper)...");
   for (const r of DOMAIN_ROLES) {
     const role = await prisma.role.upsert({

@@ -26,6 +26,7 @@ const PROTECTED = [
   { method: "get" as const, path: "/api/v1/admin/orders", permission: "orders.view_all" },
   { method: "get" as const, path: "/api/v1/files", permission: "files.manage" },
   { method: "get" as const, path: "/api/v1/folders", permission: "files.manage" },
+  { method: "get" as const, path: "/api/v1/account/orders", permission: "orders.view_own" },
   { method: "get" as const, path: "/api/v1/account/me", permission: null },
 ];
 
