@@ -351,7 +351,7 @@ login_email_enabled · login_google_enabled · login_magic_link_enabled
 | **Prettier** | ✅ mỗi package (`backend/`, `frontend/`) có `.prettierrc.json` riêng — `npm run format` / `format:check` |
 | Vitest (unit + integration) | ✅ |
 | Playwright (E2E) | ✅ cấu hình sẵn, cần môi trường thật để chạy |
-| OpenAPI / Swagger | ⬜ — [06 · API Reference](06-api-reference.md) là bản viết tay tạm thời |
+| OpenAPI / Swagger | ✅ (11/09/2026) — sinh từ `*.validation.ts`, xem `GET /docs` và [12 §BE-12](12-danh-gia-va-de-xuat.md) |
 | CI/CD (GitHub Actions) | ⬜ — mẫu ở [10 · Triển khai](10-trien-khai-van-hanh.md) |
 
 ---

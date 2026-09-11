@@ -21,12 +21,12 @@
 | 1 | Foundation — TS strict, error/response chuẩn, API versioning | ✅ | ██████████ 100% |
 | 2 | Authentication — 3 phương thức, session, rotation | ✅ | ██████████ 100% |
 | 3 | RBAC — users, roles, permissions, audit log | ✅ | ██████████ 100% |
-| 4 | Infrastructure — Cloudinary, email, jobs, settings | 🟡 | █████████░ 85% |
+| 4 | Infrastructure — Cloudinary, email, jobs, settings | ✅ | ██████████ 100% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██░░░░░░░░ 20% |
-| 6 | Quality — testing, OpenAPI, logging | 🟡 | ███████░░░ 71% |
+| 6 | Quality — testing, OpenAPI, logging | 🟡 | ███████░░░ 79% |
 | 7 | Production — Docker, CI/CD, monitoring | ⬜ | ░░░░░░░░░░ 0% |
 
-**Tổng thể: ~41%** · Số test đang chạy: **681** (BE 555 · FE 126) + ~30 kịch bản E2E
+**Tổng thể: ~42%** · Số test đang chạy: **746** (BE 602 · FE 144) + ~30 kịch bản E2E
 
 ---
 
@@ -84,7 +84,7 @@
 - [x] **Màn hình tra cứu Audit Log** *(11/09/2026 — `/superadmin/audit-logs`, lọc theo loại đối tượng/khoảng ngày, chi tiết before/after dạng JSON, xác nhận thật với 130 bản ghi audit log trên DB dev)*
 - [x] **Row-level check** cho module domain *(11/09/2026 — `GET /api/v1/account/orders`, lọc `userId = req.user.id` ngay trong query, xác nhận thật với 2 tài khoản trên DB dev; hàng đợi giao hàng `shipper` còn lại, cần bảng `order_deliveries` trước — xem docs/12 §5.1)*
 
-## Phase 4 — Infrastructure 🟡
+## Phase 4 — Infrastructure ✅
 
 - [x] Upload ký chữ ký (HMAC) lên Cloudinary trực tiếp từ trình duyệt (mime/format whitelist qua `allowed_formats`, publicId UUID, kích thước kiểm chứng lại qua Admin API sau upload — xem `BE-10` ở [`docs/12`](docs/12-danh-gia-va-de-xuat.md))
 - [x] `file_usages` — đánh dấu tái sử dụng ảnh
@@ -95,9 +95,9 @@
 - [x] Ghi `email_logs` cho mọi lần gửi (`sent` / `failed` + `error`)
 - [x] `login_method_settings` + chốt chặn ≥ 1 phương thức bật
 - [x] Form Liên hệ công khai (`/api/v1/contact`, rate limit 5/15p theo IP) + admin xem/đánh dấu xử lý (`contact.manage`) — xem [docs/modules/core-contact.md](docs/modules/core-contact.md)
-- [x] CRUD `folders` *(`BE-19` — chỉ API, chưa có màn UI quản lý tài nguyên, xem dòng dưới)*
-- [ ] Màn hình quản lý tài nguyên (cây thư mục, grid/list) ⬜
-- [ ] Mở rộng `system_settings` key-value tổng quát ⬜
+- [x] CRUD `folders` *(`BE-19`)*
+- [x] **Màn hình quản lý tài nguyên** (cây thư mục lazy-load, xem file dạng lưới/danh sách) *(11/09/2026 — `/admin/resources`, xem [docs/modules/core-files.md §8](docs/modules/core-files.md))*
+- [x] **Mở rộng `system_settings` key-value tổng quát** *(11/09/2026 — `site_name`/`site_logo`/`timezone`/`registration_enabled`, UI `/superadmin/settings`; `registration_enabled` có enforcement thật ở `auth.service.ts`; phát hiện thêm `BE-20` khi làm — xem [docs/12](docs/12-danh-gia-va-de-xuat.md); CHƯA làm `maintenance_mode` — cần middleware riêng, xem [docs/modules/core-settings.md §4](docs/modules/core-settings.md))*
 - [x] Nén + mã hoá backup *(`OPS-02` — `pg_dump --compress=9` + RSA/AES-256-GCM khi có `BACKUP_ENCRYPTION_PUBLIC_KEY`; còn thiếu tách bucket/tài khoản Cloudinary riêng — việc vận hành, xem docs/12)*
 
 ## Phase 5 — Domain 🟡
@@ -111,7 +111,6 @@
 - [x] Trang chủ storefront (`/`) đọc danh mục/sản phẩm thật qua API công khai (Server Component, `fetch` + `revalidate: 60s`) — thay hẳn mảng dữ liệu giả cứng trong code trước đó
 - [x] Dữ liệu mẫu: 4 danh mục + 8 sản phẩm qua `domain.seed.ts` (chưa có ảnh — seed script không tự upload Cloudinary được, hiện icon hoa thay thế)
 - [x] Trang danh mục (`/danh-muc/[slug]`) + trang chi tiết sản phẩm (`/san-pham/[slug]`) — API công khai `GET /products/:slug`, gallery đổi ảnh, sản phẩm liên quan cùng danh mục, CTA gọi/Zalo
-- [ ] `product_variants` (size/giá riêng) ⬜
 - [ ] Occasions (dịp lễ) ⬜
 - [x] **Cart (guest cart)** — lưu phía client (Zustand + localStorage), KHÔNG có bảng `carts` ở backend *(quyết định kiến trúc — xem [docs/modules/domain-orders.md §1](docs/modules/domain-orders.md))*
 - [x] **Orders + chọn ngày giờ giao** — giai đoạn cơ bản: guest checkout, COD, cửa hàng xác nhận qua điện thoại *(chưa thanh toán online — xem [docs/modules/domain-orders.md §8](docs/modules/domain-orders.md))*
@@ -128,8 +127,8 @@
 
 ## Phase 6 — Quality 🟡
 
-- [x] **Backend: 551 test** (389 unit + 162 integration) — chạy **không cần database**
-- [x] **Frontend: 120 test** (unit + component + hook)
+- [x] **Backend: 602 test** (429 unit + 173 integration) — chạy **không cần database**
+- [x] **Frontend: 144 test** (unit + component + hook)
 - [x] **E2E Playwright: ~30 kịch bản** (auth · superadmin · account · categories)
 - [x] Hạ tầng test: Prisma mock tự sinh, `loginAs()` helper
 - [x] `npm run typecheck` phủ cả `src/` lẫn `tests/`
@@ -137,7 +136,7 @@
 - [x] Script kiểm tra cú pháp Mermaid (`scripts/check-mermaid.mjs`)
 - [x] Tài liệu khách hàng (GitBook) — 7 trang + cấu hình sync
 - [ ] **CI/CD GitHub Actions** ⬜ *(2 ngày — ưu tiên cao, mẫu ở docs/10 §6)*
-- [ ] OpenAPI/Swagger sinh từ zod schema ⬜ *(`BE-12` — 1 ngày)*
+- [x] **OpenAPI/Swagger sinh từ zod schema** *(`BE-12`, 11/09/2026 — `GET /docs` (Swagger UI) + `GET /openapi.json`, request sinh trực tiếp từ `*.validation.ts` (không thể lệch), 61/61 endpoint)*
 - [x] Test cho `jobs/` *(cleanupOrphanFiles, cleanupExpiredTokens, backupDatabase/cleanupOldBackups, backupEncryption)*
 - [ ] Integration test với PostgreSQL thật (Testcontainers) ⬜
 - [x] Logger `pino` (JSON có cấu trúc) *(`BE-18`)*
@@ -184,7 +183,7 @@ Chi tiết đầy đủ: [docs/12 · Đánh giá & đề xuất](docs/12-danh-gi
 | `BE-09` | `cleanupOrphanFiles` xoá file vừa xoá mềm, không có cửa sổ 24h | 0.5h | ✅ |
 | `BE-10` | `createFileRecord` không kiểm chứng `publicId` | 3h | ✅ |
 | `BE-11` | `env.ts` chỉ kiểm tra tồn tại, không kiểm tra giá trị | 3h | ✅ |
-| `BE-12` | Chưa có OpenAPI/Swagger | 8h | ⬜ |
+| `BE-12` | Chưa có OpenAPI/Swagger | 8h | ✅ |
 | `BE-13` | Token/session hết hạn tích tụ vô hạn | 3h | ✅ |
 | `FE-01` | Chưa có Error Boundary → lỗi render = trang trắng | 2h | ✅ |
 | `FE-02` | Hai nguồn sự thật cho user (`useAuthStore` + `useMe`) | 3h | ✅ |

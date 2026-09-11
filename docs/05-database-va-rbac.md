@@ -271,6 +271,7 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 | ✅ `password_reset_tokens` | id, user_id, token_hash, expires_at, used_at, created_at                                                                  | Dùng cho luồng "quên mật khẩu"; cũng dùng khi `super_admin` reset password hộ user                                       |
 | ✅ `sessions`              | id, user_id, refresh_token_hash, device_name, ip_address, user_agent, last_active_at, expires_at, revoked_at, created_at  | 1 dòng = 1 thiết bị/phiên đăng nhập → phục vụ màn "quản lý thiết bị" và "đăng xuất từ xa" (set `revoked_at`)             |
 | ✅ `login_method_settings` | id, method (`google_oauth` \| `email_password` \| `magic_link`), is_enabled, updated_by (user_id), updated_at             | Do `super_admin` cấu hình; **luôn phải còn ≥ 1 phương thức `is_enabled = true`** — validate ở service, không cho tắt hết |
+| ✅ `system_settings`       | key (PK, string), value (JSON-encode), updated_by (user_id), updated_at                                                   | Key-value tổng quát (Phase 4) — `site_name`/`site_logo`/`timezone`/`registration_enabled`, xem [docs/modules/core-settings.md §4](modules/core-settings.md) |
 
 > Không lưu token thô (magic link, reset password, refresh token) — chỉ lưu `*_hash` (sha256), so khớp hash khi verify, giống nguyên tắc lưu password.
 
@@ -348,6 +349,7 @@ flowchart TB
             ML[magic_link_tokens]
             PR[password_reset_tokens]
             LM[login_method_settings]
+            SS[system_settings]
         end
         subgraph FILESG["File & tài nguyên"]
             FO[folders]
@@ -547,6 +549,7 @@ Khi khởi tạo DB, cần seed sẵn (chia 2 file theo [Kiến trúc §2.1](02-
 2. Permission 🔧 Core ở mục 2.3 (`users.manage`, `settings.manage`, `roles.manage`, `permissions.manage`, `files.manage`, `audit.view`, `contact.manage`).
 3. 1 tài khoản `super_admin` mặc định (đổi mật khẩu ngay sau lần đăng nhập đầu).
 4. `login_method_settings`: cả 3 phương thức (`google_oauth`, `email_password`, `magic_link`) mặc định `is_enabled = true`.
+5. `system_settings`: `site_name = "Hoa Xinh"`, `site_logo = null`, `timezone = "Asia/Ho_Chi_Minh"`, `registration_enabled = true`.
 
 **`domain.seed.ts`** (shop hoa) 5. Role `sales_staff`, `florist`, `shipper`. 6. Permission 🌸 Domain ở mục 2.3 (`products.*`, `orders.*`, `categories.manage`...). 7. Ma trận `role_permissions` theo mục 2.4 (gộp cả permission core lẫn domain). 8. Danh mục/dịp lễ mẫu (`categories`, `occasions`) nếu muốn có sẵn dữ liệu demo.
 

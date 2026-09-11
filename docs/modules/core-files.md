@@ -9,7 +9,7 @@ kèm cơ chế đánh dấu tái sử dụng và dọn file mồ côi.
 |---|---|
 | **Loại** | 🔧 Core |
 | **Backend** | `modules/core/files/` · `jobs/cleanupOrphanFiles.job.ts` · `config/cloudinary.ts` |
-| **Frontend** | `features/core/files/` |
+| **Frontend** | `features/core/files/` · `app/(dashboard)/admin/resources/page.tsx` |
 | **Bảng DB** | `files` · `file_usages` · `folders` |
 | **Endpoint** | `/api/v1/files/*` · `/api/v1/folders/*` — xem [06 · API §6/§6b](../06-api-reference.md) |
 
@@ -185,14 +185,14 @@ chặn việc dọn toàn bộ phần còn lại.
 
 ## 6. Kiểm thử
 
-`backend/tests/unit/modules/files.service.test.ts` — 14 test:
+`backend/tests/unit/modules/files.service.test.ts` — 16 test:
 `publicId` là UUID không dùng tên gốc · ký HMAC đúng bộ tham số `public_id`/`timestamp`/
 `allowed_formats` · giới hạn định dạng qua `allowed_formats` · `uploadUrl` đúng `cloud_name` +
 `resourceType: image` (Cloudinary xem PDF là ảnh) · tra `publicId` qua Admin API trước khi ghi DB
 (không tin metadata client khai) · `404 FILE_NOT_FOUND` khi `publicId` không tồn tại trên Cloudinary
 (đóng lỗ hổng `BE-10`) · vượt 10MB thì xoá trên Cloudinary và **không** tạo bản ghi DB · loại trừ
-file xoá mềm khi liệt kê · `setEntityFile` gỡ usage cũ trước · `softDeleteFile` **không** purge
-Cloudinary ngay.
+file xoá mềm khi liệt kê · **bỏ trống `folderId` → chỉ file cấp gốc, có `folderId` → đúng thư mục đó**
+(11/09/2026, §8) · `setEntityFile` gỡ usage cũ trước · `softDeleteFile` **không** purge Cloudinary ngay.
 
 Kiểm chứng ràng buộc qua HTTP: `backend/tests/integration/rbac.test.ts` — từ chối mime lạ và file
 vượt quá 10MB **ở bước presign** (zod, phản hồi sớm cho UX — không phải ràng buộc mật mã học cuối
@@ -207,6 +207,42 @@ cùng, xem §1/§4), member được presign nhưng không được liệt kê.
 | ~~Cửa sổ an toàn 24h cho file xoá mềm~~ | ✅ | `BE-09` (10/09/2026) |
 | Chứng minh `publicId` do đúng user gửi request vừa upload (hiện chỉ chứng minh publicId có thật, chưa chứng minh chủ sở hữu — tác động thấp vì UUID khó đoán) | 🟢 | `BE-10` (phần còn lại) |
 | ~~CRUD `folders` (bảng đã có, API chưa có)~~ | ✅ | `BE-19` (11/09/2026) — chỉ API, chưa có màn UI |
-| Màn quản lý tài nguyên (cây thư mục, grid/list) | 🟢 | — (UI chưa xây, API `folders`/`files` đã sẵn sàng) |
+| ~~Màn quản lý tài nguyên (cây thư mục, grid/list)~~ | ✅ | 11/09/2026 — xem [§8](#8-màn-hình-quản-lý-tài-nguyên-frontend) |
 | Tạo ảnh thumbnail / nhiều kích thước | 🟢 | Quan trọng cho trang danh sách sản phẩm |
 | Quét virus với ảnh do khách hàng tải lên (review) | 🟢 | [07 §3](../07-bao-mat.md) |
+
+---
+
+## 8. Màn hình quản lý tài nguyên (frontend)
+
+`/admin/resources` — cây thư mục (lazy-load từng cấp, khớp API `GET /folders?parentId=`) bên trái,
+xem file của thư mục đang chọn dạng lưới/danh sách bên phải. Quyền `files.manage` (admin + super_admin
+đều có, xem `core.seed.ts`) — backend tự kiểm tra lại ở mọi request, sidebar chỉ ẩn/hiện link.
+
+```mermaid
+flowchart LR
+    TREE["Cây thư mục<br/>(trái)"] -->|"chọn 1 thư mục"| GRID["Lưới/danh sách file<br/>(phải)"]
+    GRID -->|"Tải ảnh lên"| UP["useUploadFile()<br/>presign → Cloudinary → POST /files"]
+    UP -.->|"invalidate"| GRID
+    TREE -->|"+ Thư mục mới"| NEWF["POST /folders<br/>parentId = thư mục đang chọn"]
+
+    style GRID fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
+    style UP fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+```
+
+**Bỏ trống `folderId` = cấp gốc, không phải "mọi file".** Trước khi có màn hình này,
+`GET /api/v1/files` bỏ trống `folderId` trả về **toàn bộ** file bất kể thư mục nào (khác hẳn
+`GET /folders` — bỏ trống `parentId` đã LUÔN nghĩa là cấp gốc từ trước). Endpoint `/files` chưa từng
+có người dùng thật nào trước màn hình này (audit dead-code khi xây tính năng), nên sửa lại `folderId`
+cho khớp đúng quy ước của `folders` — không phải thay đổi hành vi đang được ai đó phụ thuộc. Xem
+`backend/src/modules/core/files/files.service.ts`.
+
+Frontend mới: `features/core/files/folders.service.ts` + `folders.hooks.ts` (trước đây module Files
+chỉ có phần file, chưa có phần thư mục ở tầng frontend dù backend đã xong từ `BE-19`).
+
+Kiểm thử: `backend/tests/unit/modules/files.service.test.ts` (2 test mới cho hành vi `folderId`),
+`frontend/tests/unit/services.test.ts` + `frontend/tests/components/hooks.test.tsx` (service/hook mới
+cho folders, và toast lỗi/thành công cho upload/xoá — trước đây `useUploadFile`/`useDeleteFile` không
+có phản hồi lỗi nào cho người dùng). **Đã kiểm chứng thật** bằng Playwright trên dữ liệu thật: tạo thư
+mục → tải ảnh thật lên → xem đúng ở dạng lưới và danh sách → đổi tên thư mục → quay về gốc xác nhận
+KHÔNG lẫn file của thư mục con (đúng phạm vi lọc).

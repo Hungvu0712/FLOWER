@@ -352,7 +352,8 @@ flowchart TD
     S7 -->|Không| S8
     S7A --> S8
     S8["Mount router trong<br/>routes/v1/index.ts đúng prefix"] --> S9
-    S9["Viết test:<br/>unit service + integration route"] --> S10
+    S9["Viết test:<br/>unit service + integration route"] --> S9B
+    S9B["Thêm *.openapi.ts<br/>(registerRoute() cho từng route,<br/>thêm dòng import vào src/openapi/generate.ts)"] --> S10
     S10["Cập nhật docs/06-api-reference.md<br/>+ docs/modules/*.md + CHECKLIST.md"] --> DONE([Xong])
 
     style DONE fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
@@ -370,6 +371,8 @@ flowchart TD
 - [ ] Mount trong `routes/v1/index.ts` đúng prefix (`/admin` hay `/superadmin`)
 - [ ] Thao tác nhạy cảm → ghi `auditLog.record(...)`
 - [ ] Có test unit cho service + integration cho route
+- [ ] Thêm `<module>.openapi.ts` (docs/12 BE-12) — `registerRoute()` cho từng route, dùng LẠI schema từ
+      `*.validation.ts` cho `request`, thêm dòng `import "..."` vào `src/openapi/generate.ts`
 - [ ] Cập nhật [06 · API Reference](06-api-reference.md) và [`CHECKLIST.md`](../CHECKLIST.md)
 
 ---

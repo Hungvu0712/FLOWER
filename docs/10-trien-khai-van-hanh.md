@@ -375,7 +375,7 @@ jobs:
       - run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test          # 555 test, không cần database
+      - run: npm test          # 602 test, không cần database
 
   frontend:
     runs-on: ubuntu-latest

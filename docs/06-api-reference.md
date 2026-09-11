@@ -3,9 +3,13 @@
 Base URL: `http://localhost:4000` (dev) · mọi endpoint mount dưới **`/api/v1`**.
 Ngoại lệ duy nhất không versioning: `GET /health`.
 
-> Đây là tài liệu **viết tay**, có thể lệch với code khi có thay đổi. Nguồn sự thật là các file
-> `*.routes.ts` + `*.validation.ts` trong `backend/src/modules/`.
-> Kế hoạch thay bằng **OpenAPI/Swagger** sinh tự động — xem [12 · Đề xuất](12-danh-gia-va-de-xuat.md).
+> Đây là tài liệu **viết tay** — vẫn hữu ích vì có giải thích bối cảnh/lý do (ràng buộc nghiệp vụ, đánh
+> đổi thiết kế) mà 1 spec máy sinh không có, nhưng phần **request/response chi tiết theo từng trường**
+> có thể lệch dần theo thời gian. Từ 11/09/2026, [`GET /docs`](http://localhost:4000/docs) (Swagger UI)
+> và `GET /openapi.json` là **spec sinh trực tiếp từ chính các zod schema `*.validation.ts` đang chạy
+> thật** — phần request (body/query/params) ở đó **không thể lệch code** (docs/12 BE-12). Khi cần biết
+> chính xác 1 field/kiểu dữ liệu, ưu tiên tra ở đó; tài liệu này vẫn là nơi đọc hiểu tổng quan bằng
+> tiếng Việt.
 
 ---
 
@@ -66,6 +70,7 @@ flowchart LR
     ROOT["/api/v1"] --> AUTH["/auth<br/>— công khai"]
     ROOT --> ACC["/account<br/>🔑 authenticate"]
     ROOT --> FILES["/files<br/>🔑 + files.manage cho ghi/xoá"]
+    ROOT --> FOLDERS["/folders<br/>🔑 files.manage"]
     ROOT --> CAT["/categories<br/>— công khai, storefront"]
     ROOT --> PROD["/products<br/>— công khai, storefront"]
     ROOT --> ORD["/orders<br/>— công khai, guest checkout, rate limit 10/15p"]
@@ -74,7 +79,7 @@ flowchart LR
     ROOT --> SA["/superadmin/*<br/>🔑 quản trị hệ thống"]
 
     AUTH --> A1["register · login · logout · refresh<br/>magic-link/request · magic-link/verify<br/>google · forgot-password · reset-password<br/>login-methods"]
-    ACC --> C1["me · profile · change-password<br/>sessions (list · revoke 1 · revoke khác)"]
+    ACC --> C1["me · profile · change-password<br/>sessions (list · revoke 1 · revoke khác)<br/>orders → orders.view_own (lịch sử đơn chính mình)"]
     ADM --> AD1["/admin/categories<br/>categories.manage"]
     ADM --> AD2["/admin/products<br/>products.manage"]
     ADM --> AD3["/admin/contact-messages<br/>contact.manage"]
@@ -84,8 +89,10 @@ flowchart LR
     SA --> S3["/permissions → permissions.manage 🔒"]
     SA --> S4["/login-methods → settings.manage 🔒"]
     SA --> S5["/audit-logs → audit.view"]
+    SA --> S6["/settings → settings.manage 🔒"]
 
     HEALTH["/health<br/>ngoài versioning"]
+    DOCS["/docs · /openapi.json<br/>ngoài versioning — xem docs/12 BE-12"]
 
     style SA fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
     style ADM fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
@@ -300,7 +307,9 @@ Frontend dùng response này để tự dựng `FormData` (file, `apiKey`, `time
 
 ### `GET /api/v1/files?folderId=&view=grid|list&page=1&limit=24`
 
-Trả về dạng phân trang (`data` + `meta`). `limit` tối đa 100, mặc định 24.
+Trả về dạng phân trang (`data` + `meta`). `limit` tối đa 100, mặc định 24. **Bỏ trống `folderId`** =
+chỉ file ở **cấp gốc** (`folderId = null`) — khớp đúng quy ước của `GET /folders` (§6b) — không phải
+liệt kê lẫn lộn toàn bộ file mọi thư mục.
 
 ---
 
@@ -329,8 +338,8 @@ Lỗi: `404 PARENT_NOT_FOUND` (thư mục cha không tồn tại) · `400 FOLDER
 thư mục con làm cha — logic giống hệt `assertNoCycle` của Categories) · `409 FOLDER_NOT_EMPTY` (xoá
 thư mục còn thư mục con hoặc file bên trong — phải chuyển/xoá trước).
 
-> Đây là API nền tảng cho "Màn hình quản lý tài nguyên (cây thư mục, grid/list)" — **màn hình UI
-> chưa được xây** trong lần này (nằm ngoài ước lượng 6 giờ của BE-19), chỉ mới có API.
+> ✅ **Cập nhật 11/09/2026**: màn hình UI "Quản lý tài nguyên" (cây thư mục lazy-load + xem file dạng
+> lưới/danh sách) đã xây xong — `/admin/resources`, xem [modules/core-files.md](modules/core-files.md#5-màn-hình-quản-lý-tài-nguyên).
 
 ---
 
@@ -658,6 +667,54 @@ Lỗi: `409 PERMISSION_CODE_TAKEN` · `403 SYSTEM_PERMISSION_LOCKED` (đổi `co
 
 ---
 
+## 14b. SuperAdmin — System Settings · `/api/v1/superadmin/settings` 🔒 `settings.manage`
+
+Bảng key-value tổng quát (docs/12, Phase 4) — khác `login-methods` ở §14 (bảng riêng, không gộp
+trong lần này, xem [modules/core-settings.md §4](modules/core-settings.md)).
+
+| Method | Path | Mô tả |
+|---|---|---|
+| `GET` | `/` | Danh sách toàn bộ cấu hình hiện có |
+| `PATCH` | `/:key` | Sửa 1 giá trị |
+
+`:key` ∈ `site_name` · `site_logo` · `timezone` · `registration_enabled`. Body: `{ "value": ... }` —
+**kiểu của `value` khác nhau theo từng `key`** (validate lại ở tầng service, vì 1 route dùng chung cho
+mọi key nên không validate tĩnh theo key cụ thể được):
+
+```jsonc
+// site_name — string
+{ "value": "Hoa Xinh" }
+// site_logo — id file (uuid) đã upload qua POST /files, hoặc null để gỡ logo
+{ "value": "uuid-cua-file" }
+// timezone — string định dạng IANA
+{ "value": "Asia/Ho_Chi_Minh" }
+// registration_enabled — boolean
+{ "value": false }
+```
+
+```jsonc
+// GET / — response, LƯU Ý: site_logo trả { fileId, url } | null (đã join thêm url để hiển thị),
+// KHÔNG giống định dạng gửi lên ở PATCH (chỉ fileId thô)
+{ "success": true, "data": [
+  { "key": "site_logo", "value": { "fileId": "uuid", "url": "https://res.cloudinary.com/..." }, "updatedAt": "..." },
+  { "key": "site_name", "value": "Hoa Xinh", "updatedAt": "..." },
+  { "key": "registration_enabled", "value": true, "updatedAt": "..." }
+] }
+```
+
+- `registration_enabled = false` chặn **tạo tài khoản mới** ở mọi phương thức (email/mật khẩu, Google
+  tự tạo lần đầu) — **không** ảnh hưởng người dùng đã có tài khoản đăng nhập lại (khác
+  `login_method_settings` — cái đó khoá riêng từng kênh ĐĂNG NHẬP, kể cả cho user đã tồn tại).
+  Lỗi: `403 REGISTRATION_DISABLED`.
+- `site_logo` tham chiếu `files.id` — set/gỡ giá trị này cũng tự cập nhật `file_usages`
+  (`entity_type = "system_setting"`, `entity_id = "site_logo"`) để cron dọn file mồ côi không xoá
+  nhầm logo đang dùng.
+- **Chưa có** `maintenance_mode` — cần middleware chặn toàn site + lối thoát riêng cho super_admin
+  (nếu không sẽ tự khoá mình ra ngoài), rủi ro/độ phức tạp cao hơn hẳn phần còn lại của bảng này nên
+  chưa làm trong lần này.
+
+---
+
 ## 15. SuperAdmin — Audit Logs · `/api/v1/superadmin/audit-logs` 🔒 `audit.view`
 
 | Method | Path | Mô tả |
@@ -694,9 +751,8 @@ GET    /api/v1/admin/orders/delivery-queue      # orders.view_delivery_queue (fl
 GET    /api/v1/admin/orders/shipping-queue      # orders.view_shipping_queue (shipper)
 ```
 
-`GET /api/v1/account/orders` (khách xem đơn của chính mình, `orders.view_own`, row-level check
-`orders.user_id = req.user.id`) cũng chưa có — hiện khách xem lại đơn qua link `/don-hang/:id` đã lưu
-(không cần đăng nhập), xem [modules/domain-orders.md](modules/domain-orders.md).
+> ✅ **Cập nhật 11/09/2026**: `GET /api/v1/account/orders` (khách xem đơn của chính mình, đã triển
+> khai — xem §9).
 
 Khi triển khai, tuân theo checklist ở [03 · Backend §10](03-backend.md#10-checklist-tạo-module-backend-mới)
 và cập nhật lại tài liệu này.

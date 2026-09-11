@@ -31,10 +31,12 @@ flowchart LR
         G11["✅ BE-14→19, OPS-04 đã xử lý (11/09/2026)<br/>rate limit theo email · khoá tạm sau 5 lần sai<br/>logger pino JSON có cấu trúc · CRUD folders<br/>.nvmrc/engines · dọn tsconfig paths chết"]
         G12["✅ FE-04→06 đã xử lý (11/09/2026)<br/>loading skeleton 3 route Server Component<br/>next/image toàn bộ ảnh Cloudinary<br/>generateMetadata sản phẩm/danh mục"]
         G13["✅ OPS-01 đã xử lý (11/09/2026)<br/>RUN_JOBS tách cron khỏi NODE_ENV<br/>scale ngang API mà cron chỉ chạy 1 nơi"]
+        G14["✅ BE-12 đã xử lý (11/09/2026)<br/>OpenAPI/Swagger sinh từ zod schema thật<br/>GET /docs · GET /openapi.json"]
+        G15["✅ Màn quản lý tài nguyên đã xây (11/09/2026)<br/>+ system_settings key-value tổng quát<br/>(site_name/logo/timezone/registration_enabled)"]
     end
 
     subgraph GAP["⚠️ Khoảng trống"]
-        B7["🟢 Chưa có OpenAPI/Swagger (BE-12)<br/>chưa có màn UI quản lý tài nguyên"]
+        B7["🟡 BE-20: nhánh tự tạo tài khoản<br/>chết trong verifyMagicLink()<br/>(phát hiện khi làm registration_enabled)"]
     end
 
     style GOOD fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
@@ -43,10 +45,10 @@ flowchart LR
 
 **Nhận định chung**: nền tảng vững hơn mức thường thấy ở dự án cùng quy mô. Kiến trúc phân tầng
 đúng, quy ước nhất quán, và — điều hiếm gặp — **các quyết định đánh đổi đều được ghi lại lý do
-ngay trong code**. Toàn bộ 6 lỗ hổng phiên đăng nhập mức 🔴 (BE-01 → BE-06, 10/09/2026), **12/13
+ngay trong code**. Toàn bộ 6 lỗ hổng phiên đăng nhập mức 🔴 (BE-01 → BE-06, 10/09/2026), **13/14
 khoản nợ 🟡** (§3, 10-11/09/2026), và **toàn bộ 10/10 khoản nợ 🟢** (§4, 11/09/2026) đã được xử lý.
-Chỉ còn lại `BE-12` (OpenAPI, ~8 giờ) — không phải nợ kỹ thuật cấp thiết, chỉ là tiện ích cho việc tích
-hợp API sau này.
+Còn duy nhất `BE-20` (§3, phát hiện 11/09/2026 khi làm `registration_enabled`) — cần quyết định sản
+phẩm trước khi sửa, không phải lỗi bảo mật hay chặn production.
 
 ### Bảng điểm
 
@@ -56,7 +58,7 @@ hợp API sau này.
 | Chuẩn hoá error/response | 10/10 | Nhất quán tuyệt đối, `asyncHandler` phủ 100% controller |
 | Bảo mật | 9/10 | 6/6 lỗ hổng 🔴 đã xử lý (§2); còn vài khoản nợ 🟡 không khẩn |
 | Khả năng bảo trì | 9/10 | Comment chất lượng cao; đã có Prettier thống nhất style (BE-08) |
-| Kiểm thử | 8/10 | 555 test backend + 126 test frontend + ~30 E2E; thiếu CI |
+| Kiểm thử | 8/10 | 602 test backend + 144 test frontend + ~30 E2E; thiếu CI |
 | Tài liệu | 9/10 | Đầy đủ, có sơ đồ; cần giữ đồng bộ với code |
 | Sẵn sàng production | 6/10 | Lỗ hổng phiên đăng nhập đã bịt; còn thiếu CI/CD, Docker, giám sát, HTTPS |
 
@@ -558,7 +560,7 @@ và 2 kiểm tra riêng ở production (không áp dụng ở dev/test).
 
 ---
 
-### BE-12 · Chưa có OpenAPI/Swagger
+### BE-12 · Chưa có OpenAPI/Swagger — ✅ ĐÃ XỬ LÝ (11/09/2026)
 
 [06 · API Reference](06-api-reference.md) là tài liệu viết tay — chắc chắn sẽ lệch với code theo
 thời gian.
@@ -566,7 +568,51 @@ thời gian.
 **Đề xuất**: dùng `@asteasolutions/zod-to-openapi` để sinh spec **từ chính các zod schema đã có**
 trong `*.validation.ts` — không phải viết lại lần hai, và không thể lệch.
 
-**Ước lượng**: 8 giờ.
+**Ước lượng**: 8 giờ. **Thực tế**: ~7 giờ.
+
+**Đã làm** — đúng công cụ đề xuất (`@asteasolutions/zod-to-openapi` 7.3.4, bản tương thích zod v3;
+7.x là nhánh cuối cùng hỗ trợ zod v3 — 8.x/9.x đã chuyển sang yêu cầu zod v4, dự án chưa nâng cấp),
+cộng `swagger-ui-express` để có UI xem trực tiếp thay vì chỉ 1 file JSON:
+
+- `backend/src/openapi/registry.ts` — `OpenAPIRegistry` dùng chung toàn app + gọi
+  `extendZodWithOpenApi(z)` một lần duy nhất.
+- `backend/src/openapi/components.ts` — hàm `registerRoute()` là **điểm DUY NHẤT** gọi
+  `registry.registerPath()` trong toàn codebase: tự suy ra response 401/403/422 dựa trên
+  `auth`/`request`, tự bọc response đúng envelope thật của `shared/response/ApiResponse.ts`
+  (`{success, message, data}` hoặc `{success, message, data: [], meta}` khi `paginated: true`) và
+  `shared/middleware/errorHandler.ts` (`ErrorResponse`/`ValidationErrorResponse`) — nhờ vậy 61
+  endpoint đồng nhất tuyệt đối về shape, không phải tự dựng lại từng lần.
+- `backend/src/openapi/schemas/shared.ts` — vài schema RESPONSE dùng lại nhiều nơi (`File`,
+  `SafeUser`, `Permission`).
+- **17 file `<module>.openapi.ts`** (1 file / 1 file `*.routes.ts`, đúng ranh giới module hiện có) —
+  mỗi route gọi `registerRoute()`, phần `request.body/query/params` dùng **LẠI CHÍNH XÁC** schema từ
+  `*.validation.ts` (không viết lại — đây là phần "không thể lệch" thật sự, vì `validate()` middleware
+  ở route và `registerPath()` ở đây trỏ vào CÙNG MỘT object schema). Phần response là mô tả viết tay
+  dựa trên `prisma/schema.prisma` + đọc lại `*.service.ts`/`*.controller.ts` thật — **không có cùng mức
+  đảm bảo "không thể lệch"** như phần request, vì codebase chưa có schema đầu ra cho response (chỉ có
+  input schema) — đây là đánh đổi có ý thức, ghi rõ trong mô tả `info.description` của chính spec sinh
+  ra, để không âm thầm tự nhận "toàn bộ spec không thể lệch" khi chỉ đúng với 1 nửa (request).
+- `backend/src/openapi/generate.ts` — import side-effect cả 17 file trên rồi sinh document bằng
+  `OpenApiGeneratorV3`; sinh lại mỗi lần gọi (không cache), rẻ (< 100ms).
+- `backend/src/openapi/routes.ts` + mount ở `app.ts`: `GET /openapi.json` (raw spec) và `GET /docs`
+  (Swagger UI, đọc spec qua `/openapi.json`) — **ngoài versioning**, giống `/health`, vì đây là hạ tầng
+  mô tả API chứ không phải bản thân API; mọi path bên trong document đã tự ghi rõ `/api/v1/...`.
+- `docs/03-backend.md` §10 — thêm bước "thêm `*.openapi.ts`" vào checklist tạo module mới, để quy ước
+  này không rơi rụng dần khi thêm endpoint sau này (bài học từ chính `docs/06` viết tay bị lệch).
+- Test: `backend/tests/unit/openapi/components.test.ts` (9 test — cơ chế `registerRoute()`: route công
+  khai không có 401, route cần đăng nhập có đủ 401, route có permission có đủ 401+403 và mô tả nhắc
+  đúng permission, tự thêm 422 khi có request, không tự thêm 422 khi không có, `paginated` bọc đúng
+  mảng + meta, `extraStatuses`, mã status tuỳ chỉnh) và `backend/tests/unit/openapi/generate.test.ts`
+  (8 test — document sinh không lỗi, đủ 61/61 endpoint thật — con số PIN CỨNG để bắt lỗi quên import
+  module mới vào `generate.ts`, security đúng cho route công khai/cần đăng nhập, response phân trang
+  đúng shape, đủ 2 security scheme). `backend/tests/integration/app.test.ts` thêm 2 test gọi thật qua
+  Express app (`GET /openapi.json`, `GET /docs`). **Đã kiểm chứng thật**: build + khởi động server
+  thật, gọi `/openapi.json` xác nhận đúng 61 operation/49 path, dùng Playwright mở `/docs` thật trong
+  trình duyệt — Swagger UI render đủ 17 nhóm tag/61 endpoint, không lỗi console, mở rộng 1 endpoint xác
+  nhận request/response/example hiển thị đúng tiếng Việt.
+- **Chưa làm** (nằm ngoài phạm vi hợp lý của việc "sinh spec từ zod schema có sẵn"): viết schema đầu
+  RA (response) bằng zod cho từng service — codebase hiện không có lớp này, thêm vào là một thay đổi
+  kiến trúc riêng (serialization layer), không phải việc của BE-12.
 
 ---
 
@@ -657,6 +703,43 @@ trỏ tới biến cấu hình thay vì lặp lại con số cứng, nên không
 
 Cùng đợt dọn dẹp này cũng đã cập nhật **56 file** có comment trỏ tới đường dẫn cũ (`core/` → `shared/`)
 hoặc tài liệu đã di chuyển (`ARCHITECTURE.md`/`DATABASE.md`/`SECURITY.md` → `docs/`).
+
+---
+
+### BE-20 · `verifyMagicLink()` có nhánh "tự tạo tài khoản" không bao giờ chạy tới
+
+Phát hiện khi làm `registration_enabled` (Phase 4, `system_settings` — xem
+[docs/modules/core-settings.md §6](modules/core-settings.md)). Comment ở `auth.service.ts` và
+[docs/06 §4](06-api-reference.md) đều mô tả: *"Email chưa từng có tài khoản → tự tạo tài khoản (magic
+link kiêm luôn vai trò 'đăng ký nhanh')"*. Thực tế **không đúng**: `requestMagicLink()` chỉ tạo token
+(và gửi email) khi `findUserByEmail()` tìm thấy user đã tồn tại —
+
+```ts
+// auth.service.ts — requestMagicLink()
+const user = await repo.findUserByEmail(input.email);
+if (user && user.status !== "blocked" && !user.deletedAt) {
+  // ... chỉ tạo token + gửi email trong nhánh này
+}
+```
+
+— nghĩa là email **chưa từng đăng ký** không bao giờ nhận được magic link nào để verify, nên nhánh
+"tự tạo tài khoản" trong `verifyMagicLink()` (`if (!user) { user = await repo.createUserWithMemberRole(...) }`)
+là **dead code** không thể chạm tới qua luồng thật hiện tại.
+
+**Hai hướng sửa, chưa chọn hướng nào** (cần quyết định sản phẩm, không tự ý đổi hành vi đăng ký khi
+đang làm việc khác):
+
+1. Bỏ điều kiện `user &&` ở `requestMagicLink()` để email lạ cũng nhận được link — khớp đúng mô tả
+   tài liệu hiện có. Response `requestMagicLink` **không đổi** (đã luôn trả 200 bất kể email tồn tại
+   hay không, đúng nguyên tắc chống dò tài khoản) — chỉ đổi việc email lạ có thực sự nhận được mail
+   hay không.
+2. Xoá nhánh chết trong `verifyMagicLink()` + sửa lại comment/tài liệu cho khớp thực tế: magic link
+   chỉ dùng để **đăng nhập** cho tài khoản đã tồn tại, không kiêm đăng ký.
+
+`assertRegistrationEnabled()` (Phase 4) đã được thêm sẵn vào nhánh chết đó — phòng trường hợp hướng 1
+được chọn sau này, cờ `registration_enabled` sẽ tự áp dụng đúng luôn mà không cần sửa gì thêm.
+
+**Ước lượng khảo sát thêm + quyết định + sửa**: ~1 giờ.
 
 ---
 
