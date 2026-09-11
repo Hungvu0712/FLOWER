@@ -223,7 +223,7 @@ phát hiện mất quyền. `authorized` chỉ được tin khi kết quả refe
 
 | Việc | Ưu tiên | Ghi chú |
 |---|:---:|---|
-| **Row-level check** cho module domain | 🟡 | Bắt buộc trước khi làm `orders` — xem [12 §5.1](../12-danh-gia-va-de-xuat.md) |
-| Transaction cho `roles.update` | 🔴 | `BE-06` |
-| Màn tra cứu Audit Log | 🟡 | API đã có, chưa có UI |
+| ~~**Row-level check** cho module domain~~ | ✅ | Đã làm 1/2 (`GET /api/v1/account/orders`, 11/09/2026) — còn hàng đợi giao hàng `shipper` chưa làm, xem [12 §5.1](../12-danh-gia-va-de-xuat.md) |
+| ~~Transaction cho `roles.update`~~ | ✅ | `BE-06` (10/09/2026) |
+| ~~Màn tra cứu Audit Log~~ | ✅ | `/superadmin/audit-logs` (11/09/2026) — lọc theo loại đối tượng/khoảng ngày, chi tiết before/after |
 | Gán **nhiều role** cho một user qua UI | 🟢 | Schema `user_roles` đã hỗ trợ n-n, UI hiện chỉ cho 1 role |

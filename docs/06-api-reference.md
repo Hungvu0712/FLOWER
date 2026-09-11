@@ -449,6 +449,7 @@ client, xem [modules/domain-orders.md](modules/domain-orders.md)).
 |---|---|---|---|
 | `POST` | `/api/v1/orders` | — (guest checkout) | Tạo đơn hàng — rate limit 10/15 phút theo IP |
 | `GET` | `/api/v1/orders/:id` | — | Tra cứu 1 đơn theo `id` (UUID đóng vai trò token, xem dưới) |
+| `GET` | `/api/v1/account/orders?page=&limit=` | `orders.view_own` | Lịch sử đơn của khách **đã đăng nhập** — chỉ trả đơn của chính mình (row-level check, xem dưới) |
 | `GET` | `/api/v1/admin/orders?status=&page=&limit=` | `orders.view_all` | Danh sách đơn (phân trang) |
 | `GET` | `/api/v1/admin/orders/:id` | `orders.view_all` | Chi tiết 1 đơn |
 | `PATCH` | `/api/v1/admin/orders/:id/status` | `orders.update_status` hoặc `orders.cancel` — xem dưới | Đổi trạng thái đơn |
@@ -483,6 +484,15 @@ giống trang xác nhận đơn hàng khách của các nền tảng thương m�
 `HX2609100001`) chỉ để **hiển thị/đọc qua điện thoại**, KHÔNG dùng làm khoá tra cứu — dễ đoán hơn UUID
 nên không đủ an toàn để đóng vai trò quyền truy cập (chống IDOR, xem [07 §2](07-bao-mat.md)).
 `404 NOT_FOUND` khi `id` không tồn tại.
+
+### `GET /api/v1/account/orders` (docs/12 §5.1 — row-level check)
+
+Yêu cầu đăng nhập + permission `orders.view_own` (seed sẵn cho role `member`, xem
+[05 §2.4](05-database-va-rbac.md#24-ma-trận-vai-trò--quyền-mặc-định-seed)). **Luôn lọc theo
+`userId = req.user.id` ngay trong câu truy vấn** — không có tham số nào truyền vào để xem đơn của
+người khác; khác `/admin/orders` (permission `orders.view_all`, thấy mọi đơn). Trả về dạng phân
+trang (`data` + `meta`), sắp xếp mới nhất trước. Đơn đặt lúc CHƯA đăng nhập (guest checkout,
+`userId: null`) không hiện ở đây — tra cứu qua `GET /api/v1/orders/:id` (link đã lưu).
 
 ### `PATCH /api/v1/admin/orders/:id/status`
 

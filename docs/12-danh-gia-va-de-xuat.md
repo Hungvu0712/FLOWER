@@ -30,10 +30,10 @@ flowchart LR
         G10["✅ FE-01, FE-02, OPS-02, OPS-03 đã xử lý (11/09/2026)<br/>Error Boundary · xoá useAuthStore trùng lặp<br/>nén + mã hoá backup (RSA/AES-256-GCM)<br/>phân trang next_cursor khi dọn backup cũ"]
         G11["✅ BE-14→19, OPS-04 đã xử lý (11/09/2026)<br/>rate limit theo email · khoá tạm sau 5 lần sai<br/>logger pino JSON có cấu trúc · CRUD folders<br/>.nvmrc/engines · dọn tsconfig paths chết"]
         G12["✅ FE-04→06 đã xử lý (11/09/2026)<br/>loading skeleton 3 route Server Component<br/>next/image toàn bộ ảnh Cloudinary<br/>generateMetadata sản phẩm/danh mục"]
+        G13["✅ OPS-01 đã xử lý (11/09/2026)<br/>RUN_JOBS tách cron khỏi NODE_ENV<br/>scale ngang API mà cron chỉ chạy 1 nơi"]
     end
 
     subgraph GAP["⚠️ Khoảng trống"]
-        B6["🟡 Cron trong tiến trình API<br/>chặn scale ngang (OPS-01)"]
         B7["🟢 Chưa có OpenAPI/Swagger (BE-12)<br/>chưa có màn UI quản lý tài nguyên"]
     end
 
@@ -43,10 +43,10 @@ flowchart LR
 
 **Nhận định chung**: nền tảng vững hơn mức thường thấy ở dự án cùng quy mô. Kiến trúc phân tầng
 đúng, quy ước nhất quán, và — điều hiếm gặp — **các quyết định đánh đổi đều được ghi lại lý do
-ngay trong code**. Toàn bộ 6 lỗ hổng phiên đăng nhập mức 🔴 (BE-01 → BE-06, 10/09/2026), **11/13
+ngay trong code**. Toàn bộ 6 lỗ hổng phiên đăng nhập mức 🔴 (BE-01 → BE-06, 10/09/2026), **12/13
 khoản nợ 🟡** (§3, 10-11/09/2026), và **toàn bộ 10/10 khoản nợ 🟢** (§4, 11/09/2026) đã được xử lý.
-Chỉ còn lại `BE-12` (OpenAPI, ~8 giờ) và `OPS-01` (tách cron khỏi tiến trình API — thay đổi kiến
-trúc triển khai, cần cân nhắc riêng trước khi làm, không phải việc code đơn thuần).
+Chỉ còn lại `BE-12` (OpenAPI, ~8 giờ) — không phải nợ kỹ thuật cấp thiết, chỉ là tiện ích cho việc tích
+hợp API sau này.
 
 ### Bảng điểm
 
@@ -56,7 +56,7 @@ trúc triển khai, cần cân nhắc riêng trước khi làm, không phải vi
 | Chuẩn hoá error/response | 10/10 | Nhất quán tuyệt đối, `asyncHandler` phủ 100% controller |
 | Bảo mật | 9/10 | 6/6 lỗ hổng 🔴 đã xử lý (§2); còn vài khoản nợ 🟡 không khẩn |
 | Khả năng bảo trì | 9/10 | Comment chất lượng cao; đã có Prettier thống nhất style (BE-08) |
-| Kiểm thử | 8/10 | 541 test backend + 120 test frontend + ~30 E2E; thiếu CI |
+| Kiểm thử | 8/10 | 555 test backend + 126 test frontend + ~30 E2E; thiếu CI |
 | Tài liệu | 9/10 | Đầy đủ, có sơ đồ; cần giữ đồng bộ với code |
 | Sẵn sàng production | 6/10 | Lỗ hổng phiên đăng nhập đã bịt; còn thiếu CI/CD, Docker, giám sát, HTTPS |
 
@@ -343,7 +343,7 @@ Hệ quả: diff Git nhiễu vì thay đổi style lẫn vào thay đổi logic,
 
 ---
 
-### OPS-01 · Cron chạy trong tiến trình API — chặn scale ngang
+### OPS-01 · Cron chạy trong tiến trình API — chặn scale ngang — ✅ ĐÃ XỬ LÝ (11/09/2026)
 
 `jobs/index.ts` đăng ký cron ngay trong tiến trình backend. Khi chạy **nhiều instance** (điều bắt
 buộc để chịu tải dịp lễ), mỗi instance đều chạy backup → trùng lặp, tốn dung lượng Cloudinary, và các
@@ -375,7 +375,30 @@ flowchart TD
 if (env.isProd && process.env.RUN_JOBS === "true") registerJobs();
 ```
 
-**Ước lượng**: 3 giờ (gồm cập nhật `docker-compose.yml`).
+**Ước lượng**: 3 giờ (gồm cập nhật `docker-compose.yml`). **Thực tế**: ~2 giờ.
+
+**Đã làm** — đúng như đề xuất, cộng validate qua zod thay vì đọc `process.env` trực tiếp (nhất quán
+với toàn bộ biến khác trong `config/env.ts`):
+
+- `backend/src/config/env.ts` — thêm `RUN_JOBS: z.enum(["true", "false"]).default("false")`, export
+  `env.runJobs: boolean`. Mặc định `false` (opt-in bắt buộc) — không instance API nào vô tình chạy cron
+  nếu quên cấu hình, tránh đúng lỗi trùng lặp mà việc tách worker này giải quyết.
+- `backend/src/server.ts` — điều kiện đăng ký cron đổi từ `if (env.isProd)` thành
+  `if (env.isProd && env.runJobs)`, có log riêng cho từng lý do không chạy (dev, hay prod nhưng
+  `RUN_JOBS != true`) để dễ chẩn đoán khi triển khai sai cấu hình.
+- `backend/.env.example`, [docs/09 §2, §5](09-moi-truong-va-bien-cau-hinh.md) — tài liệu hoá `RUN_JOBS`
+  đầy đủ theo mẫu bắt buộc ở CLAUDE.md §4 (mức độ, ý nghĩa, mặc định, hệ quả khi sai).
+- [docs/10 §3, §4, §5](10-trien-khai-van-hanh.md) — cập nhật checklist trước khi lên production, thêm
+  service `worker` vào `docker-compose.yml` đề xuất (cùng image với `backend`, khác `RUN_JOBS`, không
+  expose port, `deploy.replicas: 1`), cập nhật sơ đồ kiến trúc VPS+Docker.
+- Test: `backend/tests/unit/config/env.test.ts` — 4 test mới (mặc định `false`, `RUN_JOBS=true`/`false`
+  đọc đúng, giá trị ngoài `true`/`false` bị từ chối khởi động). **Đã kiểm chứng thật**: build rồi khởi
+  động server thật với 3 tổ hợp (`production` không `RUN_JOBS` → không đăng ký cron; `production` +
+  `RUN_JOBS=true` → đăng ký đủ 4 cron job; `development` → log nhắc bật `RUN_JOBS`), log ra đúng như kỳ
+  vọng ở cả 3 trường hợp.
+- **Chưa làm** (ngoài phạm vi — cần hạ tầng thật, không phải thay đổi code): dựng `Dockerfile` thật,
+  chạy `docker-compose.yml` thật trên VPS. Bản thân file compose vẫn chỉ là "đề xuất" như đã ghi chú ở
+  đầu docs/10 — Phase 7 (Production) chưa triển khai.
 
 ---
 
@@ -656,7 +679,7 @@ hoặc tài liệu đã di chuyển (`ARCHITECTURE.md`/`DATABASE.md`/`SECURITY.m
 
 ## 5. Đề xuất kiến trúc cho giai đoạn tới
 
-### 5.1. Trước khi viết module `orders` — chuẩn hoá kiểm tra phạm vi dữ liệu
+### 5.1. Trước khi viết module `orders` — chuẩn hoá kiểm tra phạm vi dữ liệu — ✅ ĐÃ XỬ LÝ 1/2 (11/09/2026)
 
 > ✅ **Cập nhật (10/09/2026)**: module `orders` đã triển khai giai đoạn cơ bản (xem
 > [modules/domain-orders.md](modules/domain-orders.md)) nhưng **CHƯA cần** helper row-level check dưới
@@ -666,6 +689,17 @@ hoặc tài liệu đã di chuyển (`ARCHITECTURE.md`/`DATABASE.md`/`SECURITY.m
 > xem lịch sử đơn khi đăng nhập, cần `order.userId === req.user.id`) và hàng đợi giao hàng của
 > `shipper` (`delivery.shipperId === req.user.id`, chưa có vì chưa tách `order_deliveries`) — viết
 > helper này khi bắt tay vào 1 trong 2 việc đó.
+>
+> ✅ **Cập nhật (11/09/2026)**: đã làm việc **thứ nhất** — `GET /api/v1/account/orders` (lịch sử đơn
+> của khách đã đăng nhập). Khác nhỏ so với helper `assertCanAccess` đề xuất bên dưới: đây là endpoint
+> **LIST** (nhiều bản ghi), nên row-level check đúng chỗ nhất là **lọc ngay trong câu truy vấn**
+> (`prisma.order.findMany({ where: { userId } })`) thay vì gọi helper kiểm tra TỪNG bản ghi sau khi đã
+> lấy về — helper `assertCanAccess` (kiểm tra 1 bản ghi cụ thể, trả `404` nếu không phải chủ sở hữu)
+> vẫn đúng và còn giá trị cho việc thứ hai (**hàng đợi giao hàng của `shipper`** — chưa làm, cần bảng
+> `order_deliveries` trước). Đã seed permission `orders.view_own` cho role `member` (trước đây có
+> permission nhưng chưa gán cho ai — không role nào check được). Xác nhận thật trên DB dev: đăng ký 2
+> tài khoản, đặt 1 đơn bằng tài khoản A, gọi endpoint bằng tài khoản B — B nhận danh sách RỖNG, không
+> thấy đơn của A.
 
 Toàn bộ RBAC hiện tại là **permission-based** (làm được hành động gì). Việc row-level check dưới đây
 là bước tiếp theo cần có — `shipper` chỉ thấy đơn của mình, `member` chỉ thấy đơn của mình.

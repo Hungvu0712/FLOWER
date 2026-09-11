@@ -81,7 +81,8 @@ Checklist bắt buộc — **không bỏ qua mục nào**:
 
 - [ ] **Secret riêng cho production**: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `COOKIE_SECRET`
       sinh mới, khác hoàn toàn dev/staging
-- [ ] `NODE_ENV=production` (bật cookie `secure`, bật cron)
+- [ ] `NODE_ENV=production` (bật cookie `secure`) + `RUN_JOBS=true` trên **đúng 1 instance/worker**
+      (bật cron — xem [docs/09 §5](09-moi-truong-va-bien-cau-hinh.md), `OPS-01`)
 - [ ] `FRONTEND_URL` trỏ đúng domain thật (HTTPS)
 - [ ] `NEXT_PUBLIC_API_URL` trỏ đúng API thật (HTTPS) — và **build lại** frontend sau khi đổi
 - [ ] Tài khoản/folder Cloudinary riêng cho production
@@ -130,7 +131,12 @@ Build Command    : npm ci && npx prisma generate && npm run build
 Start Command    : npx prisma migrate deploy && npm start
 Health Check     : /health
 Environment      : toàn bộ biến ở docs/09 (dùng phần Secrets của nền tảng)
+                    + RUN_JOBS=true (chỉ 1 instance — xem OPS-01, docs/09 §5)
 ```
+
+> Nền tảng cho scale tự động lên **nhiều instance** khi tải cao — nếu bật scale, đổi `RUN_JOBS=true`
+> chỉ ở **một** instance cố định (không để scale tự động nhân bản nó), hoặc tách một service cron
+> riêng chạy `RUN_JOBS=true` cùng image nhưng không nhận traffic, hoặc chuyển sang phương án B.
 
 > `prisma migrate deploy` (không phải `migrate dev`) — chỉ **áp** migration đã commit, không tự sinh
 > migration mới và không hỏi tương tác.
@@ -151,14 +157,21 @@ Environment      : toàn bộ biến ở docs/09 (dùng phần Secrets của n�
 flowchart TB
     U[Người dùng] -->|HTTPS 443| CADDY["Caddy / Nginx<br/>reverse proxy + TLS"]
     CADDY -->|"hoaxinh.vn"| FE["Container: frontend<br/>next start :3000"]
-    CADDY -->|"api.hoaxinh.vn"| BE["Container: backend<br/>node dist/server.js :4000"]
+    CADDY -->|"api.hoaxinh.vn"| BE["Container: backend<br/>node dist/server.js :4000<br/>RUN_JOBS=false (mặc định)"]
     BE --> PG[("Container: postgres:16<br/>volume pgdata")]
     BE --> CD[("Cloudinary<br/>ảnh + backup")]
-    BE -.->|"cron 2 ngày/lần<br/>pg_dump"| CD
+    WK["Container: worker<br/>node dist/server.js<br/>RUN_JOBS=true — KHÔNG expose port<br/>1 replica DUY NHẤT"] --> PG
+    WK -.->|"cron 2 ngày/lần<br/>pg_dump"| CD
 
     style CADDY fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
     style PG fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+    style WK fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
 ```
+
+`backend` và `worker` chạy **cùng image** (cùng `Dockerfile` ở §5.1) — khác nhau duy nhất ở biến môi
+trường `RUN_JOBS` và việc `worker` không nhận traffic từ Caddy (chỉ chạy nền). Nhờ vậy scale
+`backend` lên bao nhiêu replica tuỳ ý (`docker compose up --scale backend=3`) mà cron vẫn chỉ chạy ở
+đúng 1 nơi — xem `OPS-01` ở [docs/12](12-danh-gia-va-de-xuat.md).
 
 ### 5.1. `backend/Dockerfile` (đề xuất)
 
@@ -241,10 +254,29 @@ services:
     build: ./backend
     restart: unless-stopped
     env_file: ./backend/.env
+    environment:
+      RUN_JOBS: "false" # API nhận traffic — KHÔNG chạy cron, tránh trùng khi scale nhiều replica
     depends_on:
       postgres: { condition: service_healthy }
     command: sh -c "npx prisma migrate deploy && node dist/server.js"
     expose: ["4000"]
+    # Scale khi cần: docker compose up --scale backend=3 — an toàn vì cron chỉ ở service `worker`
+
+  # docs/12 OPS-01 — cùng image với `backend`, tách riêng CHỈ để chạy cron (dọn token, backup DB, dọn
+  # file mồ côi). KHÔNG expose port, KHÔNG nhận traffic, và LUÔN giữ đúng 1 replica — 2 replica trở lên
+  # sẽ chạy backup/dọn file trùng lặp y hệt vấn đề mà việc tách worker này giải quyết.
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      RUN_JOBS: "true"
+    depends_on:
+      postgres: { condition: service_healthy }
+      backend: { condition: service_started } # chờ backend chạy migrate deploy trước
+    command: node dist/server.js
+    deploy:
+      replicas: 1
 
   frontend:
     build:
@@ -343,7 +375,7 @@ jobs:
       - run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test          # 541 test, không cần database
+      - run: npm test          # 555 test, không cần database
 
   frontend:
     runs-on: ubuntu-latest

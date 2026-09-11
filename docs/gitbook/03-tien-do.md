@@ -16,7 +16,7 @@ description: Tiến độ thực tế của dự án, cập nhật hai tuần m�
 | Hoàn thành tổng thể | **~40%** |
 | Nền tảng kỹ thuật | ✅ Đã xong và đã kiểm thử |
 | Nghiệp vụ bán hàng | 🟡 Mới có phần danh mục |
-| Số bài kiểm thử tự động đang chạy | **661** (backend 541 · giao diện 120) + ~30 kịch bản mô phỏng người dùng |
+| Số bài kiểm thử tự động đang chạy | **681** (backend 555 · giao diện 126) + ~30 kịch bản mô phỏng người dùng |
 | Dự kiến bản dùng thử (MVP) | **Cuối tháng 12/2026** |
 | Dự kiến bản hoàn chỉnh | **Cuối tháng 2/2027** |
 

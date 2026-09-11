@@ -26,7 +26,7 @@
 | 6 | Quality — testing, OpenAPI, logging | 🟡 | ███████░░░ 71% |
 | 7 | Production — Docker, CI/CD, monitoring | ⬜ | ░░░░░░░░░░ 0% |
 
-**Tổng thể: ~40%** · Số test đang chạy: **661** (BE 541 · FE 120) + ~30 kịch bản E2E
+**Tổng thể: ~41%** · Số test đang chạy: **681** (BE 555 · FE 126) + ~30 kịch bản E2E
 
 ---
 
@@ -81,8 +81,8 @@
 - [x] UI `/superadmin/users` · `/roles` · `/permissions` · `/login-methods`
 - [x] `AdminShell` refetch `/account/me` mỗi lần đổi route
 - [x] Trang `/403` riêng cho "đã đăng nhập nhưng thiếu quyền"
-- [ ] **Màn hình tra cứu Audit Log** ⬜ *(API đã có, thiếu UI — 1 ngày)*
-- [ ] **Row-level check** cho module domain ⬜ *(bắt buộc trước `orders`)*
+- [x] **Màn hình tra cứu Audit Log** *(11/09/2026 — `/superadmin/audit-logs`, lọc theo loại đối tượng/khoảng ngày, chi tiết before/after dạng JSON, xác nhận thật với 130 bản ghi audit log trên DB dev)*
+- [x] **Row-level check** cho module domain *(11/09/2026 — `GET /api/v1/account/orders`, lọc `userId = req.user.id` ngay trong query, xác nhận thật với 2 tài khoản trên DB dev; hàng đợi giao hàng `shipper` còn lại, cần bảng `order_deliveries` trước — xem docs/12 §5.1)*
 
 ## Phase 4 — Infrastructure 🟡
 
@@ -128,7 +128,7 @@
 
 ## Phase 6 — Quality 🟡
 
-- [x] **Backend: 541 test** (386 unit + 155 integration) — chạy **không cần database**
+- [x] **Backend: 551 test** (389 unit + 162 integration) — chạy **không cần database**
 - [x] **Frontend: 120 test** (unit + component + hook)
 - [x] **E2E Playwright: ~30 kịch bản** (auth · superadmin · account · categories)
 - [x] Hạ tầng test: Prisma mock tự sinh, `loginAs()` helper
@@ -148,7 +148,7 @@
 - [ ] `Dockerfile` backend (multi-stage, non-root, có `pg_dump`)
 - [ ] `Dockerfile` frontend (truyền `NEXT_PUBLIC_*` lúc build)
 - [ ] `docker-compose.yml` + reverse proxy (Caddy/Nginx) + TLS
-- [ ] Tách container `worker` cho cron *(`OPS-01`)*
+- [ ] Dựng container `worker` cho cron *(`OPS-01` — phần code `RUN_JOBS` đã xong 11/09/2026, chỉ còn dựng `Dockerfile`/`docker-compose.yml` thật)*
 - [ ] Secret riêng cho production (JWT, cookie, DB, Cloudinary)
 - [ ] HTTPS + HSTS + redirect HTTP→HTTPS
 - [ ] Domain thật + Resend verify DKIM/SPF/DMARC
@@ -189,7 +189,7 @@ Chi tiết đầy đủ: [docs/12 · Đánh giá & đề xuất](docs/12-danh-gi
 | `FE-01` | Chưa có Error Boundary → lỗi render = trang trắng | 2h | ✅ |
 | `FE-02` | Hai nguồn sự thật cho user (`useAuthStore` + `useMe`) | 3h | ✅ |
 | `FE-03` | ~~Comment `axios.ts` ghi "15 phút", thực tế 5 phút~~ | 5m | ✅ |
-| `OPS-01` | Cron chạy trong tiến trình API → chặn scale ngang | 3h | ⬜ |
+| `OPS-01` | Cron chạy trong tiến trình API → chặn scale ngang | 3h | ✅ |
 | `OPS-02` | Backup chưa nén, chưa mã hoá | 4h | ✅ |
 | `OPS-03` | `cleanupOldBackups` chỉ xử lý 1000 object đầu | 1h | ✅ |
 
@@ -227,14 +227,16 @@ Chi tiết: [docs/07 · Bảo mật](docs/07-bao-mat.md).
 - [x] Presigned URL giới hạn mime/size/TTL
 - [x] Chống dò tài khoản qua email
 - [x] Chống IDOR khi thu hồi session người khác
-- [ ] Thu hồi session sau khi đổi mật khẩu ⬜ `BE-01`
-- [ ] `trust proxy` cho rate limit + audit IP đúng ⬜ `BE-02`
+- [x] Thu hồi session sau khi đổi mật khẩu `BE-01`
+- [x] `trust proxy` cho rate limit + audit IP đúng `BE-02`
+- [x] Rate limit theo email (chồng lên theo IP) `BE-16`
+- [x] Khoá tạm tài khoản sau 5 lần đăng nhập sai, cooldown tăng dần `BE-17`
 - [ ] 2FA (TOTP) cho `super_admin` / `admin` ⬜
-- [ ] Khoá tạm sau N lần đăng nhập sai + captcha ⬜
+- [ ] Captcha sau vài lần đăng nhập sai ⬜
 - [ ] HTTPS + HSTS ở production ⬜
 - [ ] Xác thực email trước khi đặt hàng ⬜
 - [ ] Dependency scanning + gitleaks trong CI ⬜
-- [ ] Mã hoá backup ⬜ `OPS-02`
+- [x] Nén + mã hoá backup (RSA/AES-256-GCM) `OPS-02`
 
 ---
 
@@ -246,7 +248,7 @@ Chi tiết: [docs/07 · Bảo mật](docs/07-bao-mat.md).
 | Thiết lập CI/CD GitHub Actions | 2 ngày | ⬜ |
 | **Module Products** (CRUD + nhiều ảnh, không tồn kho) | 6 ngày | ✅ *(10/09/2026 — chưa gồm biến thể/size riêng, xem `product_variants` ở Phase 5)* |
 | **Cart + Orders (giai đoạn cơ bản)** — làm sớm hơn kế hoạch, ngoài phạm vi kỳ này ban đầu | — | ✅ *(10/09/2026 — guest checkout, COD, chưa thanh toán online, xem `docs/modules/domain-orders.md`)* |
-| Màn hình tra cứu Audit Log | 1 ngày | ⬜ |
+| Màn hình tra cứu Audit Log | 1 ngày | ✅ *(11/09/2026 — `/superadmin/audit-logs`)* |
 
 **Mốc cuối kỳ**: nhập được sản phẩm thật vào hệ thống qua khu quản trị — **đã vượt mốc**: khách đã đặt
 được hàng thật (giỏ hàng → thanh toán COD → xác nhận) và cửa hàng xử lý được đơn qua `/admin/orders`.

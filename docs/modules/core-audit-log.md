@@ -6,6 +6,7 @@ Ghi lại **mọi thao tác nhạy cảm**: ai, khi nào, trên đối tượng 
 |---|---|
 | **Loại** | 🔧 Core |
 | **Backend** | `modules/core/audit-log/` |
+| **Frontend** | `features/core/audit-log/` · `app/(dashboard)/superadmin/audit-logs/page.tsx` |
 | **Bảng DB** | `audit_logs` |
 | **Endpoint** | `GET /api/v1/superadmin/audit-logs` (cần `audit.view`) |
 
@@ -114,7 +115,7 @@ assert rằng audit log **được gọi với đúng nội dung** sau mỗi tha
 
 | Việc | Ưu tiên | Ghi chú |
 |---|:---:|---|
-| **Màn hình tra cứu** cho super_admin | 🟡 | API đã đầy đủ, chỉ thiếu UI |
+| ~~**Màn hình tra cứu** cho super_admin~~ | ✅ | `/superadmin/audit-logs` (11/09/2026) — lọc theo `entityType` (ô nhập tự do, tránh lệch khỏi danh sách action ở §3) và khoảng ngày, xem chi tiết `before`/`after` dạng JSON |
 | Xuất CSV để đối soát | 🟢 | |
 | Chính sách lưu trữ (cold storage sau 12 tháng) | 🟢 | `BE-13` |
 | Cảnh báo tự động khi có chuỗi thao tác bất thường | 🟢 | vd nhiều `user.block` liên tiếp |

@@ -49,7 +49,8 @@ thường. Ở `NODE_ENV=production` có thêm 2 kiểm tra riêng: `COOKIE_SECR
 | Biến | Bắt buộc | Mặc định | Ý nghĩa |
 |---|:---:|---|---|
 | `DATABASE_URL` | ✅ | — | Chuỗi kết nối PostgreSQL |
-| `NODE_ENV` | | `development` | Chi phối cookie `secure` và việc đăng ký cron |
+| `NODE_ENV` | | `development` | Chi phối cookie `secure`. Cron cần thêm `RUN_JOBS=true` (docs/12 OPS-01) |
+| `RUN_JOBS` | | `false` | Bật cron — chỉ có tác dụng khi `NODE_ENV=production`. Tách riêng để scale ngang nhiều instance API mà không trùng cron, xem §5 |
 | `PORT` | | `4000` | Cổng API |
 | `FRONTEND_URL` | | `http://localhost:3000` | CORS whitelist + link trong email reset password |
 | `LOG_LEVEL` | | `info` | `error` / `warn` / `info` / `debug` |
@@ -261,6 +262,7 @@ Giá trị `NEXT_PUBLIC_*` được **thay thế lúc build**, không phải lú
 | Biến | Development | Staging | Production |
 |---|---|---|---|
 | `NODE_ENV` | `development` | `production` | `production` |
+| `RUN_JOBS` | `false` | `true` (1 instance duy nhất) | `true` (chỉ container `worker`) |
 | `DATABASE_URL` | Neon (branch dev) | Neon (branch staging) | Neon prod / VPS Postgres |
 | `FRONTEND_URL` | `http://localhost:3000` | `https://staging.…` | `https://hoaxinh.vn` |
 | `LOG_LEVEL` | `debug` | `info` | `info` |
@@ -268,11 +270,16 @@ Giá trị `NEXT_PUBLIC_*` được **thay thế lúc build**, không phải lú
 | Tài khoản/folder Cloudinary | `flower-dev` | `flower-staging` | `flower-prod` |
 | `EMAIL_PROVIDER` | `smtp` | `resend` | `resend` |
 | `SUPER_ADMIN_PASSWORD` | Tuỳ ý | Mạnh | **Mạnh + đổi ngay sau seed** |
-| Cron jobs | ❌ không chạy | ✅ chạy | ✅ chạy |
+| Cron jobs | ❌ không chạy | ✅ chạy | ✅ chạy (chỉ 1 nơi) |
 | Cookie `secure` | ❌ (cho phép http) | ✅ | ✅ |
 
-> Cron **chỉ đăng ký khi `NODE_ENV=production`** (`server.ts`). Muốn thử backup/dọn file ở dev,
-> tạm đặt `NODE_ENV=production` — nhưng nhớ trỏ `DATABASE_URL`/tài khoản Cloudinary vào tài nguyên dev.
+> Cron **chỉ đăng ký khi `NODE_ENV=production` VÀ `RUN_JOBS=true`** (`server.ts`, docs/12 OPS-01).
+> Triển khai 1 instance duy nhất (staging, hoặc production phương án A — xem
+> [docs/10 §4](10-trien-khai-van-hanh.md)) thì đặt `RUN_JOBS=true` ngay trên instance đó. Triển khai
+> **nhiều instance API** (production phương án B, VPS + Docker) thì CHỈ đặt `RUN_JOBS=true` ở container
+> `worker` riêng — các instance API để mặc định `false`, tránh backup/dọn file chạy trùng lặp. Muốn
+> thử backup/dọn file ở dev, tạm đặt `NODE_ENV=production` + `RUN_JOBS=true` — nhưng nhớ trỏ
+> `DATABASE_URL`/tài khoản Cloudinary vào tài nguyên dev.
 
 ---
 

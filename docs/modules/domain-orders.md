@@ -239,7 +239,7 @@ CUỐI và huỷ-khi-đang-giao. Nếu cần state machine chặt hơn (chỉ ch
 |---|:---:|---|
 | Thanh toán online (VNPay/Momo) — bảng `payments`, webhook verify HMAC | 🟡 | Hiện chỉ COD |
 | Tách `order_deliveries` riêng + `shipper_id` khi làm màn phân công shipper | 🟡 | Hiện nhúng thẳng field giao hàng vào `orders` (xem §2) |
-| `GET /api/v1/account/orders` — khách xem lịch sử đơn khi đăng nhập (`orders.view_own`, row-level check) | 🟡 | Hiện khách xem lại qua link `/don-hang/:id` đã lưu, không có danh sách |
+| ~~`GET /api/v1/account/orders` — khách xem lịch sử đơn khi đăng nhập~~ | ✅ | Đã làm (11/09/2026, docs/12 §5.1) — chỉ API, **chưa có trang UI** hiển thị danh sách này ở frontend |
 | Hàng đợi soạn hoa/giao hàng riêng cho `florist`/`shipper` (`orders.view_delivery_queue`/`view_shipping_queue`) | 🟢 | Permission đã seed sẵn, chưa có UI/route dùng tới |
 | Phân công shipper (`orders.assign_shipper`) | 🟢 | Permission đã seed sẵn, chưa có UI |
 | State machine chặt hơn (chặn nhảy cóc trạng thái) | 🟢 | Xem §7 |
