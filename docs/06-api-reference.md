@@ -142,9 +142,14 @@ Lỗi: `409 EMAIL_TAKEN` · `403 LOGIN_METHOD_DISABLED`.
 { "success": true, "message": "Success", "data": { "user": { "...": "..." } } }
 ```
 
-Lỗi: `401 INVALID_CREDENTIALS` · `403 ACCOUNT_BLOCKED` · `403 LOGIN_METHOD_DISABLED`.
+Lỗi: `401 INVALID_CREDENTIALS` · `403 ACCOUNT_BLOCKED` · `403 LOGIN_METHOD_DISABLED` ·
+`429 ACCOUNT_TEMPORARILY_LOCKED` (docs/12 BE-17 — sai mật khẩu ≥ 5 lần liên tiếp, cooldown tăng dần
+1→2→4→...→30 phút; reset về 0 khi đăng nhập đúng. Trả 429 NGAY, không verify mật khẩu, kể cả gửi
+đúng mật khẩu trong lúc đang khoá).
 
 > Sai email và sai mật khẩu trả **cùng một** thông điệp — không tiết lộ email nào có tài khoản.
+> Rate limit theo IP **và** theo email (docs/12 BE-16) — 2 lớp giới hạn tần suất, cộng thêm cơ chế
+> khoá tạm ở trên; cả 3 ngưỡng hiện là hằng số trong code, chưa cấu hình được qua biến môi trường.
 
 ### `POST /api/v1/auth/magic-link/request`
 
@@ -296,6 +301,36 @@ Frontend dùng response này để tự dựng `FormData` (file, `apiKey`, `time
 ### `GET /api/v1/files?folderId=&view=grid|list&page=1&limit=24`
 
 Trả về dạng phân trang (`data` + `meta`). `limit` tối đa 100, mặc định 24.
+
+---
+
+## 6b. Folders — `/api/v1/folders` 🔑 (docs/12 BE-19)
+
+Cây thư mục cho màn quản lý tài nguyên (file/ảnh) — mọi route đều cần `files.manage`.
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `GET` | `/?parentId=` | `files.manage` | Danh sách thư mục con của `parentId`; bỏ trống = cấp gốc |
+| `POST` | `/` | `files.manage` | Tạo thư mục |
+| `PATCH` | `/:id` | `files.manage` | Sửa tên và/hoặc di chuyển (`parentId`) |
+| `DELETE` | `/:id` | `files.manage` | Xoá — **chỉ khi thư mục rỗng** |
+
+```jsonc
+// POST / — tạo thư mục gốc hoặc thư mục con
+{ "name": "Ảnh sản phẩm", "parentId": null }
+// 201
+{ "success": true, "data": {
+    "id": "uuid", "name": "Ảnh sản phẩm", "parentId": null, "createdBy": "uuid",
+    "createdAt": "...", "_count": { "folders": 0, "files": 0 }
+} }
+```
+
+Lỗi: `404 PARENT_NOT_FOUND` (thư mục cha không tồn tại) · `400 FOLDER_CYCLE` (chọn chính nó hoặc
+thư mục con làm cha — logic giống hệt `assertNoCycle` của Categories) · `409 FOLDER_NOT_EMPTY` (xoá
+thư mục còn thư mục con hoặc file bên trong — phải chuyển/xoá trước).
+
+> Đây là API nền tảng cho "Màn hình quản lý tài nguyên (cây thư mục, grid/list)" — **màn hình UI
+> chưa được xây** trong lần này (nằm ngoài ước lượng 6 giờ của BE-19), chỉ mới có API.
 
 ---
 

@@ -11,7 +11,7 @@ kèm cơ chế đánh dấu tái sử dụng và dọn file mồ côi.
 | **Backend** | `modules/core/files/` · `jobs/cleanupOrphanFiles.job.ts` · `config/cloudinary.ts` |
 | **Frontend** | `features/core/files/` |
 | **Bảng DB** | `files` · `file_usages` · `folders` |
-| **Endpoint** | `/api/v1/files/*` — xem [06 · API §6](../06-api-reference.md) |
+| **Endpoint** | `/api/v1/files/*` · `/api/v1/folders/*` — xem [06 · API §6/§6b](../06-api-reference.md) |
 
 > **Kế hoạch Phase 4** trong tài liệu cũ là đổi tên `files` → `media` + tách `StorageService`.
 > Đánh giá lại ở [12 §5.3](../12-danh-gia-va-de-xuat.md): dự án **đã đổi nhà cung cấp lưu trữ**
@@ -117,7 +117,7 @@ stateDiagram-v2
     MoCoi --> XoaMem: (không bắt buộc)
 
     MoCoi --> XoaHan: cron cleanupOrphanFiles<br/>(10 ngày/lần)
-    XoaMem --> XoaHan: cron — ⚠️ HIỆN XOÁ NGAY,<br/>không có cửa sổ 24h (BE-09)
+    XoaMem --> XoaHan: cron — chờ đủ 24h<br/>từ lúc xoá mềm (BE-09 ✅)
 
     XoaHan --> [*]: destroy() Cloudinary + DELETE files
 
@@ -131,10 +131,11 @@ stateDiagram-v2
     end note
 ```
 
-> ⚠️ **Khác biệt giữa comment và code** (`BE-09` ở [12](../12-danh-gia-va-de-xuat.md)):
+> ✅ **`BE-09` đã xử lý** (10/09/2026, xem [12](../12-danh-gia-va-de-xuat.md)): trước đây comment ở
 > `softDeleteFile` nói Cloudinary object bị purge "ở lượt quét sau để có khoảng đệm an toàn", nhưng
-> job xoá **mọi** file có `deletedAt != null` bất kể xoá cách đây bao lâu. Xoá nhầm lúc 03:59 thì
-> 04:00 là mất. Đổi nhà cung cấp lưu trữ **không** thay đổi bug này — vẫn còn nguyên, chưa fix.
+> job lại xoá **mọi** file có `deletedAt != null` bất kể xoá cách đây bao lâu — xoá nhầm lúc 03:59 thì
+> 04:00 là mất vĩnh viễn. Đã đổi điều kiện query sang `deletedAt: { lt: cutoff }`, dùng chung ngưỡng
+> 24h với nhánh mồ côi bên trên.
 
 ---
 
@@ -203,9 +204,9 @@ cùng, xem §1/§4), member được presign nhưng không được liệt kê.
 
 | Việc | Ưu tiên | Mã |
 |---|:---:|---|
-| Cửa sổ an toàn 24h cho file xoá mềm | 🟡 | `BE-09` |
+| ~~Cửa sổ an toàn 24h cho file xoá mềm~~ | ✅ | `BE-09` (10/09/2026) |
 | Chứng minh `publicId` do đúng user gửi request vừa upload (hiện chỉ chứng minh publicId có thật, chưa chứng minh chủ sở hữu — tác động thấp vì UUID khó đoán) | 🟢 | `BE-10` (phần còn lại) |
-| CRUD `folders` (bảng đã có, API chưa có) | 🟢 | `BE-19` |
-| Màn quản lý tài nguyên (cây thư mục, grid/list) | 🟢 | — |
+| ~~CRUD `folders` (bảng đã có, API chưa có)~~ | ✅ | `BE-19` (11/09/2026) — chỉ API, chưa có màn UI |
+| Màn quản lý tài nguyên (cây thư mục, grid/list) | 🟢 | — (UI chưa xây, API `folders`/`files` đã sẵn sàng) |
 | Tạo ảnh thumbnail / nhiều kích thước | 🟢 | Quan trọng cho trang danh sách sản phẩm |
 | Quét virus với ảnh do khách hàng tải lên (review) | 🟢 | [07 §3](../07-bao-mat.md) |

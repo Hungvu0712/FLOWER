@@ -251,7 +251,7 @@ Frontend có **3 lớp chặn**, nhưng chỉ lớp backend là bảo mật th�
 
 | Bảng               | Cột chính                                                                                                                                                                                                               | Ghi chú                                                       |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| ✅ `users`            | id, full_name, email, password_hash (**nullable** — user chỉ dùng Google/magic link thì không có), phone, avatar_file_id (FK → `files`), status (active/blocked), email_verified_at, created_at, updated_at, deleted_at | `deleted_at` set khi `super_admin` "xoá" user (soft delete)   |
+| ✅ `users`            | id, full_name, email, password_hash (**nullable** — user chỉ dùng Google/magic link thì không có), phone, avatar_file_id (FK → `files`), status (active/blocked), email_verified_at, failed_login_attempts, locked_until, created_at, updated_at, deleted_at | `deleted_at` set khi `super_admin` "xoá" user (soft delete). `failed_login_attempts`/`locked_until` là khoá TẠM tự động sau nhiều lần sai (docs/12 BE-17) — khác `status: 'blocked'` (admin chủ động khoá vĩnh viễn); reset về 0/null khi đăng nhập đúng |
 | ✅ `roles`            | id, code, name, description, is_system                                                                                                                                                                                  | Xem mục 2.2                                                   |
 | ✅ `permissions`      | id, code, group_name, is_system, is_restricted, description                                                                                                                                                             | Xem mục 2.2/2.3                                               |
 | ✅ `role_permissions` | role_id, permission_id                                                                                                                                                                                                  |                                                               |
@@ -409,6 +409,8 @@ erDiagram
         uuid avatar_file_id FK
         string status "active | blocked"
         datetime email_verified_at
+        int failed_login_attempts "khoá TẠM — khác status blocked, xem docs/12 BE-17"
+        datetime locked_until "null = không khoá"
         datetime deleted_at "soft delete"
     }
     roles {

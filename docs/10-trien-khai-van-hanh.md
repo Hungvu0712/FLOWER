@@ -343,7 +343,7 @@ jobs:
       - run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test          # 446 test, không cần database
+      - run: npm test          # 541 test, không cần database
 
   frontend:
     runs-on: ubuntu-latest
@@ -359,7 +359,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm test          # 111 test
+      - run: npm test          # 120 test
       - run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000
@@ -415,43 +415,57 @@ xem [07 · Bảo mật §8](07-bao-mat.md).
 
 ```mermaid
 flowchart LR
-    CRON["node-cron trong tiến trình backend<br/>chỉ chạy khi NODE_ENV=production"] -->|"0 3 */2 * *"| DUMP["pg_dump --format=custom"]
-    DUMP --> UP["upload → Cloudinary<br/>resource_type: raw<br/>backups/db-<timestamp>.dump"]
-    CRON -->|"30 3 */2 * *"| CLEAN["Xoá backup > 30 ngày"]
+    CRON["node-cron trong tiến trình backend<br/>chỉ chạy khi NODE_ENV=production"] -->|"0 3 */2 * *"| DUMP["pg_dump --format=custom<br/>--compress=9"]
+    DUMP --> ENC{"BACKUP_ENCRYPTION_<br/>PUBLIC_KEY đã cấu hình?"}
+    ENC -->|Có| CRYPT["Mã hoá RSA + AES-256-GCM<br/>(khoá riêng KHÔNG ở server)"]
+    ENC -->|Không — chỉ log cảnh báo| UP
+    CRYPT --> UP["upload → Cloudinary<br/>resource_type: raw<br/>backups/db-<timestamp>.dump[.enc]"]
+    CRON -->|"30 3 */2 * *"| CLEAN["Xoá backup > 30 ngày<br/>(lặp qua next_cursor)"]
     CRON -->|"0 4 */10 * *"| ORPHAN["Xoá file mồ côi<br/>(không còn file_usages, > 24h)"]
 
     style CRON fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
+    style CRYPT fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
 ```
 
 | Job | Lịch | Việc |
 |---|---|---|
-| `backupDatabase` | ~2 ngày/lần, 03:00 | `pg_dump` → Cloudinary (`resource_type: "raw"`, prefix `backups/`) |
-| `cleanupOldBackups` | ~2 ngày/lần, 03:30 | Xoá backup cũ hơn 30 ngày |
+| `backupDatabase` | ~2 ngày/lần, 03:00 | `pg_dump --compress=9` → mã hoá (nếu có khoá) → Cloudinary (`resource_type: "raw"`, prefix `backups/`) |
+| `cleanupOldBackups` | ~2 ngày/lần, 03:30 | Xoá backup cũ hơn 30 ngày (lặp hết mọi trang qua `next_cursor`) |
 | `cleanupOrphanFiles` | ~10 ngày/lần, 04:00 | Xoá file Cloudinary (`resource_type: "image"`) không còn ai dùng |
 
 ### Khôi phục từ backup
 
 ```bash
 # 1. Tải bản backup từ Cloudinary (qua Media Library hoặc gọi Admin API resource_type=raw)
-# 2. Khôi phục vào database TRỐNG
+
+# 2a. Nếu tên file có hậu tố .enc (đã mã hoá) — GIẢI MÃ TRƯỚC, chạy OFFLINE bằng khoá RIÊNG
+#     (khoá riêng không bao giờ nằm trên server — xem docs/09 §3.4b):
+npm run decrypt-backup -- db-2026-09-11T03-00-00-000Z.dump.enc backup-private.pem db-2026-09-11.dump
+
+# 2b. Khôi phục vào database TRỐNG
 pg_restore --clean --if-exists --no-owner \
-  --dbname "$DATABASE_URL" db-2026-09-09T03-00-00-000Z.dump
+  --dbname "$DATABASE_URL" db-2026-09-11.dump
 
 # 3. Kiểm tra
 psql "$DATABASE_URL" -c "SELECT count(*) FROM users;"
 ```
 
 > ⚠️ **Backup chưa từng thử khôi phục là backup không tồn tại.** Lên lịch diễn tập khôi phục vào
-> staging **mỗi quý** và ghi kết quả vào [`CHECKLIST.md`](../CHECKLIST.md).
+> staging **mỗi quý** và ghi kết quả vào [`CHECKLIST.md`](../CHECKLIST.md). Diễn tập với backup đã
+> mã hoá PHẢI thử luôn bước giải mã bằng khoá riêng thật — một khoá riêng bị hỏng/thất lạc chỉ lộ ra
+> đúng lúc cần khôi phục thật là quá muộn.
 
 ### Hạn chế đã biết của cơ chế hiện tại
 
 | Hạn chế | Ảnh hưởng | Hướng khắc phục |
 |---|---|---|
-| Cron chạy **trong tiến trình backend** | Chạy nhiều instance → backup trùng lặp; instance chết → không backup | Tách thành container `worker` riêng (chỉ 1 replica), hoặc dùng cron của hệ điều hành |
+| Cron chạy **trong tiến trình backend** | Chạy nhiều instance → backup trùng lặp; instance chết → không backup | Tách thành container `worker` riêng (chỉ 1 replica), hoặc dùng cron của hệ điều hành — [docs/12 OPS-01](12-danh-gia-va-de-xuat.md) |
 | `*/2` trên trường ngày-trong-tháng | Đếm lại từ ngày 1 mỗi tháng, khoảng cách không đều tuyệt đối | Chạy hằng ngày + so mốc thời gian lần chạy trước lưu trong DB |
-| Backup **chưa nén, chưa mã hoá** | Tốn dung lượng; lộ tài khoản Cloudinary = lộ toàn bộ dữ liệu | `gzip` + `gpg`/`age` trước khi upload — xem [12 · Đề xuất](12-danh-gia-va-de-xuat.md) |
-| Backup chung tài khoản Cloudinary với ảnh công khai (khác `resource_type`, nhưng cùng tài khoản/quyền API) | Bề mặt rủi ro rộng hơn cần thiết | Tài khoản Cloudinary riêng cho backup, API key quyền hẹp |
+| Backup chung tài khoản Cloudinary với ảnh công khai (khác `resource_type`, nhưng cùng tài khoản/quyền API) | Bề mặt rủi ro rộng hơn cần thiết | Tài khoản Cloudinary riêng cho backup, API key quyền hẹp — **chưa làm, việc vận hành ngoài phạm vi thay đổi code** (xem [docs/12 OPS-02](12-danh-gia-va-de-xuat.md)) |
+
+> ✅ **Nén + mã hoá backup đã xử lý** (`docs/12 OPS-02`, 11/09/2026) — `pg_dump --compress=9` +
+> mã hoá RSA/AES-256-GCM khi có `BACKUP_ENCRYPTION_PUBLIC_KEY`. Dòng "chưa nén, chưa mã hoá" trước
+> đây ở bảng này đã được gỡ.
 
 ---
 

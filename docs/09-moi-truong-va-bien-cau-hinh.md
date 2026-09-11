@@ -13,17 +13,26 @@ File mẫu có đầy đủ chú thích ngay tại chỗ:
 ```mermaid
 flowchart TD
     START([Khởi động backend]) --> ENV["src/config/env.ts<br/>đọc process.env"]
-    ENV --> CHECK{"Đủ biến BẮT BUỘC?<br/>DATABASE_URL<br/>JWT_ACCESS_SECRET<br/>JWT_REFRESH_SECRET"}
-    CHECK -->|Thiếu| FAIL["❌ throw ngay lúc khởi động<br/>'Missing required environment variable: X'<br/>Tiến trình DỪNG"]
-    CHECK -->|Đủ| DEFAULT["Áp giá trị mặc định<br/>cho biến tuỳ chọn"]
+    ENV --> SCHEMA{"zod schema:<br/>đủ mặt VÀ đúng dạng?<br/>URL hợp lệ · secret ≥ 32 ký tự<br/>enum đúng giá trị · số nguyên dương"}
+    SCHEMA -->|Sai| FAIL["❌ throw ngay lúc khởi động<br/>liệt kê từng lỗi theo tên biến<br/>Tiến trình DỪNG"]
+    SCHEMA -->|Đúng| PRODCHECK{"NODE_ENV=production?"}
+    PRODCHECK -->|Có| PRODGUARD{"COOKIE_SECRET đã đổi?<br/>2 JWT secret khác nhau?"}
+    PRODCHECK -->|Không dev/test| DEFAULT["Áp giá trị mặc định<br/>cho biến tuỳ chọn"]
+    PRODGUARD -->|Không đạt| FAIL
+    PRODGUARD -->|Đạt| DEFAULT
     DEFAULT --> RUN([✅ Server chạy])
 
     style FAIL fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
     style RUN fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
 ```
 
-**Fail-fast** (*hỏng sớm*): thiếu biến bắt buộc thì server **dừng ngay lúc khởi động** với thông điệp
-rõ ràng, thay vì chạy được rồi lỗi mập mờ giữa chừng một request nào đó lúc 2 giờ sáng.
+**Fail-fast** (*hỏng sớm*): thiếu biến bắt buộc, hoặc có mặt nhưng **sai giá trị** (JWT secret quá
+ngắn, `DATABASE_URL` không phải URL hợp lệ, `PORT` không phải số dương...), thì server **dừng ngay
+lúc khởi động** với thông điệp rõ ràng liệt kê từng lỗi, thay vì chạy được rồi lỗi mập mờ giữa chừng
+một request nào đó lúc 2 giờ sáng. Trước đây (`docs/12` `BE-11`, đã xử lý 10/09/2026) chỉ kiểm tra
+biến **có mặt**, không kiểm tra **giá trị** — `JWT_ACCESS_SECRET=x` (1 ký tự) vẫn khởi động bình
+thường. Ở `NODE_ENV=production` có thêm 2 kiểm tra riêng: `COOKIE_SECRET` không còn là giá trị mặc
+định `dev-only-secret`, và `JWT_ACCESS_SECRET` ≠ `JWT_REFRESH_SECRET`.
 
 | Quy tắc | Chi tiết |
 |---|---|
@@ -44,15 +53,17 @@ rõ ràng, thay vì chạy được rồi lỗi mập mờ giữa chừng một 
 | `PORT` | | `4000` | Cổng API |
 | `FRONTEND_URL` | | `http://localhost:3000` | CORS whitelist + link trong email reset password |
 | `LOG_LEVEL` | | `info` | `error` / `warn` / `info` / `debug` |
+| `TRUST_PROXY_HOPS` | | `1` | Số hop reverse proxy phía trước app — chỉ có hiệu lực khi `NODE_ENV=production` (xem [docs/12 BE-02](12-danh-gia-va-de-xuat.md)) |
 | `JWT_ACCESS_SECRET` | ✅ | — | Khoá ký access token |
 | `JWT_REFRESH_SECRET` | ✅ | — | Khoá dự phòng (refresh hiện dùng token ngẫu nhiên) |
 | `JWT_ACCESS_EXPIRES_IN` | | `5m` | Hạn access token |
-| `JWT_REFRESH_EXPIRES_IN` | | `30d` | ⚠️ Hiện **chưa có tác dụng** — giá trị 30 ngày hard-code trong `config/env.ts` |
+| `JWT_REFRESH_EXPIRES_IN` | | `30d` | Hạn refresh token (đơn vị ngày, định dạng bắt buộc `<số>d`) — đọc thật từ env (docs/12 BE-15, trước đây hard-code 30) |
 | `COOKIE_SECRET` | | `dev-only-secret` | Khoá ký cookie — **bắt buộc đổi ở production** |
 | `GOOGLE_CLIENT_ID` | tính năng | `""` | `audience` khi verify Google ID token |
 | `CLOUDINARY_CLOUD_NAME` | tính năng | `""` | Tên định danh tài khoản — dùng dựng URL upload/URL công khai file. **Không** phải secret |
 | `CLOUDINARY_API_KEY` | tính năng | `""` | Nửa còn lại của cặp khoá API (không tự đứng riêng là secret, nhưng đi kèm `API_SECRET`) |
 | `CLOUDINARY_API_SECRET` | tính năng | `""` | 🔑 Secret — ký chữ ký HMAC upload + gọi Admin API (ảnh/file **và** backup DB) |
+| `BACKUP_ENCRYPTION_PUBLIC_KEY` | tính năng | — (không mã hoá) | Base64 của khoá CÔNG KHAI RSA (PEM) — mã hoá file backup trước khi upload. Khuyến nghị **bắt buộc** ở production (docs/12 OPS-02); khoá RIÊNG không bao giờ đặt trên server |
 | `EMAIL_PROVIDER` | | `smtp` | `resend` \| `smtp` |
 | `EMAIL_FROM` | | `no-reply@example.com` | Địa chỉ người gửi |
 | `RESEND_API_KEY` | tính năng | `""` | 🔑 Secret — khi `EMAIL_PROVIDER=resend` |
@@ -137,6 +148,34 @@ flowchart TD
 > Cùng bộ 3 biến này phục vụ **cả module Files (ảnh/PDF, `resource_type: "image"`) lẫn backup
 > database** (`.dump`, `resource_type: "raw"`) — xem [modules/core-files.md](modules/core-files.md)
 > và [07 · Bảo mật §5](07-bao-mat.md).
+
+### 3.4b. Khoá mã hoá backup — `BACKUP_ENCRYPTION_PUBLIC_KEY`
+
+```mermaid
+flowchart TD
+    A["openssl genrsa -out backup-private.pem 4096<br/>(chạy TRÊN MÁY CÁ NHÂN, không chạy trên server)"] --> B["openssl rsa -in backup-private.pem<br/>-pubout -out backup-public.pem"]
+    B --> C["base64 -w0 backup-public.pem"]
+    C --> ENV["BACKUP_ENCRYPTION_PUBLIC_KEY<br/>(đặt trên server)"]
+    A --> SAFE["backup-private.pem<br/>giữ NGOÀI server — password manager,<br/>USB mã hoá... + SAO LƯU"]
+
+    style ENV fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+    style SAFE fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
+```
+
+> ⚠️ **Mất khoá riêng = mất khả năng đọc mọi backup đã mã hoá bằng khoá công khai tương ứng — kể cả
+> chính bạn.** Đây không phải secret kiểu JWT (đổi được, chỉ đăng xuất mọi người): khoá riêng KHÔNG
+> có bản sao ở đâu khác ngoài nơi bạn tự giữ. Sao lưu file `backup-private.pem` **trước khi** đặt
+> `BACKUP_ENCRYPTION_PUBLIC_KEY` lên server.
+>
+> Giải mã 1 backup khi cần khôi phục (chạy OFFLINE, trên máy có `backup-private.pem`):
+> ```bash
+> npm run decrypt-backup -- db-2026-09-11T02-00-00-000Z.dump.enc backup-private.pem restored.dump
+> pg_restore --clean --if-exists --no-owner --dbname "$DATABASE_URL" restored.dump
+> ```
+>
+> Chưa cấu hình biến này → backup vẫn chạy bình thường nhưng **không được mã hoá** trước khi upload
+> (log cảnh báo mỗi lần backup chạy) — chấp nhận được ở dev, **không chấp nhận được ở production**
+> vì backup chứa dữ liệu khách hàng thật. Xem [docs/12 OPS-02](12-danh-gia-va-de-xuat.md).
 
 ### 3.5. Email
 

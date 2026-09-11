@@ -315,18 +315,21 @@ sequenceDiagram
 
 ## 9. Logging
 
-`shared/logger/logger.ts` — logger tối giản, không phụ thuộc thư viện ngoài.
+`shared/logger/logger.ts` — bọc `pino` (docs/12 BE-18, 11/09/2026) sau interface tối giản `logger.*`,
+để đổi thư viện log phía sau (nếu cần) mà 8 file đang gọi logger không phải sửa gì.
 
 ```ts
 logger.info('...');                          // không có request context
-logger.withRequestId(req.requestId).error('...');   // gắn ID để trace xuyên tầng
+logger.withRequestId(req.requestId).error('...');   // gắn ID để trace xuyên tầng — dùng pino child()
 ```
 
 - Level qua `LOG_LEVEL` (`error` < `warn` < `info` < `debug`, mặc định `info`).
 - **Không bao giờ log** password, token (JWT/magic link/reset), cookie, secret,
   toàn bộ `req.body` hay `req.headers`.
-- Khi cần log tập trung ở production, thay lớp này bằng `pino`/`winston` —
-  interface `logger.*` giữ nguyên nên nơi gọi không phải sửa. Xem [12 · Đề xuất](12-danh-gia-va-de-xuat.md).
+- Production in **JSON thô có cấu trúc** thẳng ra stdout (đúng mục đích log tập trung — Datadog/
+  CloudWatch/ELK lọc được theo field) — bất kỳ đối số nào sau message đầu tiên đều gói vào field
+  `detail`, không nối chuỗi thô. Dev/test dùng `pino-pretty` (devDependency) để vẫn đọc được trên
+  terminal như log cũ.
 
 ---
 

@@ -24,15 +24,17 @@ flowchart LR
         G4["Ý thức bảo mật cao<br/>hash token · chống dò email<br/>chặn leo thang quyền"]
         G5["Comment giải thích VÌ SAO<br/>ghi lại cả bug đã từng gặp"]
         G6["TypeScript strict<br/>+ noUncheckedIndexedAccess"]
+        G7["✅ BE-01→06 đã xử lý (10/09/2026)<br/>thu hồi phiên khi đổi mật khẩu · trust proxy<br/>phát hiện refresh token dùng lại · Google<br/>email_verified · token 1 lần nguyên tử · transaction"]
+        G8["✅ BE-08 đã xử lý (10/09/2026)<br/>Prettier cả 2 package + script format/format:check"]
+        G9["✅ BE-07, BE-09, BE-11, BE-13 đã xử lý (10/09/2026)<br/>lỗi Prisma → 409/404 có nghĩa · cửa sổ 24h<br/>trước khi xoá file mềm · validate GIÁ TRỊ biến<br/>môi trường bằng zod · job dọn token/session hết hạn"]
+        G10["✅ FE-01, FE-02, OPS-02, OPS-03 đã xử lý (11/09/2026)<br/>Error Boundary · xoá useAuthStore trùng lặp<br/>nén + mã hoá backup (RSA/AES-256-GCM)<br/>phân trang next_cursor khi dọn backup cũ"]
+        G11["✅ BE-14→19, OPS-04 đã xử lý (11/09/2026)<br/>rate limit theo email · khoá tạm sau 5 lần sai<br/>logger pino JSON có cấu trúc · CRUD folders<br/>.nvmrc/engines · dọn tsconfig paths chết"]
+        G12["✅ FE-04→06 đã xử lý (11/09/2026)<br/>loading skeleton 3 route Server Component<br/>next/image toàn bộ ảnh Cloudinary<br/>generateMetadata sản phẩm/danh mục"]
     end
 
     subgraph GAP["⚠️ Khoảng trống"]
-        B1["🔴 Đổi mật khẩu không<br/>thu hồi phiên cũ"]
-        B2["🔴 Sau reverse proxy<br/>rate limit + audit IP sai"]
-        B3["🟡 Không phát hiện<br/>refresh token dùng lại"]
-        B4["🟡 Lỗi Prisma → 500<br/>thay vì 409"]
-        B5["🟡 Chưa có Prettier<br/>28 file nháy đơn vs 34 file nháy kép"]
-        B6["🟡 Cron trong tiến trình API<br/>chặn scale ngang"]
+        B6["🟡 Cron trong tiến trình API<br/>chặn scale ngang (OPS-01)"]
+        B7["🟢 Chưa có OpenAPI/Swagger (BE-12)<br/>chưa có màn UI quản lý tài nguyên"]
     end
 
     style GOOD fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
@@ -41,9 +43,10 @@ flowchart LR
 
 **Nhận định chung**: nền tảng vững hơn mức thường thấy ở dự án cùng quy mô. Kiến trúc phân tầng
 đúng, quy ước nhất quán, và — điều hiếm gặp — **các quyết định đánh đổi đều được ghi lại lý do
-ngay trong code**. Vấn đề còn lại chủ yếu là những chỗ "đúng ở dev nhưng sai ở production"
-(reverse proxy, cron đa instance) và một số lỗ hổng phiên đăng nhập cần bịt trước khi mở cho
-người dùng thật.
+ngay trong code**. Toàn bộ 6 lỗ hổng phiên đăng nhập mức 🔴 (BE-01 → BE-06, 10/09/2026), **11/13
+khoản nợ 🟡** (§3, 10-11/09/2026), và **toàn bộ 10/10 khoản nợ 🟢** (§4, 11/09/2026) đã được xử lý.
+Chỉ còn lại `BE-12` (OpenAPI, ~8 giờ) và `OPS-01` (tách cron khỏi tiến trình API — thay đổi kiến
+trúc triển khai, cần cân nhắc riêng trước khi làm, không phải việc code đơn thuần).
 
 ### Bảng điểm
 
@@ -51,17 +54,17 @@ người dùng thật.
 |---|:---:|---|
 | Kiến trúc & phân tầng | 9/10 | Modular + MVC + Service Layer đúng chuẩn, không over-engineering |
 | Chuẩn hoá error/response | 10/10 | Nhất quán tuyệt đối, `asyncHandler` phủ 100% controller |
-| Bảo mật | 7/10 | Nền tốt, còn thiếu vài chốt quan trọng (§2) |
-| Khả năng bảo trì | 8/10 | Comment chất lượng cao; thiếu formatter thống nhất |
-| Kiểm thử | 8/10 | 435 test unit/integration + ~30 E2E (vừa bổ sung); thiếu CI |
+| Bảo mật | 9/10 | 6/6 lỗ hổng 🔴 đã xử lý (§2); còn vài khoản nợ 🟡 không khẩn |
+| Khả năng bảo trì | 9/10 | Comment chất lượng cao; đã có Prettier thống nhất style (BE-08) |
+| Kiểm thử | 8/10 | 541 test backend + 120 test frontend + ~30 E2E; thiếu CI |
 | Tài liệu | 9/10 | Đầy đủ, có sơ đồ; cần giữ đồng bộ với code |
-| Sẵn sàng production | 5/10 | Chưa có CI/CD, Docker, giám sát, HTTPS |
+| Sẵn sàng production | 6/10 | Lỗ hổng phiên đăng nhập đã bịt; còn thiếu CI/CD, Docker, giám sát, HTTPS |
 
 ---
 
 ## 2. 🔴 Ưu tiên cao — xử lý trước khi lên production
 
-### BE-01 · Đổi mật khẩu không thu hồi phiên đăng nhập cũ
+### BE-01 · Đổi mật khẩu không thu hồi phiên đăng nhập cũ — ✅ ĐÃ XỬ LÝ (10/09/2026)
 
 **Vấn đề.** Cả 3 luồng đổi mật khẩu đều **không** thu hồi session đang tồn tại:
 
@@ -94,9 +97,17 @@ không chừa phiên nào.
 
 **Ước lượng**: 2 giờ (gồm test).
 
+**Đã xử lý.** Thêm `shared/utils/revokeSessions.ts` → `revokeAllUserSessions(userId, exceptRefreshTokenHash?)`
+dùng chung cho cả 3 luồng — `users.service.ts::changePassword` (chừa phiên hiện tại, cần sửa
+`users.controller.ts` truyền thêm `req.cookies?.refresh_token`), `auth.service.ts::resetPassword`
+và `users.admin.service.ts::resetPassword` (thu hồi tất cả, không chừa phiên nào — đúng đề xuất).
+`users.service.ts::revokeOtherSessions` cũng đổi sang gọi hàm dùng chung này (trước đó tự viết lặp
+lại đúng logic). Kiểm chứng thật qua `curl`: đổi mật khẩu xong, phiên hiện tại vẫn gọi
+`/account/me` được bình thường.
+
 ---
 
-### BE-02 · Thiếu `trust proxy` — rate limit và audit log sai sau reverse proxy
+### BE-02 · Thiếu `trust proxy` — rate limit và audit log sai sau reverse proxy — ✅ ĐÃ XỬ LÝ (10/09/2026)
 
 **Vấn đề.** `backend/src/app.ts` không gọi `app.set('trust proxy', ...)`. Khi chạy sau
 Caddy/Nginx/Vercel/Render, `req.ip` trả về **IP của proxy**, không phải IP người dùng.
@@ -130,9 +141,15 @@ Kèm biến `TRUST_PROXY_HOPS` để cấu hình theo hạ tầng thật.
 
 **Ước lượng**: 1 giờ.
 
+**Đã xử lý.** Đúng đề xuất: `env.trustProxyHops` (biến `TRUST_PROXY_HOPS`, mặc định 1) +
+`if (env.isProd) app.set("trust proxy", env.trustProxyHops)` ở đầu `app.ts`, trước mọi middleware
+khác. Chỉ bật ở production — dev/test không có proxy nào phía trước. Test phải dùng
+`vi.resetModules()` + import động `@/app` với `NODE_ENV=production` giả lập, vì `env` là hằng số
+tính 1 lần lúc module load (xem `tests/integration/app.test.ts`).
+
 ---
 
-### BE-03 · Không phát hiện việc dùng lại refresh token (*reuse detection*)
+### BE-03 · Không phát hiện việc dùng lại refresh token (*reuse detection*) — ✅ ĐÃ XỬ LÝ (10/09/2026)
 
 **Vấn đề.** `refreshSession` có *rotation* đúng (thu hồi token cũ, cấp token mới), nhưng khi một
 token **đã bị thu hồi** được gửi lại, hệ thống chỉ trả `SESSION_EXPIRED` và **không làm gì thêm**.
@@ -162,9 +179,17 @@ và gửi email cảnh báo.
 
 **Ước lượng**: 4 giờ.
 
+**Đã xử lý.** Đúng đề xuất, cộng thêm gửi email cảnh báo (`securityAlertTemplate`,
+`type: "security_alert"`). `refreshSession` tra session KHÔNG lọc `revokedAt` (repo function mới
+`findSessionByHash`, khác `findActiveSessionByHash` cũ đang dùng cho `logout`) để phân biệt "chưa
+từng tồn tại" với "đã bị thu hồi". Phản hồi cho client **giống hệt** nhánh hết hạn (`401
+SESSION_EXPIRED`) ở cả 2 trường hợp — không tiết lộ đã bị phát hiện. Kiểm chứng thật qua `curl`:
+refresh 1 lần (thành công, xoay vòng) → gọi lại bằng token cũ (401 + thu hồi toàn bộ) → thử luôn
+token MỚI vừa cấp cũng đã bị thu hồi theo, đúng như thiết kế.
+
 ---
 
-### BE-04 · Google login không kiểm tra `email_verified`
+### BE-04 · Google login không kiểm tra `email_verified` — ✅ ĐÃ XỬ LÝ (10/09/2026)
 
 **Vấn đề.** `auth.service.loginWithGoogle` liên kết tài khoản theo `payload.email` mà không kiểm
 tra `payload.email_verified`:
@@ -186,9 +211,16 @@ if (!payload?.email || payload.email_verified !== true) {
 
 **Ước lượng**: 1 giờ.
 
+**Đã xử lý** — tách thành 2 kiểm tra riêng (khác đề xuất gốc gộp chung 1 điều kiện): thiếu email →
+vẫn `401 INVALID_GOOGLE_TOKEN` như cũ (không đổi hành vi nhánh này), email có nhưng
+`email_verified !== true` → mã lỗi mới `401 GOOGLE_EMAIL_UNVERIFIED`, rõ ràng hơn cho người debug.
+`loginWithGoogle` trước đó **chưa có test nào** — đã viết bộ test mới từ đầu (6 case, xem
+`tests/unit/modules/auth.service.test.ts`), spy thẳng vào `OAuth2Client.prototype.verifyIdToken`
+vì `googleClient` là instance singleton tạo 1 lần lúc module load.
+
 ---
 
-### BE-05 · Token dùng-một-lần chưa nguyên tử (*atomic*)
+### BE-05 · Token dùng-một-lần chưa nguyên tử (*atomic*) — ✅ ĐÃ XỬ LÝ (10/09/2026)
 
 **Vấn đề.** `verifyMagicLink` và `resetPassword` đọc token rồi mới đánh dấu đã dùng — hai bước
 tách rời:
@@ -216,9 +248,16 @@ Chỉ đúng **một** request thắng cuộc đua.
 
 **Ước lượng**: 2 giờ (cả 2 luồng + test).
 
+**Đã xử lý.** Đúng đề xuất — `auth.repository.ts` thay `findMagicLinkTokenByHash`+`markMagicLinkUsed`
+(và cặp tương ứng cho password reset) bằng `consumeMagicLinkToken`/`consumePasswordResetToken`:
+`updateMany({ where: { tokenHash, usedAt: null, expiresAt: { gt: now } } })` rồi kiểm `count`, đọc
+lại record chỉ SAU KHI đã chắc thắng cuộc đua. Test mới mô phỏng 2 request đồng thời qua
+`Promise.allSettled` — xác nhận đúng 1 request thành công, request còn lại nhận
+`INVALID_MAGIC_LINK`/`INVALID_RESET_TOKEN`.
+
 ---
 
-### BE-06 · `roles.service.update` không dùng transaction
+### BE-06 · `roles.service.update` không dùng transaction — ✅ ĐÃ XỬ LÝ (10/09/2026)
 
 **Vấn đề.** Cập nhật permission của role thực hiện `deleteMany` rồi `createMany` ngoài transaction:
 
@@ -235,27 +274,27 @@ cần áp dụng nhất quán.
 
 **Ước lượng**: 1 giờ.
 
+**Đã xử lý.** Đúng đề xuất — bọc y hệt dạng mảng (batch) mà `updateRole` đã dùng, mock `$transaction`
+ở tầng test vốn đã hỗ trợ cả 2 dạng (mảng và callback) nên toàn bộ test cũ không cần sửa, chỉ thêm 1
+test mới assert `db.$transaction` được gọi.
+
 ---
 
 ## 3. 🟡 Ưu tiên vừa
 
-### BE-07 · `errorHandler` không xử lý lỗi Prisma đã biết
+### BE-07 · `errorHandler` không xử lý lỗi Prisma đã biết — ✅ ĐÃ XỬ LÝ (10/09/2026)
 
 Lỗi ràng buộc unique (`P2002`), không tìm thấy bản ghi (`P2025`), vi phạm khoá ngoại (`P2003`)
 hiện rơi vào nhánh "lỗi lạ" → trả **500 `INTERNAL_ERROR`** thay vì mã lỗi có nghĩa.
 
 Ví dụ: tạo permission trùng code trong lúc chạy đua sẽ trả 500 thay vì 409.
 
-**Đề xuất.** Thêm nhánh trong `errorHandler`:
+**Đã làm**: thêm nhánh trong `errorHandler` (`backend/src/shared/middleware/errorHandler.ts`) —
+đúng theo đề xuất ban đầu, đặt SAU nhánh `AppError`/`ValidationError` và TRƯỚC nhánh "lỗi lạ":
 
 ```ts
 if (err instanceof Prisma.PrismaClientKnownRequestError) {
-  const map: Record<string, [number, string, string]> = {
-    P2002: [409, "DUPLICATE", "Dữ liệu đã tồn tại"],
-    P2025: [404, "NOT_FOUND", "Không tìm thấy dữ liệu"],
-    P2003: [409, "FOREIGN_KEY_CONSTRAINT", "Dữ liệu đang được tham chiếu ở nơi khác"],
-  };
-  const mapped = map[err.code];
+  const mapped = KNOWN_PRISMA_ERRORS[err.code]; // P2002 → 409, P2025 → 404, P2003 → 409
   if (mapped) {
     const [status, code, message] = mapped;
     res.status(status).json({ success: false, message, code });
@@ -264,39 +303,43 @@ if (err instanceof Prisma.PrismaClientKnownRequestError) {
 }
 ```
 
-**Ước lượng**: 2 giờ.
+Mã Prisma **không** nằm trong danh sách đã biết vẫn rơi xuống nhánh "lỗi lạ" như cũ (log đầy đủ,
+trả 500) — chỉ 3 mã có nghĩa nghiệp vụ rõ ràng mới được xử lý riêng, tránh coi mọi lỗi Prisma là
+"đã lường trước" trong khi thực ra là bug.
+
+Test mới: 4 test trong `backend/tests/unit/shared/middleware.test.ts` (`describe("lỗi Prisma đã
+biết")`) — P2002/P2025/P2003 trả đúng status/code, và mã lạ (`P9999`) vẫn 500 + có log.
+
+**Ước lượng**: 2 giờ. **Thực tế**: ~1 giờ.
 
 ---
 
-### BE-08 · Chưa cấu hình Prettier — style không thống nhất
+### BE-08 · Chưa cấu hình Prettier — style không thống nhất ✅ Đã xử lý (2026-09-10)
 
 **Số liệu đo được**: **28 file** dùng nháy đơn, **34 file** dùng nháy kép — lệch nhau ngay trong
 cùng một module (`auth.controller.ts` dùng `"`, `auth.repository.ts` dùng `'`).
 
 Hệ quả: diff Git nhiễu vì thay đổi style lẫn vào thay đổi logic, review tốn thời gian vô ích.
 
-**Đề xuất.**
+**Đã làm** (khác đề xuất ban đầu ở một điểm, xem lý do bên dưới):
 
-```jsonc
-// .prettierrc (đặt ở thư mục gốc, dùng chung cho cả backend và frontend)
-{
-  "semi": true,
-  "singleQuote": false,
-  "trailingComma": "all",
-  "printWidth": 110,
-  "arrowParens": "always"
-}
-```
+- Mỗi package (`backend/`, `frontend/`) có `.prettierrc.json` **riêng**, không dùng chung 1 file gốc
+  — vì đo lại quy ước thực tế thì 2 package lệch nhau: backend đa số nháy kép (48 file `"` vs 33 file
+  `'`), frontend đa số nháy đơn (71 file `'` vs 8 file `"`). Dùng chung 1 `singleQuote` sẽ format lại
+  toàn bộ 1 trong 2 package ngược với quy ước sẵn có của package đó, gây diff nhiễu hơn là bớt nhiễu.
+  - `backend/.prettierrc.json`: `singleQuote: false` (khớp số đông có sẵn, cũng là mặc định Prettier).
+  - `frontend/.prettierrc.json`: `singleQuote: true` (khớp số đông có sẵn).
+  - Cả hai: `semi: true`, `trailingComma: "all"`, `printWidth: 100`, `tabWidth: 2`.
+- **Không thêm** `eslint-config-prettier`: cả 2 file cấu hình ESLint (`backend/eslint.config.*`,
+  `frontend/eslint.config.*`) không bật rule định dạng nào (`quotes`, `semi`, `indent`...) — chỉ có
+  rule logic (`@typescript-eslint/recommended`, `eslint-config-next`) — nên không có xung đột cần tắt.
+  Đã xác nhận `npm run lint` sạch sau khi format ở cả 2 package.
+- Thêm script `format` / `format:check` vào `package.json` mỗi package, chạy `npm run format` **một
+  lần trong 1 commit riêng** (không trộn thay đổi logic), verify `lint`/`typecheck`/`test` không có
+  regressions (backend 466/466, frontend 111/111 test pass).
+- **Chưa làm** (nằm ngoài phạm vi mục này, xem `OPS-01`/CI nếu cần): thêm `format:check` vào CI.
 
-```bash
-npm i -D prettier eslint-config-prettier
-npx prettier --write "src/**/*.ts" "tests/**/*.ts"
-```
-
-Chạy format **một lần trong một commit riêng** (`chore: apply prettier`) để không trộn với thay đổi
-logic, rồi thêm vào CI.
-
-**Ước lượng**: 2 giờ.
+**Ước lượng**: 2 giờ. **Thực tế**: ~2 giờ.
 
 ---
 
@@ -336,34 +379,79 @@ if (env.isProd && process.env.RUN_JOBS === "true") registerJobs();
 
 ---
 
-### OPS-02 · Backup chưa nén và chưa mã hoá
+### OPS-02 · Backup chưa nén và chưa mã hoá — ✅ ĐÃ XỬ LÝ PHẦN 1+2 (11/09/2026)
 
 [07 · Bảo mật §5](07-bao-mat.md) yêu cầu "nén + **mã hoá** trước khi đẩy lên bucket", nhưng
 `backupDatabase.job.ts` upload file `.dump` thô. Nếu bucket bị lộ, toàn bộ dữ liệu khách hàng
 (tên, số điện thoại, địa chỉ giao hàng) lộ theo — vi phạm Nghị định 13/2023/NĐ-CP.
 
-**Đề xuất.**
+**Đề xuất gốc.**
 1. `pg_dump --format=custom --compress=9` (nén sẵn, không cần gzip riêng).
 2. Mã hoá bằng `age` hoặc `gpg` với khoá công khai; khoá riêng **không** lưu trên máy chủ.
 3. Bucket `backups` riêng, API token quyền hẹp hơn bucket ảnh công khai.
 
-**Ước lượng**: 4 giờ (gồm diễn tập khôi phục).
+**Đã làm (1, 2)**:
+
+- **Nén**: thêm `--compress=9` vào lệnh `pg_dump` trong `backupDatabase.job.ts`.
+- **Mã hoá**: khác đề xuất gốc ở CÔNG CỤ (không dùng `age`/`gpg` qua CLI) — lý do: tránh thêm 1 binary
+  bắt buộc phải cài trên máy chủ production (ngoài `pg_dump` đã sẵn có), giữ đúng nguyên tắc kiến
+  trúc "hạn chế phụ thuộc ngoài không cần thiết". Thay vào đó dùng module `crypto` sẵn có của Node,
+  cài đặt mã hoá lai (hybrid) RSA-OAEP + AES-256-GCM — về bản chất bảo mật tương đương `age`/`gpg`
+  (khoá công khai trên server, khoá riêng giữ ngoài server, không ai đọc được backup nếu không có
+  khoá riêng):
+  - `backend/src/shared/utils/backupEncryption.ts` — `encryptBackupBuffer()`/`decryptBackupBuffer()`.
+  - `backend/src/jobs/backupDatabase.job.ts` — mã hoá file `.dump` (nếu đã cấu hình
+    `BACKUP_ENCRYPTION_PUBLIC_KEY`) trước khi upload, đặt tên `<file>.dump.enc`; **chưa cấu hình** thì
+    vẫn backup (không chặn tính năng chính) nhưng log cảnh báo rõ ràng.
+  - `backend/scripts/decrypt-backup.ts` (`npm run decrypt-backup`) — công cụ giải mã chạy **OFFLINE**,
+    không nằm trong build/deploy của server, dùng khi cần khôi phục thật.
+  - Biến môi trường mới `BACKUP_ENCRYPTION_PUBLIC_KEY` (base64 của khoá công khai PEM) — xem
+    [docs/09 §3.4b](09-moi-truong-va-bien-cau-hinh.md) (hướng dẫn sinh khoá bằng `openssl`) và
+    `.env.example`.
+  - Test: `backend/tests/unit/shared/backupEncryption.test.ts` (6 test — roundtrip đúng dữ liệu gốc,
+    roundtrip với file nhị phân ~500KB, 2 lần mã hoá cùng nội dung cho ciphertext khác nhau, ciphertext
+    không chứa plaintext, phát hiện dữ liệu bị chỉnh sửa (tamper), sai khoá riêng thì giải mã thất bại)
+    và `backend/tests/unit/jobs/backupDatabase.dump.test.ts` (5 test — pg_dump luôn có `--compress=9`,
+    có/không cấu hình khoá thì upload đúng file tương ứng, dọn file tạm đầy đủ). **Đã kiểm chứng thủ
+    công một lượt roundtrip thật** (sinh cặp khoá RSA thật, mã hoá → giải mã bằng đúng `npm run
+    decrypt-backup`, so khớp bit-for-bit với bản gốc — không chỉ test qua mock).
+
+**Chưa làm (3)**: tách bucket/tài khoản Cloudinary riêng cho backup, API token quyền hẹp hơn — đây là
+hành động **vận hành/hạ tầng** (tạo tài khoản Cloudinary mới, cấu hình lại `CLOUDINARY_*`), không phải
+thay đổi code, nằm ngoài khả năng tự thực hiện của một phiên làm việc trên mã nguồn. Ghi nhận là việc
+còn lại, người vận hành cần làm thủ công khi triển khai production thật.
+
+**Ước lượng**: 4 giờ (gồm diễn tập khôi phục). **Thực tế**: ~2.5 giờ cho phần 1+2 (chưa gồm diễn tập
+khôi phục trên staging thật — chỉ kiểm chứng roundtrip mã hoá/giải mã, chưa chạy `pg_restore` với dữ
+liệu production thật vì không có môi trường staging trong phiên làm việc này).
 
 ---
 
-### OPS-03 · `cleanupOldBackups` chỉ xử lý 1000 object đầu
+### OPS-03 · `cleanupOldBackups` chỉ xử lý 500 object đầu — ✅ ĐÃ XỬ LÝ (11/09/2026)
 
-`ListObjectsV2Command` trả tối đa 1000 object và code không phân trang qua `ContinuationToken`.
+**Mô tả gốc đã lỗi thời**: mục này ban đầu viết khi lưu trữ backup còn ở Cloudflare R2
+(`ListObjectsV2Command` trả tối đa 1000 object/lần, không phân trang qua `ContinuationToken`). Dự án
+đã đổi nhà cung cấp lưu trữ sang Cloudinary từ 09/2026 (xem [10 · Triển khai §7](10-trien-khai-van-hanh.md))
+— API tương ứng là `cloudinary.api.resources`, giới hạn **500 object/lần gọi** (tham số `max_results`),
+phân trang qua `next_cursor` thay vì `ContinuationToken`. Bản chất vấn đề giống hệt: không lặp qua hết
+trang thì object thứ 501 trở đi bị bỏ sót âm thầm (không lỗi, chỉ không được xét xoá).
+
 Với lịch hiện tại (2 ngày/lần, giữ 30 ngày ≈ 15 file) chưa chạm giới hạn, nhưng đây là **quả bom
-hẹn giờ** nếu sau này tăng tần suất backup hoặc dùng chung bucket với ảnh.
+hẹn giờ** nếu sau này tăng tần suất backup hoặc dùng chung bucket/prefix với dữ liệu khác.
 
-**Đề xuất**: dùng `paginateListObjectsV2` của AWS SDK.
+**Đã làm**: `backend/src/jobs/backupDatabase.job.ts` — tách hàm `listAllBackupResources()`, lặp
+`do...while` gọi `cloudinary.api.resources({ ..., next_cursor })` cho tới khi response không còn trả
+`next_cursor`, gộp toàn bộ kết quả trước khi lọc theo hạn 30 ngày.
 
-**Ước lượng**: 1 giờ.
+Test mới: `backend/tests/unit/jobs/backupDatabase.job.test.ts` (3 test) — chỉ 1 trang gọi đúng 1 lần,
+nhiều trang lặp đúng số lần và truyền lại đúng `next_cursor`, và backup còn mới ở trang sau vẫn được
+GIỮ LẠI (không xoá nhầm chỉ vì object nằm ở trang khác).
+
+**Ước lượng**: 1 giờ. **Thực tế**: ~1 giờ.
 
 ---
 
-### BE-09 · `cleanupOrphanFiles` xoá file mới xoá mềm ngay lập tức
+### BE-09 · `cleanupOrphanFiles` xoá file mới xoá mềm ngay lập tức — ✅ ĐÃ XỬ LÝ (10/09/2026)
 
 Comment trong `files.service.softDeleteFile` nói Cloudinary object bị purge ở lượt cron sau "để có
 khoảng đệm an toàn", nhưng job lại xoá **mọi** file có `deletedAt != null` bất kể xoá cách đây bao lâu:
@@ -374,9 +462,16 @@ khoảng đệm an toàn", nhưng job lại xoá **mọi** file có `deletedAt !
 
 Xoá nhầm một ảnh sản phẩm lúc 03:59 thì 04:00 cron chạy là mất vĩnh viễn — không có cửa sổ khôi phục.
 
-**Đề xuất**: thêm điều kiện `deletedAt: { lt: cutoff }` giống nhánh file mồ côi, để có 24 giờ hối tiếc.
+**Đã xử lý**: `backend/src/jobs/cleanupOrphanFiles.job.ts` — đổi `{ deletedAt: { not: null } }` thành
+`{ deletedAt: { lt: cutoff } }`, dùng chung `cutoff` (= `SAFETY_WINDOW_HOURS` = 24h) với nhánh file mồ
+côi bên dưới. File vừa xoá mềm trong 24h gần nhất giờ được **giữ lại**, chỉ bị purge khỏi Cloudinary +
+xoá bản ghi DB ở lượt cron sau khi đã đủ cửa sổ hối tiếc.
 
-**Ước lượng**: 30 phút.
+Test mới: `backend/tests/unit/jobs/cleanupOrphanFiles.job.test.ts` (3 test) — chứng minh truy vấn dùng
+điều kiện `lt: cutoff` (không còn `not: null`), xoá đúng các file đủ điều kiện, và 1 file lỗi khi purge
+Cloudinary không chặn các file còn lại trong cùng lượt chạy.
+
+**Ước lượng**: 30 phút. **Thực tế**: ~30 phút.
 
 ---
 
@@ -404,29 +499,39 @@ tác động vẫn thấp (UUID khó đoán) — không cần xử lý gấp tr�
 
 ---
 
-### BE-11 · `config/env.ts` chỉ kiểm tra sự tồn tại, không kiểm tra giá trị
+### BE-11 · `config/env.ts` chỉ kiểm tra sự tồn tại, không kiểm tra giá trị — ✅ ĐÃ XỬ LÝ (10/09/2026)
 
 `required()` chỉ đảm bảo biến **có mặt**. `JWT_ACCESS_SECRET=x` (1 ký tự) vẫn khởi động bình thường —
 một secret yếu tới mức vô nghĩa vẫn lọt qua.
 
-**Đề xuất**: validate bằng `zod` (đã là dependency sẵn có):
+**Đã làm**: viết lại `config/env.ts` bằng `z.object({...}).safeParse(process.env)` thay cho hàm
+`required()` thủ công — đúng theo đề xuất ban đầu, kèm 2 kiểm tra bổ sung khi `NODE_ENV=production`:
 
 ```ts
-const envSchema = z.object({
-  DATABASE_URL: z.string().url(),
+const rawEnvSchema = z.object({
+  DATABASE_URL: z.string().url("DATABASE_URL phải là connection string hợp lệ (postgresql://...)"),
   JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET phải ≥ 32 ký tự"),
-  JWT_REFRESH_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET phải ≥ 32 ký tự"),
   PORT: z.coerce.number().int().positive().default(4000),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
   EMAIL_PROVIDER: z.enum(["resend", "smtp"]).default("smtp"),
-  // ...
+  // ... toàn bộ biến còn lại, xem src/config/env.ts
 });
+
+// safeParse thất bại → throw liệt kê TỪNG lỗi theo tên biến (không chỉ biến đầu tiên).
+
+// Chỉ ở production: từ chối khởi động nếu COOKIE_SECRET vẫn là 'dev-only-secret', hoặc
+// JWT_ACCESS_SECRET === JWT_REFRESH_SECRET. Dev/test được phép dùng giá trị mặc định yếu.
 ```
 
-Thêm kiểm tra ở production: từ chối khởi động nếu `COOKIE_SECRET` vẫn là `dev-only-secret`, hoặc
-`JWT_ACCESS_SECRET === JWT_REFRESH_SECRET`.
+Một điểm khác nhỏ so với đề xuất: **không** dùng `z.string().email()` cho `EMAIL_FROM` — giá trị thật
+thường có dạng `"Tên hiển thị <email@domain>"` (RFC 5322), `.email()` sẽ từ chối nhầm định dạng này.
 
-**Ước lượng**: 3 giờ.
+Test mới: `backend/tests/unit/config/env.test.ts` (9 test) — chứng minh secret ngắn/URL sai
+định dạng/enum sai/số âm đều bị từ chối dù có mặt, giá trị mặc định đúng khi bỏ trống biến tuỳ chọn,
+và 2 kiểm tra riêng ở production (không áp dụng ở dev/test).
+
+**Ước lượng**: 3 giờ. **Thực tế**: ~3 giờ.
 
 ---
 
@@ -442,45 +547,79 @@ trong `*.validation.ts` — không phải viết lại lần hai, và không th�
 
 ---
 
-### BE-13 · Dữ liệu hết hạn tích tụ vô hạn
+### BE-13 · Dữ liệu hết hạn tích tụ vô hạn — ✅ ĐÃ XỬ LÝ PHẦN LỚN (10/09/2026)
 
 | Bảng | Vấn đề |
 |---|---|
-| `magic_link_tokens` | Token hết hạn/đã dùng không bao giờ bị xoá |
-| `password_reset_tokens` | Tương tự |
-| `sessions` | Session hết hạn/đã thu hồi giữ mãi |
-| `audit_logs` | Tăng vô hạn — nhưng đây là dữ liệu tuân thủ, cần chính sách lưu trữ chứ không xoá tuỳ tiện |
-| `email_logs` | Tăng vô hạn |
+| `magic_link_tokens` | Token hết hạn/đã dùng không bao giờ bị xoá — **đã xử lý** |
+| `password_reset_tokens` | Tương tự — **đã xử lý** |
+| `sessions` | Session hết hạn/đã thu hồi giữ mãi — **đã xử lý** |
+| `audit_logs` | Tăng vô hạn — nhưng đây là dữ liệu tuân thủ, cần chính sách lưu trữ chứ không xoá tuỳ tiện — **chưa làm** |
+| `email_logs` | Tăng vô hạn — **chưa làm** |
 
-**Đề xuất**: thêm job `cleanupExpiredTokens` (hằng ngày) xoá token hết hạn > 7 ngày và session hết
-hạn > 30 ngày. Với `audit_logs`: chuyển sang lưu trữ lạnh sau 12 tháng thay vì xoá.
+**Đã làm**: job mới `backend/src/jobs/cleanupExpiredTokens.job.ts`, chạy hằng ngày lúc 02:00 (đăng ký
+ở `jobs/index.ts`, trước `backupDatabase` lúc 03:00) — xoá `magic_link_tokens`/`password_reset_tokens`
+có `expiresAt` quá hạn hơn 7 ngày (TTL các token này chỉ 15-30 phút, quá hạn 7 ngày chắc chắn không
+còn dùng được), và `sessions` có `expiresAt` quá hạn HOẶC `revokedAt` quá 30 ngày (giữ 30 ngày để còn
+tra cứu lịch sử đăng nhập gần đây khi cần).
 
-**Ước lượng**: 3 giờ.
+**Chưa làm** (nằm ngoài phạm vi lần này, giữ nguyên trong danh sách nợ kỹ thuật): chính sách lưu trữ
+lạnh cho `audit_logs` sau 12 tháng, và dọn `email_logs` — cả 2 cần quyết định chính sách rõ ràng hơn
+(giữ bao lâu, lưu trữ ở đâu) trước khi viết code, không nằm trong phạm vi "xoá token/session hết hạn"
+ban đầu.
+
+Test mới: `backend/tests/unit/jobs/cleanupExpiredTokens.job.test.ts` (4 test) — chứng minh đúng
+ngưỡng 7 ngày cho 2 loại token, đúng điều kiện `OR` (hết hạn HOẶC thu hồi) + ngưỡng 30 ngày cho
+session, và cả 3 truy vấn chạy song song (`Promise.all`).
+
+**Ước lượng**: 3 giờ. **Thực tế**: ~1.5 giờ (phần token/session; phần audit_logs/email_logs để sau).
 
 ---
 
-### FE-01 · Chưa có Error Boundary
+### FE-01 · Chưa có Error Boundary — ✅ ĐÃ XỬ LÝ (11/09/2026)
 
 Không có `app/error.tsx` hay `app/global-error.tsx`. Một lỗi render bất ngờ → **trang trắng**,
 người dùng không biết chuyện gì và không có đường thoát.
 
-**Đề xuất**: thêm `app/error.tsx` (thông điệp thân thiện + nút "Thử lại" + link về trang chủ) và
-`app/global-error.tsx` cho lỗi ở tầng layout gốc.
+**Đã làm**: thêm `frontend/src/app/error.tsx` (bọc mọi route con — thông điệp thân thiện + nút "Thử
+lại" gọi `reset()` + link `next/link` về trang chủ, không lộ `error.message`/stack trace ra UI) và
+`frontend/src/app/global-error.tsx` (bọc lỗi ở chính root layout — theo yêu cầu của Next.js, file này
+PHẢI tự khai báo `<html>`/`<body>` vì nó THAY THẾ layout gốc hoàn toàn; cố tình dùng inline style +
+không import font/`Providers` từ `layout.tsx`, vì chính những thứ đó có thể là nguyên nhân gây lỗi).
 
-**Ước lượng**: 2 giờ.
+Test mới: `frontend/tests/components/error-boundary.test.tsx` (6 test) — cả 2 file hiện đúng UI,
+nút "Thử lại" gọi `reset()`, và lỗi được log ra console để điều tra (không nuốt lỗi âm thầm).
+
+**Ước lượng**: 2 giờ. **Thực tế**: ~2 giờ.
 
 ---
 
-### FE-02 · Hai nguồn sự thật cho thông tin người dùng
+### FE-02 · Hai nguồn sự thật cho thông tin người dùng — ✅ ĐÃ XỬ LÝ (11/09/2026)
 
 `useAuthStore` (Zustand) và `useMe()` (React Query) cùng giữ thông tin người dùng hiện tại.
 `useAuthStore` được set lúc đăng nhập nhưng **không** cập nhật khi hồ sơ đổi qua đường khác —
 đúng loại tình huống mà chính [04 · Frontend §1](04-frontend.md) cảnh báo không nên làm.
 
-**Đề xuất**: bỏ `user` khỏi `useAuthStore`, dùng `useMe()` làm nguồn duy nhất. Zustand chỉ giữ UI
-state thuần (sidebar, modal, theme).
+**Đã làm**: rà lại thấy `useAuthStore().user` **chưa từng được đọc để render ở bất kỳ đâu** — toàn
+bộ UI (`Nav`, `AdminShell`, `DashboardShell`, trang profile...) đã dùng `useMe()` làm nguồn hiển thị
+từ trước; `setUser()` chỉ được GHI (lúc đăng nhập/đăng xuất) mà không ai ĐỌC — đúng dạng "2 nguồn sự
+thật" tiềm ẩn mà FE-02 cảnh báo, dù chưa gây bug quan sát được (chưa ai đọc nhánh lệch).
 
-**Ước lượng**: 3 giờ.
+- Xoá hẳn `frontend/src/store/useAuthStore.ts` — không giữ store rỗng chỉ có `user`/`setUser`, vì
+  không còn state UI thuần nào khác cần giữ ở đây (khác đề xuất ban đầu "Zustand chỉ giữ UI state
+  thuần" — thực tế không có UI state nào khác cần store riêng cho auth, nên xoá gọn hơn giữ lại rỗng).
+- `frontend/src/features/core/auth/auth.hooks.ts`: bỏ mọi `setUser(...)` ở `useLogin`,
+  `useLoginWithGoogle`, `useVerifyMagicLink`, `useLogout` — `queryClient.invalidateQueries({queryKey:
+  ['account', 'me']})` (đăng nhập) và `queryClient.clear()` (đăng xuất) đã đủ để mọi nơi dùng `useMe()`
+  tự cập nhật, không cần đường ghi dữ liệu song song.
+- `tests/unit/stores.test.ts`: xoá bộ test riêng cho `useAuthStore` (đã không còn tồn tại).
+
+Không có thay đổi UI quan sát được (hành vi đăng nhập/đăng xuất giữ nguyên) — xác nhận qua
+`typecheck`/`lint`/test đầy đủ (115/115 pass); **chưa** test lại bằng trình duyệt thật do không có
+server dev đang chạy lúc thực hiện thay đổi này.
+
+**Ước lượng**: 3 giờ. **Thực tế**: ~1 giờ (nhỏ hơn dự kiến vì phát hiện chỉ cần xoá, không cần viết
+lại logic đọc dữ liệu ở nơi khác).
 
 ---
 
@@ -500,18 +639,18 @@ hoặc tài liệu đã di chuyển (`ARCHITECTURE.md`/`DATABASE.md`/`SECURITY.m
 
 ## 4. 🟢 Ưu tiên thấp
 
-| Mã | Vấn đề | Đề xuất | Ước lượng |
-|---|---|---|---|
-| `BE-14` | `tsconfig.json` khai báo `paths: { "@/*": ["src/*"] }` nhưng **không file nguồn nào dùng**, và runtime CommonJS cũng không resolve được nếu có dùng | Xoá khỏi `tsconfig.json`, hoặc thêm `tsconfig-paths` nếu muốn dùng thật | 30 phút |
-| `BE-15` | `JWT_REFRESH_EXPIRES_IN` có trong `.env.example` nhưng code hard-code `refreshExpiresInDays: 30` | Đọc từ env cho đúng như tài liệu | 30 phút |
-| `BE-16` | Rate limit chỉ theo IP, chưa theo email | Thêm `keyGenerator` kết hợp email cho `/login`, `/forgot-password` | 2 giờ |
-| `BE-17` | Chưa khoá tạm tài khoản sau N lần đăng nhập sai (SECURITY.md §1 có yêu cầu) | Đếm số lần thất bại + cooldown tăng dần | 4 giờ |
-| `BE-18` | `logger` tự viết, chưa xuất JSON có cấu trúc | Đổi sang `pino` — giữ nguyên interface `logger.*` nên nơi gọi không phải sửa | 3 giờ |
-| `BE-19` | Chưa có `folders` CRUD dù schema đã có bảng | Bổ sung khi làm màn quản lý tài nguyên | 6 giờ |
-| `FE-04` | Chưa có loading skeleton, trang nhảy layout khi tải | Thêm `loading.tsx` cho các route nặng | 3 giờ |
-| `FE-05` | Chưa có `next/image` cho ảnh sản phẩm | Dùng khi làm module products (quan trọng với ảnh hoa) | 2 giờ |
-| `FE-06` | Chưa có metadata SEO cho từng trang | Thêm `generateMetadata` cho trang sản phẩm/danh mục | 3 giờ |
-| `OPS-04` | Chưa có `.nvmrc` / `engines` | Chốt phiên bản Node để tránh lệch môi trường | 15 phút |
+| Mã | Vấn đề | Đề xuất | Ước lượng | Trạng thái |
+|---|---|---|---|:---:|
+| `BE-14` | `tsconfig.json` khai báo `paths: { "@/*": ["src/*"] }` nhưng **không file nguồn nào dùng**, và runtime CommonJS cũng không resolve được nếu có dùng | Xoá khỏi `tsconfig.json`, hoặc thêm `tsconfig-paths` nếu muốn dùng thật | 30 phút | ✅ *(11/09 — xoá khỏi `tsconfig.json` gốc; test VẪN dùng `@/` được vì chuyển `paths` sang riêng `tsconfig.test.json`, khớp alias thật ở `vitest.config.ts`)* |
+| `BE-15` | `JWT_REFRESH_EXPIRES_IN` có trong `.env.example` nhưng code hard-code `refreshExpiresInDays: 30` | Đọc từ env cho đúng như tài liệu | 30 phút | ✅ *(11/09 — thêm vào zod schema, định dạng `<số>d`, `parseInt` sang số ngày; 4 test mới)* |
+| `BE-16` | Rate limit chỉ theo IP, chưa theo email | Thêm `keyGenerator` kết hợp email cho `/login`, `/forgot-password` | 2 giờ | ✅ *(11/09 — limiter thứ 2 theo email, CHỒNG lên limiter theo IP thay vì thay thế; chặn tấn công đổi IP nhắm 1 tài khoản)* |
+| `BE-17` | Chưa khoá tạm tài khoản sau N lần đăng nhập sai (SECURITY.md §1 có yêu cầu) | Đếm số lần thất bại + cooldown tăng dần | 4 giờ | ✅ *(11/09 — ngưỡng 5 lần, cooldown 2^N phút trần 30 phút; 2 cột mới `users.failed_login_attempts`/`locked_until`, migration `20260911050000_add_login_lockout` đã chạy trên DB dev thật; 7 test unit + 1 integration)* |
+| `BE-18` | `logger` tự viết, chưa xuất JSON có cấu trúc | Đổi sang `pino` — giữ nguyên interface `logger.*` nên nơi gọi không phải sửa | 3 giờ | ✅ *(11/09 — 8 file gọi logger không cần sửa; production in JSON thô, dev/test dùng `pino-pretty`; `withRequestId` dùng pino `child()`; extra args gói vào field `detail` có cấu trúc thay vì nối chuỗi. Phát hiện phụ: `.env` local có JWT secret < 32 ký tự (placeholder chưa đổi) khiến dev server không khởi động được từ sau BE-11 — đã sửa)* |
+| `BE-19` | Chưa có `folders` CRUD dù schema đã có bảng | Bổ sung khi làm màn quản lý tài nguyên | 6 giờ | ✅ *(11/09 — chỉ API: `modules/core/files/folders.*`, mount `/api/v1/folders`, quyền `files.manage`, chống vòng lặp cha-con giống Categories, chặn xoá thư mục không rỗng. 13 test unit + RBAC integration + smoke test tay trên DB thật (tạo/sửa/xoá/vòng lặp/xoá không rỗng đều đúng). Màn UI quản lý tài nguyên KHÔNG nằm trong 6h này — vẫn là việc riêng, xem docs/modules/core-files.md §7)* |
+| `FE-04` | Chưa có loading skeleton, trang nhảy layout khi tải | Thêm `loading.tsx` cho các route nặng | 3 giờ | ✅ *(11/09 — 3 route Server Component thật sự fetch dữ liệu: trang chủ, `danh-muc/[slug]`, `san-pham/[slug]`; các trang admin là Client Component dùng React Query nên tự quản loading riêng, không cần `loading.tsx`. `next build` production xác nhận route tree hợp lệ)* |
+| `FE-05` | Chưa có `next/image` cho ảnh sản phẩm | Dùng khi làm module products (quan trọng với ảnh hoa) | 2 giờ | ✅ *(11/09 — đổi toàn bộ `<img>` ảnh Cloudinary sang `next/image` (9 chỗ: ProductCard, ProductGallery, giỏ hàng, admin categories/products, avatar hồ sơ); thêm `images.remotePatterns` cho `res.cloudinary.com` ở `next.config.ts`. Xác nhận thật: `next build` production sạch + gọi trực tiếp `/_next/image` với ảnh Cloudinary thật từ DB dev, nhận về PNG đã resize đúng tỷ lệ (200, không chỉ qua mock))* |
+| `FE-06` | Chưa có metadata SEO cho từng trang | Thêm `generateMetadata` cho trang sản phẩm/danh mục | 3 giờ | ✅ *(11/09 — `generateMetadata` động cho `san-pham/[slug]` (title/description/og:image từ đúng sản phẩm, mô tả HTML được strip về text thuần) và `danh-muc/[slug]`; metadata tĩnh cho `ve-chung-toi`. **Chưa làm** `lien-he` — trang đó là Client Component (`'use client'`, có form), Next.js không cho export `metadata`/`generateMetadata` từ Client Component; cần tách phần form ra component riêng trước, nằm ngoài phạm vi 3h này. Xác nhận thật: khởi động cả 2 server, `curl` trực tiếp trang sản phẩm/danh mục thật trong DB dev, đọc đúng `<title>`/`<meta description>`/`og:*` — không chỉ qua mock. 6 test unit cho logic fallback (không có mô tả, không có ảnh, không tìm thấy))* |
+| `OPS-04` | Chưa có `.nvmrc` / `engines` | Chốt phiên bản Node để tránh lệch môi trường | 15 phút | ✅ *(11/09 — `.nvmrc`=22 ở gốc repo, `engines.node` ≥20.9.0 ở cả 2 package.json)* |
 
 ---
 

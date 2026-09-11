@@ -54,7 +54,12 @@ frontend/src/
 ├── app/                          # App Router
 │   ├── layout.tsx                # root: font, Providers, Toaster, ConfirmDialog
 │   ├── providers.tsx             # QueryClientProvider (1 client / tab)
+│   ├── error.tsx                 # Error Boundary route con (FE-01)
+│   ├── global-error.tsx          # Error Boundary root layout (FE-01) — tự khai <html>/<body>
 │   ├── (storefront)/             # 🌸 PUBLIC — route group, không đổi URL
+│   │   ├── loading.tsx           #    skeleton trang chủ (FE-04)
+│   │   ├── danh-muc/[slug]/loading.tsx
+│   │   └── san-pham/[slug]/loading.tsx
 │   ├── (auth)/                   # 🔧 PUBLIC — /login /register /magic-link
 │   │                             #    /forgot-password /reset-password
 │   ├── (dashboard)/              # 🔧 route group gộp /admin + /superadmin
@@ -77,7 +82,7 @@ frontend/src/
 │   │                             #    admin-permissions · admin-login-methods
 │   └── domain/                   # 🌸 categories (+ products, cart, orders...)
 ├── lib/                          # axios · jwt (decode) · errors · redirect
-├── store/                        # useAuthStore · useToastStore · useConfirmStore
+├── store/                        # useCartStore · useToastStore · useConfirmStore
 └── proxy.ts                      # 🔧 chặn route sớm (Next.js 16)
 ```
 
@@ -190,11 +195,17 @@ Ba chi tiết dễ viết sai, đã xử lý sẵn trong code:
 | Loại state                        | Công cụ               | Ví dụ                                                              |
 | --------------------------------- | --------------------- | ------------------------------------------------------------------ |
 | **Server state** (dữ liệu từ API) | TanStack Query        | `useMe()`, `useCategories()`, `useAdminUsers()`                    |
-| **UI/client state**               | Zustand               | `useAuthStore` (user cho menu), `useToastStore`, `useConfirmStore` |
+| **UI/client state**               | Zustand               | `useCartStore` (giỏ hàng, persist localStorage), `useToastStore`, `useConfirmStore` |
 | **Form state**                    | react-hook-form + zod | `useForm({ resolver: zodResolver(schema) })`                       |
 
 Cấu hình `QueryClient` (ở `app/providers.tsx`): `staleTime: 30_000`, `retry: 1`.
 `useMe()` đặt riêng `retry: false` vì 401 ở đây thường là "chưa đăng nhập", không phải lỗi tạm thời.
+
+> ⚠️ `useMe()` là **nguồn duy nhất** cho thông tin người dùng hiện tại (tên, email, avatar, roles) —
+> KHÔNG lưu bản sao trong Zustand để "tiện đọc ở menu". Từng có `useAuthStore` giữ song song một bản
+> `user` set lúc đăng nhập nhưng không đồng bộ khi hồ sơ đổi qua đường khác (đổi tên/avatar) — đúng 2
+> nguồn sự thật cảnh báo ở trên. Đã xoá hẳn (docs/12 FE-02, 11/09/2026); nơi nào cần hiển thị thông
+> tin người dùng, gọi `useMe()` trực tiếp.
 
 ### Quy ước `queryKey`
 

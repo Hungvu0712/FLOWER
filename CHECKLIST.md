@@ -1,6 +1,6 @@
 # ✅ CHECKLIST — Theo dõi tiến độ dự án FLOWER
 
-> **Cập nhật lần cuối: 10/09/2026**
+> **Cập nhật lần cuối: 11/09/2026**
 > Cập nhật file này **mỗi lần merge PR**. Tiến độ dạng khách hàng đọc được: [docs/gitbook/03-tien-do.md](docs/gitbook/03-tien-do.md).
 
 | Ký hiệu | Nghĩa |
@@ -21,12 +21,12 @@
 | 1 | Foundation — TS strict, error/response chuẩn, API versioning | ✅ | ██████████ 100% |
 | 2 | Authentication — 3 phương thức, session, rotation | ✅ | ██████████ 100% |
 | 3 | RBAC — users, roles, permissions, audit log | ✅ | ██████████ 100% |
-| 4 | Infrastructure — Cloudinary, email, jobs, settings | 🟡 | ████████░░ 80% |
+| 4 | Infrastructure — Cloudinary, email, jobs, settings | 🟡 | █████████░ 85% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██░░░░░░░░ 20% |
-| 6 | Quality — testing, OpenAPI, logging | 🟡 | ██████░░░░ 60% |
+| 6 | Quality — testing, OpenAPI, logging | 🟡 | ███████░░░ 71% |
 | 7 | Production — Docker, CI/CD, monitoring | ⬜ | ░░░░░░░░░░ 0% |
 
-**Tổng thể: ~40%** · Số test đang chạy: **435** (BE 334 · FE 101) + ~30 kịch bản E2E
+**Tổng thể: ~40%** · Số test đang chạy: **661** (BE 541 · FE 120) + ~30 kịch bản E2E
 
 ---
 
@@ -46,7 +46,7 @@
 - [x] Tách `app.ts` / `server.ts` để test được
 - [x] Prisma singleton chống rò connection pool
 - [x] ESLint flat config + `typescript-eslint`
-- [ ] **Prettier** — `BE-08` 🟡 *(28 file nháy đơn vs 34 file nháy kép)*
+- [x] **Prettier** — `BE-08` 🟡 *(mỗi package 1 `.prettierrc.json` khớp quy ước đa số sẵn có, xem docs/12)*
 
 ## Phase 2 — Authentication ✅
 
@@ -95,10 +95,10 @@
 - [x] Ghi `email_logs` cho mọi lần gửi (`sent` / `failed` + `error`)
 - [x] `login_method_settings` + chốt chặn ≥ 1 phương thức bật
 - [x] Form Liên hệ công khai (`/api/v1/contact`, rate limit 5/15p theo IP) + admin xem/đánh dấu xử lý (`contact.manage`) — xem [docs/modules/core-contact.md](docs/modules/core-contact.md)
-- [ ] CRUD `folders` ⬜ *(bảng đã có, API chưa — `BE-19`)*
+- [x] CRUD `folders` *(`BE-19` — chỉ API, chưa có màn UI quản lý tài nguyên, xem dòng dưới)*
 - [ ] Màn hình quản lý tài nguyên (cây thư mục, grid/list) ⬜
 - [ ] Mở rộng `system_settings` key-value tổng quát ⬜
-- [ ] Nén + mã hoá backup ⬜ *(`OPS-02` — SECURITY.md §5 yêu cầu)*
+- [x] Nén + mã hoá backup *(`OPS-02` — `pg_dump --compress=9` + RSA/AES-256-GCM khi có `BACKUP_ENCRYPTION_PUBLIC_KEY`; còn thiếu tách bucket/tài khoản Cloudinary riêng — việc vận hành, xem docs/12)*
 
 ## Phase 5 — Domain 🟡
 
@@ -128,8 +128,8 @@
 
 ## Phase 6 — Quality 🟡
 
-- [x] **Backend: 334 test** (252 unit + 82 integration) — chạy **không cần database**
-- [x] **Frontend: 101 test** (unit + component + hook)
+- [x] **Backend: 541 test** (386 unit + 155 integration) — chạy **không cần database**
+- [x] **Frontend: 120 test** (unit + component + hook)
 - [x] **E2E Playwright: ~30 kịch bản** (auth · superadmin · account · categories)
 - [x] Hạ tầng test: Prisma mock tự sinh, `loginAs()` helper
 - [x] `npm run typecheck` phủ cả `src/` lẫn `tests/`
@@ -138,9 +138,9 @@
 - [x] Tài liệu khách hàng (GitBook) — 7 trang + cấu hình sync
 - [ ] **CI/CD GitHub Actions** ⬜ *(2 ngày — ưu tiên cao, mẫu ở docs/10 §6)*
 - [ ] OpenAPI/Swagger sinh từ zod schema ⬜ *(`BE-12` — 1 ngày)*
-- [ ] Test cho `jobs/` ⬜
+- [x] Test cho `jobs/` *(cleanupOrphanFiles, cleanupExpiredTokens, backupDatabase/cleanupOldBackups, backupEncryption)*
 - [ ] Integration test với PostgreSQL thật (Testcontainers) ⬜
-- [ ] Logger `pino` (JSON có cấu trúc) ⬜ *(`BE-18`)*
+- [x] Logger `pino` (JSON có cấu trúc) *(`BE-18`)*
 - [ ] Rà soát bảo mật độc lập ⬜
 
 ## Phase 7 — Production ⬜
@@ -168,45 +168,45 @@ Chi tiết đầy đủ: [docs/12 · Đánh giá & đề xuất](docs/12-danh-gi
 
 | Mã | Vấn đề | Ước lượng | Trạng thái |
 |---|---|---|:---:|
-| `BE-01` | Đổi mật khẩu **không thu hồi phiên cũ** (cả 3 luồng) | 2h | ⬜ |
-| `BE-02` | Thiếu `trust proxy` → rate limit + audit IP sai sau reverse proxy | 1h | ⬜ |
-| `BE-03` | Không phát hiện dùng lại refresh token đã thu hồi | 4h | ⬜ |
-| `BE-04` | Google login không kiểm tra `email_verified` | 1h | ⬜ |
-| `BE-05` | Token dùng-một-lần chưa nguyên tử (race condition) | 2h | ⬜ |
-| `BE-06` | `roles.update` không dùng transaction → mất sạch permission nếu lỗi | 1h | ⬜ |
+| `BE-01` | Đổi mật khẩu **không thu hồi phiên cũ** (cả 3 luồng) | 2h | ✅ |
+| `BE-02` | Thiếu `trust proxy` → rate limit + audit IP sai sau reverse proxy | 1h | ✅ |
+| `BE-03` | Không phát hiện dùng lại refresh token đã thu hồi | 4h | ✅ |
+| `BE-04` | Google login không kiểm tra `email_verified` | 1h | ✅ |
+| `BE-05` | Token dùng-một-lần chưa nguyên tử (race condition) | 2h | ✅ |
+| `BE-06` | `roles.update` không dùng transaction → mất sạch permission nếu lỗi | 1h | ✅ |
 
 ### 🟡 Chất lượng & vận hành — ~38 giờ
 
 | Mã | Vấn đề | Ước lượng | Trạng thái |
 |---|---|---|:---:|
-| `BE-07` | Lỗi Prisma (P2002/P2025/P2003) → 500 thay vì 409/404 | 2h | ⬜ |
-| `BE-08` | Chưa có Prettier — style không thống nhất | 2h | ⬜ |
-| `BE-09` | `cleanupOrphanFiles` xoá file vừa xoá mềm, không có cửa sổ 24h | 0.5h | ⬜ |
+| `BE-07` | Lỗi Prisma (P2002/P2025/P2003) → 500 thay vì 409/404 | 2h | ✅ |
+| `BE-08` | Chưa có Prettier — style không thống nhất | 2h | ✅ |
+| `BE-09` | `cleanupOrphanFiles` xoá file vừa xoá mềm, không có cửa sổ 24h | 0.5h | ✅ |
 | `BE-10` | `createFileRecord` không kiểm chứng `publicId` | 3h | ✅ |
-| `BE-11` | `env.ts` chỉ kiểm tra tồn tại, không kiểm tra giá trị | 3h | ⬜ |
+| `BE-11` | `env.ts` chỉ kiểm tra tồn tại, không kiểm tra giá trị | 3h | ✅ |
 | `BE-12` | Chưa có OpenAPI/Swagger | 8h | ⬜ |
-| `BE-13` | Token/session hết hạn tích tụ vô hạn | 3h | ⬜ |
-| `FE-01` | Chưa có Error Boundary → lỗi render = trang trắng | 2h | ⬜ |
-| `FE-02` | Hai nguồn sự thật cho user (`useAuthStore` + `useMe`) | 3h | ⬜ |
+| `BE-13` | Token/session hết hạn tích tụ vô hạn | 3h | ✅ |
+| `FE-01` | Chưa có Error Boundary → lỗi render = trang trắng | 2h | ✅ |
+| `FE-02` | Hai nguồn sự thật cho user (`useAuthStore` + `useMe`) | 3h | ✅ |
 | `FE-03` | ~~Comment `axios.ts` ghi "15 phút", thực tế 5 phút~~ | 5m | ✅ |
 | `OPS-01` | Cron chạy trong tiến trình API → chặn scale ngang | 3h | ⬜ |
-| `OPS-02` | Backup chưa nén, chưa mã hoá | 4h | ⬜ |
-| `OPS-03` | `cleanupOldBackups` chỉ xử lý 1000 object đầu | 1h | ⬜ |
+| `OPS-02` | Backup chưa nén, chưa mã hoá | 4h | ✅ |
+| `OPS-03` | `cleanupOldBackups` chỉ xử lý 1000 object đầu | 1h | ✅ |
 
 ### 🟢 Cải thiện — ~24 giờ
 
 | Mã | Vấn đề | Ước lượng | Trạng thái |
 |---|---|---|:---:|
-| `BE-14` | `tsconfig` khai báo `paths` không dùng, runtime không resolve | 0.5h | ⬜ |
-| `BE-15` | `JWT_REFRESH_EXPIRES_IN` trong `.env` nhưng code hard-code 30 ngày | 0.5h | ⬜ |
-| `BE-16` | Rate limit chỉ theo IP, chưa theo email | 2h | ⬜ |
-| `BE-17` | Chưa khoá tạm tài khoản sau N lần đăng nhập sai | 4h | ⬜ |
-| `BE-18` | Logger tự viết, chưa xuất JSON có cấu trúc | 3h | ⬜ |
-| `BE-19` | Chưa có CRUD `folders` | 6h | ⬜ |
-| `FE-04` | Chưa có loading skeleton | 3h | ⬜ |
-| `FE-05` | Chưa dùng `next/image` | 2h | ⬜ |
-| `FE-06` | Chưa có metadata SEO từng trang | 3h | ⬜ |
-| `OPS-04` | Chưa có `.nvmrc` / `engines` | 15m | ⬜ |
+| `BE-14` | `tsconfig` khai báo `paths` không dùng, runtime không resolve | 0.5h | ✅ |
+| `BE-15` | `JWT_REFRESH_EXPIRES_IN` trong `.env` nhưng code hard-code 30 ngày | 0.5h | ✅ |
+| `BE-16` | Rate limit chỉ theo IP, chưa theo email | 2h | ✅ |
+| `BE-17` | Chưa khoá tạm tài khoản sau N lần đăng nhập sai | 4h | ✅ |
+| `BE-18` | Logger tự viết, chưa xuất JSON có cấu trúc | 3h | ✅ |
+| `BE-19` | Chưa có CRUD `folders` | 6h | ✅ |
+| `FE-04` | Chưa có loading skeleton | 3h | ✅ |
+| `FE-05` | Chưa dùng `next/image` | 2h | ✅ |
+| `FE-06` | Chưa có metadata SEO từng trang | 3h | ✅ |
+| `OPS-04` | Chưa có `.nvmrc` / `engines` | 15m | ✅ |
 
 ---
 
@@ -242,7 +242,7 @@ Chi tiết: [docs/07 · Bảo mật](docs/07-bao-mat.md).
 
 | Việc | Ước lượng | Trạng thái |
 |---|---|:---:|
-| Sửa 6 điểm 🔴 nợ kỹ thuật (`BE-01` → `BE-06`) | 1.5 ngày | ⬜ |
+| Sửa 6 điểm 🔴 nợ kỹ thuật (`BE-01` → `BE-06`) | 1.5 ngày | ✅ *(10/09/2026 — xem `docs/12-danh-gia-va-de-xuat.md` §2)* |
 | Thiết lập CI/CD GitHub Actions | 2 ngày | ⬜ |
 | **Module Products** (CRUD + nhiều ảnh, không tồn kho) | 6 ngày | ✅ *(10/09/2026 — chưa gồm biến thể/size riêng, xem `product_variants` ở Phase 5)* |
 | **Cart + Orders (giai đoạn cơ bản)** — làm sớm hơn kế hoạch, ngoài phạm vi kỳ này ban đầu | — | ✅ *(10/09/2026 — guest checkout, COD, chưa thanh toán online, xem `docs/modules/domain-orders.md`)* |

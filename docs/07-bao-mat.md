@@ -25,19 +25,24 @@ flowchart TB
         D10["Audit log thao tác nhạy cảm"]
         D11["Chữ ký Cloudinary giới hạn định dạng<br/>+ kiểm chứng size/tồn tại SAU upload"]
         D12["Không lộ email tồn tại<br/>(magic link · forgot password)"]
+        D13["Refresh token reuse detection<br/>+ cảnh báo email (10/09/2026)"]
+        D14["Thu hồi session sau đổi mật khẩu<br/>cả 3 luồng (10/09/2026)"]
+        D15["Google OAuth kiểm tra email_verified<br/>(10/09/2026)"]
+        D16["Token dùng-1-lần nguyên tử<br/>magic link · reset password (10/09/2026)"]
+        D17["trust proxy đúng số hop<br/>rate limit/audit IP đúng sau proxy (10/09/2026)"]
+        D18["Backup DB nén + mã hoá RSA/AES-256-GCM<br/>khoá riêng không ở server (11/09/2026)"]
+        D19["Rate limit theo IP+email · khoá tạm sau 5<br/>lần sai, cooldown tăng dần (11/09/2026)"]
     end
 
     subgraph PARTIAL["🟡 Một phần"]
-        P1["Backup DB → Cloudinary<br/>CHƯA nén/mã hoá"]
+        P1["Backup DB chung tài khoản Cloudinary<br/>với ảnh công khai — chưa tách bucket riêng"]
         P2["Logging<br/>chưa tập trung, chưa cảnh báo"]
-        P3["Session revoke<br/>chưa có reuse detection"]
     end
 
     subgraph TODO["⬜ Chưa có"]
         T1["2FA cho super_admin/admin"]
-        T2["Khoá tạm sau N lần sai<br/>+ captcha"]
+        T2["Captcha sau vài lần thất bại"]
         T3["CSRF token"]
-        T4["Thu hồi session<br/>sau khi đổi mật khẩu"]
         T5["Xác thực email<br/>trước khi đặt hàng"]
         T6["Dependency scanning trong CI"]
         T7["HSTS · redirect HTTPS"]
@@ -62,12 +67,13 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 | Rủi ro | Biện pháp |
 |---|---|
 | Mật khẩu yếu / lộ mật khẩu | ✅ Hash bằng **bcrypt** (cost ≥ 12) hoặc **argon2**; bắt buộc độ dài tối thiểu 8 ký tự khi đăng ký |
-| Brute-force đăng nhập | 🟡 Rate limit theo IP + email (`express-rate-limit`), khoá tạm tài khoản sau 5 lần sai (kèm cooldown tăng dần), captcha (reCAPTCHA/hCaptcha) sau vài lần thất bại |
+| Brute-force đăng nhập | 🟡 ✅ Rate limit theo IP + email (`express-rate-limit`, 2 limiter chồng nhau — docs/12 BE-16) + khoá tạm tài khoản sau 5 lần sai, cooldown tăng dần 1→30 phút (docs/12 BE-17, cả 2 xong 11/09/2026); **chưa có** captcha sau vài lần thất bại |
 | Đánh cắp session/token | ✅ Access token JWT **thời gian sống ngắn** (5 phút), refresh token lưu ở **httpOnly, Secure, SameSite=Strict cookie** (không lưu localStorage — tránh XSS đánh cắp token) |
-| Refresh token bị lộ | 🟡 Refresh token **rotation**: mỗi lần dùng để cấp access token mới thì phát hành refresh token mới, thu hồi token cũ (set `sessions.revoked_at`); chỉ lưu `refresh_token_hash`, không lưu token thô |
-| **Magic link bị lộ/đoán được** | ✅ Token magic link sinh ngẫu nhiên đủ dài (≥ 32 byte), chỉ lưu `token_hash` (sha256) trong DB, **hết hạn ngắn** (~15 phút), **dùng 1 lần** (set `used_at` ngay khi verify — verify lần 2 phải fail), gửi qua Resend với rate limit theo email (chống spam yêu cầu magic link liên tục) |
+| Refresh token bị lộ | ✅ Refresh token **rotation**: mỗi lần dùng để cấp access token mới thì phát hành refresh token mới, thu hồi token cũ (set `sessions.revoked_at`); chỉ lưu `refresh_token_hash`, không lưu token thô. **Reuse detection**: token đã bị thu hồi mà vẫn được gửi lên lại → thu hồi TOÀN BỘ session của user + ghi audit log (`auth.refresh_reuse_detected`) + gửi email cảnh báo — xem [12 · BE-03](12-danh-gia-va-de-xuat.md) |
+| Đổi mật khẩu không đuổi được thiết bị đang bị chiếm | ✅ Cả 3 luồng đổi mật khẩu (tự đổi, quên mật khẩu, superadmin reset hộ) đều thu hồi session liên quan sau khi đổi — tự đổi thì chừa lại đúng phiên hiện tại, 2 luồng còn lại thu hồi tất cả. Xem [12 · BE-01](12-danh-gia-va-de-xuat.md) |
+| **Magic link bị lộ/đoán được** | ✅ Token magic link sinh ngẫu nhiên đủ dài (≥ 32 byte), chỉ lưu `token_hash` (sha256) trong DB, **hết hạn ngắn** (~15 phút), **dùng 1 lần NGUYÊN TỬ** (kiểm tra hợp lệ + đánh dấu đã dùng trong CÙNG 1 câu lệnh `updateMany`, chặn cả trường hợp 2 request gửi đồng thời cùng token — xem [12 · BE-05](12-danh-gia-va-de-xuat.md)), gửi qua Resend với rate limit theo email (chống spam yêu cầu magic link liên tục). Cùng cơ chế áp dụng cho token đặt lại mật khẩu |
 | Chiếm quyền tài khoản admin/nhân viên | ⬜ Bắt buộc **2FA (TOTP)** cho các vai trò `super_admin`, `admin` trở lên |
-| OAuth Google bị giả mạo callback | ✅ Không dùng luồng redirect — backend verify **ID token** bằng `google-auth-library` với `audience = GOOGLE_CLIENT_ID`, nên không có callback để giả mạo. *(Nếu sau này chuyển sang luồng redirect thì mới cần `state` param + whitelist `redirect_uri`.)* Còn thiếu: chưa kiểm tra `payload.email_verified` trước khi liên kết tài khoản theo email — xem [12 · Đề xuất](12-danh-gia-va-de-xuat.md). <!-- ghi chú gốc: dùng state param + redirect_uri whitelist --> |
+| OAuth Google bị giả mạo callback | ✅ Không dùng luồng redirect — backend verify **ID token** bằng `google-auth-library` với `audience = GOOGLE_CLIENT_ID`, nên không có callback để giả mạo. *(Nếu sau này chuyển sang luồng redirect thì mới cần `state` param + whitelist `redirect_uri`.)* Cũng kiểm tra `payload.email_verified === true` trước khi liên kết tài khoản theo email — email chưa xác minh bị từ chối thẳng (`401 GOOGLE_EMAIL_UNVERIFIED`), chặn kẻ tấn công chiếm tài khoản người khác qua email giả. Xem [12 · BE-04](12-danh-gia-va-de-xuat.md). |
 | Email/số điện thoại giả khi đăng ký | ⬜ Xác thực email (verification link) trước khi cho đặt hàng thanh toán online; OTP SMS khi cần |
 | **Bị vô hiệu hoá hết phương thức đăng nhập** | ✅ Service `login-methods.update` luôn kiểm tra: sau khi áp thay đổi, phải còn **≥ 1** phương thức `is_enabled = true`, nếu không → trả lỗi 400 + cảnh báo rõ ràng trên UI SuperAdmin, không cho lưu |
 | Chiếm phiên qua thiết bị bị đánh cắp | 🟡 Người dùng tự xem danh sách thiết bị (`GET /api/v1/account/sessions`) và **đăng xuất từ xa** từng thiết bị hoặc toàn bộ (revoke `sessions`); nên gửi email cảnh báo khi có đăng nhập từ thiết bị/IP lạ |
@@ -105,7 +111,8 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 | Chống NoSQL/JSON injection | ✅ Validate kiểu dữ liệu nghiêm ngặt nếu dùng JSONB trong Postgres |
 | Chống XSS | React/Next.js tự escape output ở mọi nơi **không** cố tình render HTML. Nơi CÓ render HTML thật (mô tả sản phẩm — rich text editor, xem [modules/domain-products.md §9](modules/domain-products.md#9-mô-tả-dạng-rich-text)): ✅ sanitize bằng `sanitize-html` ngay ở **backend, lúc ghi DB** (allowlist thẻ + KHÔNG cho phép attribute nào, kể cả `href`) — chọn sanitize lúc ghi thay vì lúc hiển thị để mọi nơi đọc `description` sau này (admin panel, storefront...) đều nhận dữ liệu đã sạch sẵn, không phải tự nhớ sanitize lại từng chỗ. Module nào khác sau này cũng render HTML do người dùng nhập (blog...) phải theo đúng mẫu này, không sanitize ở phía client bằng `DOMPurify` một cách rời rạc |
 | CSRF | ⬜ Hiện dựa vào `SameSite=lax` + CORS whitelist (đủ chặn form cross-site cơ bản, **không** đủ khi có subdomain không tin cậy). Nếu dùng cookie cho auth: bật CSRF token cho các request thay đổi state (`csurf` hoặc double-submit cookie pattern) |
-| Rate limiting API công khai | 🟡 Đã có cho `/api/v1/contact` (5 lần/15 phút, xem [modules/core-contact.md](modules/core-contact.md)) — `/api/v1/products`, `/api/v1/cart` vẫn ⬜ chưa giới hạn theo IP, chống scraping/spam bot |
+| Rate limiting API công khai | 🟡 Đã có cho `/api/v1/contact` (5 lần/15 phút, xem [modules/core-contact.md](modules/core-contact.md)) và `/api/v1/orders` (10 lần/15 phút, kèm honeypot — xem [modules/domain-orders.md §9](modules/domain-orders.md#9-chống-spam-form-honeypot)) — `/api/v1/products`, `/api/v1/categories` vẫn ⬜ chưa giới hạn theo IP, chống scraping bot. **Rate limit theo IP chỉ đúng khi `req.ip` là IP thật của client** — xem hàng "Chạy sau reverse proxy" bên dưới |
+| Chạy sau reverse proxy (Nginx/Caddy/Render...) | ✅ `app.set('trust proxy', TRUST_PROXY_HOPS)` chỉ bật ở production, số hop cấu hình qua env — thiếu bước này thì `req.ip` luôn là IP CỦA PROXY, khiến rate limit theo IP gộp chung mọi người dùng vào 1 bucket (1 kẻ tấn công khoá được luôn người dùng thật) và `audit_logs.ip_address` mất khả năng truy vết. Xem [12 · BE-02](12-danh-gia-va-de-xuat.md) |
 | Giới hạn kích thước request | ✅ `express.json({ limit: '1mb' })` tránh payload khổng lồ gây DoS |
 | HTTPS bắt buộc | ⬜ Redirect HTTP→HTTPS, bật HSTS ở production |
 | Upload ảnh sản phẩm/avatar | ✅ Giới hạn loại file (jpg/png/webp), đổi tên file ngẫu nhiên (không dùng tên gốc làm `publicId`), upload thẳng lên **Cloudinary** qua chữ ký HMAC-SHA1 (không đi qua server ứng dụng) — chữ ký chỉ ràng buộc được **định dạng** (`allowed_formats`), **không** ràng buộc được kích thước tối đa trong điều kiện ký (khác S3 trước đây); dung lượng được **xác minh SAU khi upload xong** bằng Cloudinary Admin API, trước khi ghi bản ghi DB — vượt hạn mức thì xoá luôn trên Cloudinary, không tạo rác lâu dài. Quét virus nếu cho khách upload ảnh review |
@@ -134,11 +141,13 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
   lượng được xác minh **sau khi upload xong** bằng Cloudinary Admin API, trước khi ghi bản ghi DB —
   vượt hạn mức thì xoá luôn trên Cloudinary, không tạo rác lâu dài.
 - **Dọn file mồ côi (10 ngày/lần)**: cron job xoá file trong `files` không còn `file_usages` tham chiếu và đã quá ngưỡng an toàn (≥ 24h kể từ lúc upload) — vừa tiết kiệm dung lượng, vừa giảm bề mặt tấn công (file rác không ai quản lý). Trước khi xoá cứng trên Cloudinary, xoá record DB trong cùng transaction để tránh mất đồng bộ.
-- **Backup PostgreSQL lên Cloudinary**: `pg_dump` định kỳ **2 ngày/lần**, đẩy lên với `public_id`
-  prefix `backups/`, `resource_type: "raw"` (khác `"image"` của module Files — xem
-  [modules/core-files.md](modules/core-files.md)); **CHƯA nén/mã hoá** trước khi upload (xem cảnh báo
-  ở [§0](#0-tình-trạng-hiện-tại--tóm-tắt)), giới hạn quyền truy cập tài khoản Cloudinary ở mức tối
-  thiểu (chỉ service account backup được ghi/đọc).
+- **Backup PostgreSQL lên Cloudinary**: `pg_dump --compress=9` định kỳ **2 ngày/lần**, **mã hoá** bằng
+  RSA + AES-256-GCM khi đã cấu hình `BACKUP_ENCRYPTION_PUBLIC_KEY` (khoá riêng để giải mã KHÔNG BAO
+  GIỜ nằm trên server — xem [docs/09 §3.4b](09-moi-truong-va-bien-cau-hinh.md)), đẩy lên với
+  `public_id` prefix `backups/`, `resource_type: "raw"` (khác `"image"` của module Files — xem
+  [modules/core-files.md](modules/core-files.md)). Vẫn giới hạn quyền truy cập tài khoản Cloudinary ở
+  mức tối thiểu (chỉ service account backup được ghi/đọc); **chưa tách bucket/tài khoản riêng** cho
+  backup (khác tài khoản chứa ảnh công khai) — xem [docs/12 OPS-02](12-danh-gia-va-de-xuat.md).
 - **Retention tự động**: cron job riêng (`cleanupOldBackups`, không phải lifecycle rule của nhà cung
   cấp) quét theo `created_at` để **tự xoá backup cũ hơn 30 ngày** — tránh backup tồn đọng vô thời hạn
   vừa tốn chi phí vừa tăng rủi ro rò rỉ nếu tài khoản bị lộ.
@@ -194,6 +203,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - [x] RBAC middleware `authenticate` + `authorize`; chặn cứng ràng buộc "không tự đổi role", "không tự nâng super_admin" ở tầng service
 - [x] Chữ ký upload Cloudinary có kiểm soát định dạng (`allowed_formats`); dung lượng kiểm chứng sau upload qua Admin API trước khi ghi DB
 - [x] `.env` không commit, có `.env.example`
+- [x] Thu hồi session khi đổi mật khẩu (cả 3 luồng) · refresh token reuse detection + cảnh báo email · Google OAuth kiểm tra `email_verified` · token dùng-1-lần nguyên tử (magic link/reset) · `trust proxy` đúng số hop sau reverse proxy — xem [12 · BE-01 → BE-06](12-danh-gia-va-de-xuat.md)
 
 **Giai đoạn 2 — Thanh toán**
 - [ ] Verify chữ ký webhook thanh toán

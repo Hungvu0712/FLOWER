@@ -317,6 +317,7 @@ Cron chạy **trong tiến trình Node** (`node-cron`, `jobs/index.ts`), chỉ �
 
 | Job | Lịch | Việc |
 |---|---|---|
+| `cleanupExpiredTokens` | `0 2 * * *` (hằng ngày, 02:00) | Xoá magic link/password reset token hết hạn > 7 ngày, session hết hạn/thu hồi > 30 ngày (docs/12 BE-13) |
 | `backupDatabase` | `0 3 */2 * *` (~2 ngày/lần, 03:00) | `pg_dump` → Cloudinary `backups/` (`resource_type: "raw"`) |
 | `cleanupOldBackups` | `30 3 */2 * *` | Xoá backup > 30 ngày |
 | `cleanupOrphanFiles` | `0 4 */10 * *` (~10 ngày/lần) | Xoá file mồ côi khỏi Cloudinary + DB |
@@ -347,7 +348,7 @@ login_email_enabled · login_google_enabled · login_magic_link_enabled
 |---|---|
 | TypeScript **strict mode** (cả `noUncheckedIndexedAccess`) | ✅ backend + frontend |
 | ESLint flat config + `typescript-eslint` | ✅ |
-| **Prettier** | ⬜ chưa cấu hình — xem [12 · Đề xuất](12-danh-gia-va-de-xuat.md) |
+| **Prettier** | ✅ mỗi package (`backend/`, `frontend/`) có `.prettierrc.json` riêng — `npm run format` / `format:check` |
 | Vitest (unit + integration) | ✅ |
 | Playwright (E2E) | ✅ cấu hình sẵn, cần môi trường thật để chạy |
 | OpenAPI / Swagger | ⬜ — [06 · API Reference](06-api-reference.md) là bản viết tay tạm thời |
