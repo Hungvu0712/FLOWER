@@ -3,9 +3,9 @@
 // cookie trình duyệt (withCredentials), không hợp để gọi từ server lúc render trang. 2 endpoint này
 // công khai (không cần đăng nhập) nên không cần cookie gì cả.
 
-import type { Order } from "@/features/domain/orders/orders.service";
+import type { Order } from '@/features/domain/orders/orders.service';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export type StorefrontCategory = {
   id: string;
@@ -46,7 +46,7 @@ async function getJson<T>(path: string): Promise<T | null> {
 }
 
 export async function getStorefrontCategories(): Promise<StorefrontCategory[]> {
-  return (await getJson<StorefrontCategory[]>("/api/v1/categories")) ?? [];
+  return (await getJson<StorefrontCategory[]>('/api/v1/categories')) ?? [];
 }
 
 // Không có endpoint GET /categories/:slug riêng ở backend — danh sách categories đủ nhỏ (chưa phân
@@ -60,12 +60,8 @@ export async function getStorefrontCategoryBySlug(
 
 // Có endpoint GET /products/:slug riêng ở backend (khác categories) — danh sách sản phẩm có phân
 // trang, không thể tải hết rồi lọc ở FE như getStorefrontCategoryBySlug đang làm.
-export async function getStorefrontProductBySlug(
-  slug: string,
-): Promise<StorefrontProduct | null> {
-  return getJson<StorefrontProduct>(
-    `/api/v1/products/${encodeURIComponent(slug)}`,
-  );
+export async function getStorefrontProductBySlug(slug: string): Promise<StorefrontProduct | null> {
+  return getJson<StorefrontProduct>(`/api/v1/products/${encodeURIComponent(slug)}`);
 }
 
 // Trang xác nhận đơn hàng (public, `id` dạng UUID đóng vai trò token tra cứu — xem backend
@@ -80,9 +76,7 @@ export async function getStorefrontProducts({
   categoryId,
 }: { limit?: number; categoryId?: string } = {}): Promise<StorefrontProduct[]> {
   const query = new URLSearchParams({ limit: String(limit) });
-  if (categoryId) query.set("categoryId", categoryId);
-  const result = await getJson<StorefrontProduct[]>(
-    `/api/v1/products?${query}`,
-  );
+  if (categoryId) query.set('categoryId', categoryId);
+  const result = await getJson<StorefrontProduct[]>(`/api/v1/products?${query}`);
   return result ?? [];
 }

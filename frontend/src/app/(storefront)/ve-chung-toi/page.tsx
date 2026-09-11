@@ -1,5 +1,13 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { FlowerIcon } from '@/components/ui/FlowerIcon';
+
+// docs/12 FE-06: nội dung tĩnh nên metadata cũng tĩnh (không cần generateMetadata động như trang
+// sản phẩm/danh mục).
+export const metadata: Metadata = {
+  title: 'Về chúng tôi',
+  description: 'Câu chuyện, giá trị cốt lõi và cam kết của Hoa Xinh với mỗi đơn hoa gửi đi.',
+};
 
 // Nội dung tĩnh (không qua API) — TODO: thay bằng câu chuyện/nội dung THẬT của cửa hàng, đây chỉ là
 // khung mẫu để dựng giao diện.
@@ -8,7 +16,13 @@ const VALUES = [
     title: 'Hoa tươi mỗi ngày',
     desc: 'Nhập hoa mỗi sáng, không giữ hàng tồn qua đêm.',
     icon: (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
         <circle cx="12" cy="8" r="3" />
         <circle cx="7" cy="13" r="3" />
         <circle cx="17" cy="13" r="3" />
@@ -20,7 +34,13 @@ const VALUES = [
     title: 'Ảnh thật trước khi giao',
     desc: 'Chụp đúng bó hoa sẽ giao, không dùng ảnh mẫu.',
     icon: (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
         <rect x="3" y="5.5" width="18" height="14" rx="2" />
         <circle cx="12" cy="12.5" r="3.2" />
         <path d="M8 5.5 9.3 3.5h5.4L16 5.5" />
@@ -31,7 +51,13 @@ const VALUES = [
     title: 'Giao đúng giờ hẹn',
     desc: 'Chọn được khung giờ giao, đặc biệt quan trọng với hoa cưới.',
     icon: (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
         <circle cx="12" cy="12" r="8.5" />
         <path d="M12 7.5V12l3 2" />
       </svg>
@@ -41,7 +67,13 @@ const VALUES = [
     title: 'Tư vấn tận tâm',
     desc: 'Gọi điện hoặc nhắn Zalo, luôn có người tư vấn mẫu phù hợp.',
     icon: (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
         <path d="M21 15.5a2 2 0 0 1-2 2H8l-5 4V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9.5Z" />
       </svg>
     ),
@@ -55,22 +87,26 @@ export default function AboutUsPage() {
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-sm">
           <FlowerIcon className="h-10 w-10" color="var(--color-rose)" />
         </div>
-        <p className="text-sm font-semibold tracking-widest text-rose uppercase">Câu chuyện của chúng tôi</p>
+        <p className="text-sm font-semibold tracking-widest text-rose uppercase">
+          Câu chuyện của chúng tôi
+        </p>
         <h1 className="font-display text-4xl font-semibold text-ink lg:text-5xl">
           Hoa Xinh — nơi mỗi bó hoa
           <br />
           là một lời muốn nói
         </h1>
         <p className="max-w-2xl text-lg leading-relaxed text-ink-muted">
-          Chúng tôi tin rằng một bó hoa đúng lúc có thể thay cho ngàn lời nói. Từ những ngày đầu chỉ là
-          một tiệm hoa nhỏ, Hoa Xinh lớn lên nhờ sự tin tưởng của khách hàng — những người gửi hoa
-          chúc mừng, tỏ tình, hay đơn giản là một lời hỏi thăm.
+          Chúng tôi tin rằng một bó hoa đúng lúc có thể thay cho ngàn lời nói. Từ những ngày đầu chỉ
+          là một tiệm hoa nhỏ, Hoa Xinh lớn lên nhờ sự tin tưởng của khách hàng — những người gửi
+          hoa chúc mừng, tỏ tình, hay đơn giản là một lời hỏi thăm.
         </p>
       </section>
 
       <section className="px-8 py-20 lg:px-16">
         <div className="mx-auto max-w-5xl">
-          <p className="text-center text-sm font-semibold tracking-widest text-rose uppercase">Cam kết</p>
+          <p className="text-center text-sm font-semibold tracking-widest text-rose uppercase">
+            Cam kết
+          </p>
           <h2 className="mt-2 text-center font-display text-3xl font-semibold text-ink">
             Điều làm nên Hoa Xinh
           </h2>

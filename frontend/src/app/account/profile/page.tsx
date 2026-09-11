@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -49,8 +50,13 @@ export default function ProfilePage() {
 
         <div className="mb-6 flex items-center gap-4">
           {me.avatarFile ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={me.avatarFile.url} alt="Avatar" className="h-16 w-16 rounded-full object-cover" />
+            <Image
+              src={me.avatarFile.url}
+              alt="Avatar"
+              width={64}
+              height={64}
+              className="h-16 w-16 rounded-full object-cover"
+            />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-light">
               <FlowerIcon className="h-7 w-7" color="var(--color-rose)" />
@@ -67,8 +73,16 @@ export default function ProfilePage() {
           onSubmit={profileForm.handleSubmit((values) => updateProfile.mutate(values))}
         >
           <FormField label="Email" value={me.email} disabled />
-          <FormField label="Họ tên" {...profileForm.register('fullName')} error={profileForm.formState.errors.fullName} />
-          <FormField label="Số điện thoại" {...profileForm.register('phone')} error={profileForm.formState.errors.phone} />
+          <FormField
+            label="Họ tên"
+            {...profileForm.register('fullName')}
+            error={profileForm.formState.errors.fullName}
+          />
+          <FormField
+            label="Số điện thoại"
+            {...profileForm.register('phone')}
+            error={profileForm.formState.errors.phone}
+          />
           <Button type="submit" loading={updateProfile.isPending} className="self-start">
             Lưu thay đổi
           </Button>

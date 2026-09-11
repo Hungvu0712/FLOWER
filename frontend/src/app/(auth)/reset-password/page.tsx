@@ -29,9 +29,18 @@ function ResetPasswordInner() {
         className="flex flex-col gap-4"
         onSubmit={handleSubmit((values) => resetPassword.mutate({ token, input: values }))}
       >
-        <FormField label="Mật khẩu mới" type="password" {...register('newPassword')} error={errors.newPassword} />
-        {resetPassword.isError && <p className="text-xs text-red-600">Liên kết không hợp lệ hoặc đã hết hạn.</p>}
-        <Button type="submit" loading={resetPassword.isPending}>Đặt lại mật khẩu</Button>
+        <FormField
+          label="Mật khẩu mới"
+          type="password"
+          {...register('newPassword')}
+          error={errors.newPassword}
+        />
+        {resetPassword.isError && (
+          <p className="text-xs text-red-600">Liên kết không hợp lệ hoặc đã hết hạn.</p>
+        )}
+        <Button type="submit" loading={resetPassword.isPending}>
+          Đặt lại mật khẩu
+        </Button>
       </form>
     </div>
   );

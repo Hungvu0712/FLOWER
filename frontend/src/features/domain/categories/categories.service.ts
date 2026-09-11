@@ -32,7 +32,8 @@ export const categoriesService = {
 
   create: (input: CreateCategoryInput) => api.post('/api/v1/admin/categories', input),
 
-  update: (id: string, input: UpdateCategoryInput) => api.patch(`/api/v1/admin/categories/${id}`, input),
+  update: (id: string, input: UpdateCategoryInput) =>
+    api.patch(`/api/v1/admin/categories/${id}`, input),
 
   remove: (id: string) => api.delete(`/api/v1/admin/categories/${id}`),
 };

@@ -19,6 +19,7 @@ export function useUpdateLoginMethod() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'login-methods'] });
       push('Đã cập nhật phương thức đăng nhập');
     },
-    onError: (error) => push(getErrorMessage(error, 'Không cập nhật được phương thức đăng nhập'), 'error'),
+    onError: (error) =>
+      push(getErrorMessage(error, 'Không cập nhật được phương thức đăng nhập'), 'error'),
   });
 }

@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { AxiosError } from "axios";
-import { useSubmitContact } from "@/features/core/contact/contact.hooks";
-import { Button } from "@/components/ui/Button";
+import { useState } from 'react';
+import { AxiosError } from 'axios';
+import { useSubmitContact } from '@/features/core/contact/contact.hooks';
+import { Button } from '@/components/ui/Button';
 import {
   HOTLINE,
   HOTLINE_DISPLAY,
@@ -11,7 +11,7 @@ import {
   OPEN_HOURS,
   ZALO_LINK,
   ZALO_DISPLAY,
-} from "@/lib/contact-info";
+} from '@/lib/contact-info';
 
 type FormState = {
   name: string;
@@ -19,7 +19,7 @@ type FormState = {
   occasion: string;
   message: string;
 };
-const emptyForm: FormState = { name: "", phone: "", occasion: "", message: "" };
+const emptyForm: FormState = { name: '', phone: '', occasion: '', message: '' };
 
 const PhoneIcon = (
   <svg
@@ -43,24 +43,14 @@ const ZaloIcon = (
     <path d="M21 15.5a2 2 0 0 1-2 2H8l-5 4V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9.5Z" />
   </svg>
 );
-function InfoRow({
-  label,
-  value,
-  href,
-}: {
-  label: string;
-  value: string;
-  href?: string;
-}) {
+function InfoRow({ label, value, href }: { label: string; value: string; href?: string }) {
   return (
     <div className="border-b border-border-soft py-5 first:pt-0 last:border-none last:pb-0">
-      <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
-        {label}
-      </p>
+      <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">{label}</p>
       {href ? (
         <a
           href={href}
-          target={href.startsWith("http") ? "_blank" : undefined}
+          target={href.startsWith('http') ? '_blank' : undefined}
           rel="noopener noreferrer"
           className="mt-1 block text-lg font-semibold text-rose hover:text-rose-dark"
         >
@@ -87,7 +77,7 @@ function PillLink({
   return (
     <a
       href={href}
-      target={href.startsWith("http") ? "_blank" : undefined}
+      target={href.startsWith('http') ? '_blank' : undefined}
       rel="noopener noreferrer"
       className="flex items-center gap-3 rounded-2xl bg-white px-5 py-3.5 text-ink transition-transform hover:-translate-y-0.5"
     >
@@ -136,16 +126,13 @@ export default function ContactPage() {
     <div>
       {/* Hero — băng riêng tông rose-light, khác nền trắng của phần dưới */}
       <section className="bg-rose-light px-8 py-16 text-center lg:px-16">
-        <p className="mb-3 text-sm font-semibold tracking-widest text-rose uppercase">
-          Liên hệ
-        </p>
+        <p className="mb-3 text-sm font-semibold tracking-widest text-rose uppercase">Liên hệ</p>
         <h1 className="font-display text-4xl font-semibold text-ink lg:text-5xl">
           Đặt hoa nhanh, chỉ một cuộc gọi
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-ink-muted">
-          Gọi điện hoặc nhắn Zalo để được tư vấn nhanh nhất, mở cửa {OPEN_HOURS}
-          . Ngoài giờ vẫn có thể để lại lời nhắn, chúng tôi phản hồi ngay khi mở
-          cửa lại.
+          Gọi điện hoặc nhắn Zalo để được tư vấn nhanh nhất, mở cửa {OPEN_HOURS}. Ngoài giờ vẫn có
+          thể để lại lời nhắn, chúng tôi phản hồi ngay khi mở cửa lại.
         </p>
       </section>
 
@@ -157,11 +144,7 @@ export default function ContactPage() {
               Thông tin cửa hàng
             </h2>
             <div className="mt-4">
-              <InfoRow
-                label="Hotline đặt hoa"
-                value={HOTLINE_DISPLAY}
-                href={`tel:${HOTLINE}`}
-              />
+              <InfoRow label="Hotline đặt hoa" value={HOTLINE_DISPLAY} href={`tel:${HOTLINE}`} />
               <InfoRow label="Zalo" value={ZALO_DISPLAY} href={ZALO_LINK} />
               <InfoRow label="Địa chỉ" value={ADDRESS} />
               <InfoRow label="Giờ mở cửa" value={OPEN_HOURS} />
@@ -182,25 +165,17 @@ export default function ContactPage() {
                     <polyline points="4 12 9 17 20 6" />
                   </svg>
                 </div>
-                <h2 className="text-lg font-semibold text-ink">
-                  Đã gửi thành công
-                </h2>
+                <h2 className="text-lg font-semibold text-ink">Đã gửi thành công</h2>
                 <p className="max-w-xs text-sm text-ink-muted">
                   Cảm ơn bạn đã liên hệ — chúng tôi sẽ phản hồi sớm nhất có thể.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSent(false)}
-                >
+                <Button variant="outline" size="sm" onClick={() => setSent(false)}>
                   Gửi lời nhắn khác
                 </Button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <h2 className="text-lg font-semibold text-ink">
-                  Gửi yêu cầu tư vấn
-                </h2>
+                <h2 className="text-lg font-semibold text-ink">Gửi yêu cầu tư vấn</h2>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
@@ -209,15 +184,11 @@ export default function ContactPage() {
                     </label>
                     <input
                       value={form.name}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, name: e.target.value }))
-                      }
+                      onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                       className="w-full rounded-xl border border-border px-3 py-2.5 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
                     />
                     {fieldErrors.name && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {fieldErrors.name}
-                      </p>
+                      <p className="mt-1 text-xs text-red-600">{fieldErrors.name}</p>
                     )}
                   </div>
                   <div>
@@ -226,15 +197,11 @@ export default function ContactPage() {
                     </label>
                     <input
                       value={form.phone}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, phone: e.target.value }))
-                      }
+                      onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                       className="w-full rounded-xl border border-border px-3 py-2.5 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
                     />
                     {fieldErrors.phone && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {fieldErrors.phone}
-                      </p>
+                      <p className="mt-1 text-xs text-red-600">{fieldErrors.phone}</p>
                     )}
                   </div>
                 </div>
@@ -246,9 +213,7 @@ export default function ContactPage() {
                   <input
                     placeholder="Sinh nhật, khai trương, cưới hỏi..."
                     value={form.occasion}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, occasion: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, occasion: e.target.value }))}
                     className="w-full rounded-xl border border-border px-3 py-2.5 text-sm outline-none placeholder:text-ink-muted/60 focus:border-rose focus:ring-1 focus:ring-rose"
                   />
                 </div>
@@ -261,22 +226,16 @@ export default function ContactPage() {
                     rows={4}
                     placeholder="Mẫu hoa bạn muốn, ngân sách, thời gian giao..."
                     value={form.message}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, message: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
                     className="w-full rounded-xl border border-border px-3 py-2.5 text-sm outline-none placeholder:text-ink-muted/60 focus:border-rose focus:ring-1 focus:ring-rose"
                   />
                   {fieldErrors.message && (
-                    <p className="mt-1 text-xs text-red-600">
-                      {fieldErrors.message}
-                    </p>
+                    <p className="mt-1 text-xs text-red-600">{fieldErrors.message}</p>
                   )}
                 </div>
 
                 {submitContact.isError && !Object.keys(fieldErrors).length && (
-                  <p className="text-xs text-red-600">
-                    Gửi không thành công, thử lại sau ít phút.
-                  </p>
+                  <p className="text-xs text-red-600">Gửi không thành công, thử lại sau ít phút.</p>
                 )}
 
                 <Button
@@ -300,8 +259,8 @@ export default function ContactPage() {
               Chưa biết chọn mẫu nào?
             </h2>
             <p className="mt-2 max-w-md text-sm text-white/70">
-              Gọi hoặc nhắn Zalo cho chúng tôi — tư vấn mẫu phù hợp và báo giá
-              ngay trong vài phút, hỗ trợ cả đơn gấp cần giao trong ngày.
+              Gọi hoặc nhắn Zalo cho chúng tôi — tư vấn mẫu phù hợp và báo giá ngay trong vài phút,
+              hỗ trợ cả đơn gấp cần giao trong ngày.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -311,12 +270,7 @@ export default function ContactPage() {
               value={HOTLINE_DISPLAY}
               href={`tel:${HOTLINE}`}
             />
-            <PillLink
-              icon={ZaloIcon}
-              label="Nhắn tin Zalo"
-              value={ZALO_DISPLAY}
-              href={ZALO_LINK}
-            />
+            <PillLink icon={ZaloIcon} label="Nhắn tin Zalo" value={ZALO_DISPLAY} href={ZALO_LINK} />
           </div>
         </div>
       </section>

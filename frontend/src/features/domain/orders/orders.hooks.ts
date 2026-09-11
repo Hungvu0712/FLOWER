@@ -23,7 +23,8 @@ export function useUpdateOrderStatus() {
   const queryClient = useQueryClient();
   const push = useToastStore((s) => s.push);
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) => ordersService.updateStatus(id, status),
+    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
+      ordersService.updateStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
       push('Đã cập nhật trạng thái đơn');

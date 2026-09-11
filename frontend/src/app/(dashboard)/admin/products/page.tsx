@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import {
   useProducts,
   useCreateProduct,
@@ -55,13 +56,18 @@ function toInput(form: FormState) {
   };
 }
 
-function ImageGallery({ images, onRemove }: { images: ImageDraft[]; onRemove: (fileId: string) => void }) {
+function ImageGallery({
+  images,
+  onRemove,
+}: {
+  images: ImageDraft[];
+  onRemove: (fileId: string) => void;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       {images.map((img) => (
         <div key={img.fileId} className="group relative h-16 w-16 overflow-hidden rounded-2xl">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={img.url} alt="" className="h-full w-full object-cover" />
+          <Image src={img.url} alt="" fill sizes="64px" className="object-cover" />
           <button
             type="button"
             onClick={() => onRemove(img.fileId)}
@@ -128,7 +134,9 @@ function ProductForm({
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-ink-muted">Slug (tuỳ chọn — tự sinh từ tên)</label>
+          <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+            Slug (tuỳ chọn — tự sinh từ tên)
+          </label>
           <input
             value={form.slug}
             onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
@@ -149,7 +157,9 @@ function ProductForm({
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-ink-muted">Danh mục (tuỳ chọn)</label>
+          <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+            Danh mục (tuỳ chọn)
+          </label>
           <select
             value={form.categoryId}
             onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
@@ -179,7 +189,11 @@ function ProductForm({
           <p className="text-sm font-medium text-ink">Hiển thị trên storefront</p>
           <p className="text-xs text-ink-muted">Tắt để ẩn tạm sản phẩm mà không cần xoá.</p>
         </div>
-        <Switch checked={form.isActive} onChange={() => setForm((f) => ({ ...f, isActive: !f.isActive }))} label="Hiển thị trên storefront" />
+        <Switch
+          checked={form.isActive}
+          onChange={() => setForm((f) => ({ ...f, isActive: !f.isActive }))}
+          label="Hiển thị trên storefront"
+        />
       </div>
     </>
   );
@@ -231,7 +245,8 @@ export default function ProductsPage() {
   }
 
   function removeImage(target: 'create' | 'edit', fileId: string) {
-    if (target === 'create') setCreateForm((f) => ({ ...f, images: f.images.filter((i) => i.fileId !== fileId) }));
+    if (target === 'create')
+      setCreateForm((f) => ({ ...f, images: f.images.filter((i) => i.fileId !== fileId) }));
     else setEditForm((f) => ({ ...f, images: f.images.filter((i) => i.fileId !== fileId) }));
   }
 
@@ -254,7 +269,11 @@ export default function ProductsPage() {
         title="Sản phẩm"
         description="Quản lý sản phẩm hoa: giá, danh mục và ảnh."
         actions={
-          <Button size="sm" variant={creating ? 'outline' : 'primary'} onClick={() => setCreating((v) => !v)}>
+          <Button
+            size="sm"
+            variant={creating ? 'outline' : 'primary'}
+            onClick={() => setCreating((v) => !v)}
+          >
             {creating ? 'Đóng' : 'Tạo sản phẩm mới'}
           </Button>
         }
@@ -293,8 +312,13 @@ export default function ProductsPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-4">
                   {product.images[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={product.images[0].file.url} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                    <Image
+                      src={product.images[0].file.url}
+                      alt=""
+                      width={48}
+                      height={48}
+                      className="h-12 w-12 rounded-xl object-cover"
+                    />
                   ) : (
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-light">
                       <FlowerIcon className="h-5 w-5" color="var(--color-rose)" />
@@ -309,10 +333,14 @@ export default function ProductsPage() {
                     </div>
                     <p className="mt-0.5 text-xs text-ink-muted">
                       /{product.slug} · {formatVnd(product.basePrice)}
-                      {product.categoryId && <> · {categoryNameById.get(product.categoryId) ?? '—'}</>}
+                      {product.categoryId && (
+                        <> · {categoryNameById.get(product.categoryId) ?? '—'}</>
+                      )}
                     </p>
                     {product.description && (
-                      <p className="mt-1 text-xs text-ink-muted">{stripHtml(product.description)}</p>
+                      <p className="mt-1 text-xs text-ink-muted">
+                        {stripHtml(product.description)}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -320,7 +348,9 @@ export default function ProductsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => (editingId === product.id ? setEditingId(null) : startEdit(product))}
+                    onClick={() =>
+                      editingId === product.id ? setEditingId(null) : startEdit(product)
+                    }
                   >
                     {editingId === product.id ? 'Đóng' : 'Sửa'}
                   </Button>
@@ -328,10 +358,13 @@ export default function ProductsPage() {
                     variant="danger"
                     size="sm"
                     onClick={async () => {
-                      const confirmed = await confirmDialog(`Xoá sản phẩm "${product.name}"? Hành động này không thể hoàn tác.`, {
-                        title: 'Xoá sản phẩm',
-                        danger: true,
-                      });
+                      const confirmed = await confirmDialog(
+                        `Xoá sản phẩm "${product.name}"? Hành động này không thể hoàn tác.`,
+                        {
+                          title: 'Xoá sản phẩm',
+                          danger: true,
+                        },
+                      );
                       if (confirmed) deleteProduct.mutate(product.id);
                     }}
                   >
@@ -350,7 +383,11 @@ export default function ProductsPage() {
                     onAddImages={(files) => handleAddImages(files, 'edit')}
                     onRemoveImage={(fileId) => removeImage('edit', fileId)}
                   />
-                  <Button size="sm" loading={updateProduct.isPending} onClick={() => submitEdit(product.id)}>
+                  <Button
+                    size="sm"
+                    loading={updateProduct.isPending}
+                    onClick={() => submitEdit(product.id)}
+                  >
                     Lưu thay đổi
                   </Button>
                 </div>

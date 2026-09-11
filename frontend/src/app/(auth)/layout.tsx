@@ -8,7 +8,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <Nav />
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm">
-          <div className="rounded-3xl border border-border-soft bg-white p-8 shadow-sm">{children}</div>
+          <div className="rounded-3xl border border-border-soft bg-white p-8 shadow-sm">
+            {children}
+          </div>
         </div>
       </div>
     </div>

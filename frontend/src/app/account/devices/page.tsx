@@ -1,6 +1,10 @@
 'use client';
 
-import { useSessions, useRevokeSession, useRevokeOtherSessions } from '@/features/core/account/account.hooks';
+import {
+  useSessions,
+  useRevokeSession,
+  useRevokeOtherSessions,
+} from '@/features/core/account/account.hooks';
 import { Button } from '@/components/ui/Button';
 
 export default function DevicesPage() {
@@ -14,7 +18,11 @@ export default function DevicesPage() {
     <div className="rounded-3xl border border-border-soft bg-white p-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-display text-2xl font-semibold text-ink">Thiết bị đăng nhập</h1>
-        <Button variant="outline" onClick={() => revokeOthers.mutate()} loading={revokeOthers.isPending}>
+        <Button
+          variant="outline"
+          onClick={() => revokeOthers.mutate()}
+          loading={revokeOthers.isPending}
+        >
           Đăng xuất tất cả thiết bị khác
         </Button>
       </div>
@@ -29,11 +37,14 @@ export default function DevicesPage() {
               <p className="text-sm font-medium text-ink">
                 {session.deviceName || 'Thiết bị không xác định'}
                 {session.isCurrent && (
-                  <span className="ml-2 rounded-full bg-rose px-2 py-0.5 text-xs text-white">Hiện tại</span>
+                  <span className="ml-2 rounded-full bg-rose px-2 py-0.5 text-xs text-white">
+                    Hiện tại
+                  </span>
                 )}
               </p>
               <p className="mt-0.5 text-xs text-ink-muted">
-                IP {session.ipAddress} · Hoạt động lần cuối {new Date(session.lastActiveAt).toLocaleString('vi-VN')}
+                IP {session.ipAddress} · Hoạt động lần cuối{' '}
+                {new Date(session.lastActiveAt).toLocaleString('vi-VN')}
               </p>
             </div>
             {!session.isCurrent && (

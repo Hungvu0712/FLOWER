@@ -34,7 +34,8 @@ export function useUpdateCategory() {
   const invalidate = useInvalidateCategories();
   const push = useToastStore((s) => s.push);
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateCategoryInput }) => categoriesService.update(id, input),
+    mutationFn: ({ id, input }: { id: string; input: UpdateCategoryInput }) =>
+      categoriesService.update(id, input),
     onSuccess: () => {
       invalidate();
       push('Đã lưu thay đổi');

@@ -1,6 +1,7 @@
 import { api } from '@/lib/axios';
 
-export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'delivering' | 'completed' | 'cancelled';
+export type OrderStatus =
+  'pending' | 'confirmed' | 'preparing' | 'delivering' | 'completed' | 'cancelled';
 export type OrderTimeSlot = 'sang' | 'chieu' | 'toi';
 
 export type OrderItem = {
@@ -66,15 +67,20 @@ export const ORDER_TIME_SLOT_LABELS: Record<OrderTimeSlot, string> = {
 export const ordersService = {
   // Công khai (guest checkout) — không qua /admin. Trả thẳng Order vừa tạo (khác products/categories
   // service chỉ trả axios response thô) vì trang checkout cần `id` để chuyển sang trang xác nhận ngay.
-  create: (input: CreateOrderInput) => api.post<{ data: Order }>('/api/v1/orders', input).then((r) => r.data.data),
+  create: (input: CreateOrderInput) =>
+    api.post<{ data: Order }>('/api/v1/orders', input).then((r) => r.data.data),
 
   // Trang xác nhận đơn (public, không cần đăng nhập) đọc qua lib/storefront-api.ts (Server Component,
   // `fetch` gốc) chứ không qua đây — xem comment ở lib/storefront-api.ts.
   listAdmin: (params?: { status?: OrderStatus; page?: number; limit?: number }) =>
-    api.get<{ data: Order[]; meta: PaginationMeta }>('/api/v1/admin/orders', { params }).then((r) => r.data),
+    api
+      .get<{ data: Order[]; meta: PaginationMeta }>('/api/v1/admin/orders', { params })
+      .then((r) => r.data),
 
   // Danh sách admin đã trả sẵn `items` của từng đơn (ORDER_SELECT) — khi mở rộng 1 dòng để xem/đổi
   // trạng thái, KHÔNG cần gọi thêm API riêng, dùng luôn dữ liệu đã có trong danh sách.
   updateStatus: (id: string, status: OrderStatus) =>
-    api.patch<{ data: Order }>(`/api/v1/admin/orders/${id}/status`, { status }).then((r) => r.data.data),
+    api
+      .patch<{ data: Order }>(`/api/v1/admin/orders/${id}/status`, { status })
+      .then((r) => r.data.data),
 };

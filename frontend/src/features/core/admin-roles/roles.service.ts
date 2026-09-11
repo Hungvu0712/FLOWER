@@ -11,15 +11,22 @@ export type RoleListItem = {
   _count: { users: number };
 };
 
-export type CreateRoleInput = { code: string; name: string; description?: string; permissionIds: number[] };
+export type CreateRoleInput = {
+  code: string;
+  name: string;
+  description?: string;
+  permissionIds: number[];
+};
 export type UpdateRoleInput = { name?: string; description?: string; permissionIds?: number[] };
 
 export const rolesService = {
-  list: () => api.get<{ data: RoleListItem[] }>('/api/v1/superadmin/roles').then((r) => r.data.data),
+  list: () =>
+    api.get<{ data: RoleListItem[] }>('/api/v1/superadmin/roles').then((r) => r.data.data),
 
   create: (input: CreateRoleInput) => api.post('/api/v1/superadmin/roles', input),
 
-  update: (id: number, input: UpdateRoleInput) => api.patch(`/api/v1/superadmin/roles/${id}`, input),
+  update: (id: number, input: UpdateRoleInput) =>
+    api.patch(`/api/v1/superadmin/roles/${id}`, input),
 
   remove: (id: number) => api.delete(`/api/v1/superadmin/roles/${id}`),
 };

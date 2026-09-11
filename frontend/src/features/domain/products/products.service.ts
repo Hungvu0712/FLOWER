@@ -34,14 +34,20 @@ export type UpdateProductInput = Partial<CreateProductInput>;
 export type PaginationMeta = { page: number; limit: number; total: number; totalPages: number };
 
 export const productsService = {
-  list: (params?: { includeInactive?: boolean; categoryId?: string; page?: number; limit?: number }) =>
+  list: (params?: {
+    includeInactive?: boolean;
+    categoryId?: string;
+    page?: number;
+    limit?: number;
+  }) =>
     api
       .get<{ data: Product[]; meta: PaginationMeta }>('/api/v1/admin/products', { params })
       .then((r) => r.data),
 
   create: (input: CreateProductInput) => api.post('/api/v1/admin/products', input),
 
-  update: (id: string, input: UpdateProductInput) => api.patch(`/api/v1/admin/products/${id}`, input),
+  update: (id: string, input: UpdateProductInput) =>
+    api.patch(`/api/v1/admin/products/${id}`, input),
 
   remove: (id: string) => api.delete(`/api/v1/admin/products/${id}`),
 };

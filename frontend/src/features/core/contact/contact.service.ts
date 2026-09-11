@@ -25,7 +25,9 @@ export const contactService = {
 
   list: (params?: { isHandled?: boolean; page?: number; limit?: number }) =>
     api
-      .get<{ data: ContactMessage[]; meta: PaginationMeta }>('/api/v1/admin/contact-messages', { params })
+      .get<{ data: ContactMessage[]; meta: PaginationMeta }>('/api/v1/admin/contact-messages', {
+        params,
+      })
       .then((r) => r.data),
 
   setHandled: (id: string, isHandled: boolean) =>

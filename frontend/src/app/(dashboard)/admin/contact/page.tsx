@@ -29,7 +29,10 @@ export default function ContactMessagesPage() {
 
   return (
     <div>
-      <PageHeader title="Liên hệ" description="Tin nhắn khách gửi qua form Liên hệ trên storefront." />
+      <PageHeader
+        title="Liên hệ"
+        description="Tin nhắn khách gửi qua form Liên hệ trên storefront."
+      />
 
       <div className="mb-6 flex gap-2">
         {FILTERS.map((f) => (
@@ -77,7 +80,13 @@ export default function ContactMessagesPage() {
                     className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-ink-soft hover:border-rose hover:text-rose"
                     aria-label={`Gọi ${m.name}`}
                   >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <path d="M4 5.5c0-1.1.9-2 2-2h2.2c.5 0 .95.35 1.06.85l.9 4c.1.45-.06.9-.4 1.2l-1.7 1.4a13 13 0 0 0 5.9 5.9l1.4-1.7c.3-.34.75-.5 1.2-.4l4 .9c.5.1.85.56.85 1.06V19c0 1.1-.9 2-2 2h-1C10.8 21 3 13.2 3 3.6v-1Z" />
                     </svg>
                   </a>

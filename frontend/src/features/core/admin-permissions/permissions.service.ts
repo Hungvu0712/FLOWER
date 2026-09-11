@@ -15,11 +15,14 @@ export type UpdatePermissionInput = { code?: string; groupName?: string; descrip
 export const permissionsService = {
   // assignable: true — loại bỏ permission is_restricted (dùng cho picker gán role tuỳ chỉnh).
   list: (params?: { assignable?: boolean }) =>
-    api.get<{ data: Permission[] }>('/api/v1/superadmin/permissions', { params }).then((r) => r.data.data),
+    api
+      .get<{ data: Permission[] }>('/api/v1/superadmin/permissions', { params })
+      .then((r) => r.data.data),
 
   create: (input: CreatePermissionInput) => api.post('/api/v1/superadmin/permissions', input),
 
-  update: (id: number, input: UpdatePermissionInput) => api.patch(`/api/v1/superadmin/permissions/${id}`, input),
+  update: (id: number, input: UpdatePermissionInput) =>
+    api.patch(`/api/v1/superadmin/permissions/${id}`, input),
 
   remove: (id: number) => api.delete(`/api/v1/superadmin/permissions/${id}`),
 };

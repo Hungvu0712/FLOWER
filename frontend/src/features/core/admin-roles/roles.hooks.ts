@@ -31,7 +31,8 @@ export function useUpdateRole() {
   const invalidate = useInvalidateRoles();
   const push = useToastStore((s) => s.push);
   return useMutation({
-    mutationFn: ({ id, input }: { id: number; input: UpdateRoleInput }) => rolesService.update(id, input),
+    mutationFn: ({ id, input }: { id: number; input: UpdateRoleInput }) =>
+      rolesService.update(id, input),
     onSuccess: () => {
       invalidate();
       push('Đã lưu thay đổi');

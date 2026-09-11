@@ -5,7 +5,12 @@ import { productsService, type UpdateProductInput } from './products.service';
 import { useToastStore } from '@/store/useToastStore';
 import { getErrorMessage } from '@/lib/errors';
 
-export function useProducts(params?: { includeInactive?: boolean; categoryId?: string; page?: number; limit?: number }) {
+export function useProducts(params?: {
+  includeInactive?: boolean;
+  categoryId?: string;
+  page?: number;
+  limit?: number;
+}) {
   return useQuery({
     queryKey: ['admin', 'products', params ?? null],
     queryFn: () => productsService.list(params),
@@ -34,7 +39,8 @@ export function useUpdateProduct() {
   const invalidate = useInvalidateProducts();
   const push = useToastStore((s) => s.push);
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateProductInput }) => productsService.update(id, input),
+    mutationFn: ({ id, input }: { id: string; input: UpdateProductInput }) =>
+      productsService.update(id, input),
     onSuccess: () => {
       invalidate();
       push('Đã lưu thay đổi');

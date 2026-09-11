@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { FlowerIcon } from "@/components/ui/FlowerIcon";
-import { BackToTopButton } from "./BackToTopButton";
+import Link from 'next/link';
+import { FlowerIcon } from '@/components/ui/FlowerIcon';
+import { BackToTopButton } from './BackToTopButton';
 import {
   HOTLINE,
   HOTLINE_DISPLAY,
@@ -8,15 +8,15 @@ import {
   OPEN_HOURS,
   ZALO_LINK,
   ZALO_DISPLAY,
-} from "@/lib/contact-info";
+} from '@/lib/contact-info';
 
 type FooterCategory = { id: string; name: string; slug: string };
 
 const SUPPORT_LINKS = [
-  { label: "Hướng dẫn đặt hoa", href: "/lien-he" },
-  { label: "Chính sách giao hoa", href: "/" },
-  { label: "Chính sách đổi trả", href: "/" },
-  { label: "Chính sách bảo mật", href: "/" },
+  { label: 'Hướng dẫn đặt hoa', href: '/lien-he' },
+  { label: 'Chính sách giao hoa', href: '/' },
+  { label: 'Chính sách đổi trả', href: '/' },
+  { label: 'Chính sách bảo mật', href: '/' },
 ];
 
 function ColumnHeading({ children }: { children: React.ReactNode }) {
@@ -96,7 +96,7 @@ function ContactRow({
         {href ? (
           <a
             href={href}
-            target={href.startsWith("http") ? "_blank" : undefined}
+            target={href.startsWith('http') ? '_blank' : undefined}
             rel="noopener noreferrer"
             className="font-semibold text-ink hover:text-rose"
           >
@@ -120,16 +120,14 @@ export function Footer({ categories = [] }: { categories?: FooterCategory[] }) {
         <div>
           <Link href="/" className="flex items-center gap-2.5">
             <FlowerIcon className="h-6 w-6" color="var(--color-rose)" />
-            <span className="font-display text-xl font-semibold text-ink">
-              Hoa Xinh
-            </span>
+            <span className="font-display text-xl font-semibold text-ink">Hoa Xinh</span>
           </Link>
           <p className="mt-1 text-xs font-semibold tracking-widest text-rose uppercase">
             Hoa tươi mỗi ngày
           </p>
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-muted">
-            Nhận đặt hoa bó, giỏ hoa, kệ khai trương và hoa chia buồn — cắm theo
-            đơn, giao đúng ngày giờ bạn hẹn.
+            Nhận đặt hoa bó, giỏ hoa, kệ khai trương và hoa chia buồn — cắm theo đơn, giao đúng ngày
+            giờ bạn hẹn.
           </p>
           <div className="mt-5 flex gap-3">
             {/* Facebook/Instagram: TODO chưa có fanpage thật, chỉ để placeholder không dẫn đi đâu —
@@ -214,18 +212,9 @@ export function Footer({ categories = [] }: { categories?: FooterCategory[] }) {
               value={HOTLINE_DISPLAY}
               href={`tel:${HOTLINE}`}
             />
-            <ContactRow
-              icon={ZaloIcon}
-              label="Zalo"
-              value={ZALO_DISPLAY}
-              href={ZALO_LINK}
-            />
+            <ContactRow icon={ZaloIcon} label="Zalo" value={ZALO_DISPLAY} href={ZALO_LINK} />
             <ContactRow icon={PinIcon} label="Địa chỉ" value={ADDRESS} />
-            <ContactRow
-              icon={ClockIcon}
-              label="Giờ mở cửa"
-              value={OPEN_HOURS}
-            />
+            <ContactRow icon={ClockIcon} label="Giờ mở cửa" value={OPEN_HOURS} />
           </ul>
         </div>
       </div>
@@ -233,19 +222,16 @@ export function Footer({ categories = [] }: { categories?: FooterCategory[] }) {
       <div className="border-t border-border-soft/70 px-8 py-6 lg:px-16">
         <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
           <p className="text-center text-xs text-ink-muted sm:text-left">
-            © {new Date().getFullYear()} Hoa Xinh — Hoa tươi mỗi ngày. Hotline{" "}
-            <a
-              href={`tel:${HOTLINE}`}
-              className="font-semibold text-rose hover:text-rose-dark"
-            >
+            © {new Date().getFullYear()} Hoa Xinh — Hoa tươi mỗi ngày. Hotline{' '}
+            <a href={`tel:${HOTLINE}`} className="font-semibold text-rose hover:text-rose-dark">
               {HOTLINE_DISPLAY}
             </a>
           </p>
           <BackToTopButton />
         </div>
         <p className="mt-2 text-center text-[11px] text-ink-muted/70 sm:text-left">
-          Thông tin liên hệ trên đây là dữ liệu demo dựng giao diện, sẽ được
-          thay bằng thông tin thật trước khi vận hành chính thức.
+          Thông tin liên hệ trên đây là dữ liệu demo dựng giao diện, sẽ được thay bằng thông tin
+          thật trước khi vận hành chính thức.
         </p>
       </div>
     </footer>

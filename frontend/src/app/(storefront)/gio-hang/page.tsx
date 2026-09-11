@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { FlowerIcon } from '@/components/ui/FlowerIcon';
 import { CheckoutSteps } from '@/components/storefront/CheckoutSteps';
@@ -26,7 +27,9 @@ export default function CartPage() {
         <div className="flex flex-col items-center gap-4 py-20 text-center">
           <FlowerIcon className="h-12 w-12" color="var(--color-rose)" />
           <h1 className="font-display text-2xl font-semibold text-ink">Giỏ hàng đang trống</h1>
-          <p className="max-w-sm text-sm text-ink-muted">Chọn vài mẫu hoa yêu thích rồi quay lại đây nhé.</p>
+          <p className="max-w-sm text-sm text-ink-muted">
+            Chọn vài mẫu hoa yêu thích rồi quay lại đây nhé.
+          </p>
           <Link
             href="/"
             className="rounded-full bg-rose px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-rose-dark"
@@ -52,8 +55,13 @@ export default function CartPage() {
             >
               <Link href={`/san-pham/${item.slug}`} className="shrink-0">
                 {item.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.image} alt={item.name} className="h-20 w-20 rounded-xl object-cover" />
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    width={80}
+                    height={80}
+                    className="h-20 w-20 rounded-xl object-cover"
+                  />
                 ) : (
                   <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-rose-light">
                     <FlowerIcon className="h-8 w-8" color="var(--color-rose)" />
@@ -62,7 +70,10 @@ export default function CartPage() {
               </Link>
 
               <div className="min-w-0 flex-1">
-                <Link href={`/san-pham/${item.slug}`} className="font-semibold text-ink hover:text-rose">
+                <Link
+                  href={`/san-pham/${item.slug}`}
+                  className="font-semibold text-ink hover:text-rose"
+                >
                   {item.name}
                 </Link>
                 <p className="mt-1 text-sm text-ink-muted">{formatVnd(item.basePrice)}</p>
@@ -77,7 +88,9 @@ export default function CartPage() {
                 >
                   −
                 </button>
-                <span className="w-7 text-center text-sm font-semibold text-ink">{item.quantity}</span>
+                <span className="w-7 text-center text-sm font-semibold text-ink">
+                  {item.quantity}
+                </span>
                 <button
                   type="button"
                   onClick={() => setQuantity(item.productId, item.quantity + 1)}
@@ -98,7 +111,13 @@ export default function CartPage() {
                 aria-label={`Xoá ${item.name} khỏi giỏ`}
                 className="text-ink-muted transition-colors hover:text-red-600"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <svg
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
                   <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-.8 12.1a2 2 0 0 1-2 1.9H9.8a2 2 0 0 1-2-1.9L7 7" />
                 </svg>
               </button>

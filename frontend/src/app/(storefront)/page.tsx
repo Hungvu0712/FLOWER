@@ -11,7 +11,13 @@ const VALUE_PROPS = [
     title: 'Hoa tươi mỗi ngày',
     desc: 'Nhập hoa mỗi sáng, cắm theo đơn tại thời điểm đặt — không phải hàng lưu kho chờ bán.',
     icon: (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
         <circle cx="12" cy="8" r="3" />
         <circle cx="7" cy="13" r="3" />
         <circle cx="17" cy="13" r="3" />
@@ -23,7 +29,13 @@ const VALUE_PROPS = [
     title: 'Giao đúng ngày giờ hẹn',
     desc: 'Chọn khung giờ giao (sáng / chiều / tối) ngay khi đặt hàng — đặc biệt hợp với các dịp cần đúng thời điểm.',
     icon: (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
         <circle cx="12" cy="12" r="8.5" />
         <path d="M12 7.5V12l3 2" />
       </svg>
@@ -33,7 +45,13 @@ const VALUE_PROPS = [
     title: 'Tư vấn nhanh, không mất công chờ',
     desc: 'Gọi điện hoặc nhắn Zalo, được báo giá và gợi ý mẫu phù hợp ngay trong vài phút.',
     icon: (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
         <path d="M21 15.5a2 2 0 0 1-2 2H8l-5 4V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9.5Z" />
       </svg>
     ),
@@ -42,7 +60,13 @@ const VALUE_PROPS = [
     title: 'Thanh toán khi nhận hàng',
     desc: 'Đặt trước, kiểm tra hoa tận tay rồi mới thanh toán — không cần chuyển khoản trước.',
     icon: (
-      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg
+        className="h-5 w-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
         <rect x="2.5" y="5.5" width="19" height="13" rx="2.2" />
         <path d="M2.5 10h19" />
       </svg>
@@ -83,7 +107,13 @@ export default async function StorefrontHomePage() {
               className="inline-flex items-center justify-center gap-2 rounded-full bg-rose px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-rose/25 transition-colors hover:bg-rose-dark"
             >
               Đặt hoa ngay
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <line x1="5" y1="12" x2="19" y2="12" />
                 <polyline points="12 5 19 12 12 19" />
               </svg>
@@ -96,7 +126,13 @@ export default async function StorefrontHomePage() {
             </a>
           </div>
           <p className="mt-6 flex items-center gap-2 text-xs font-medium text-ink-muted">
-            <svg className="h-3.5 w-3.5 text-rose" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              className="h-3.5 w-3.5 text-rose"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <circle cx="12" cy="12" r="8.5" />
               <path d="M12 7.5V12l3 2" />
             </svg>
@@ -115,7 +151,13 @@ export default async function StorefrontHomePage() {
             {/* Thẻ nổi — nhấn 1 lợi ích cụ thể ngay trên hero, thay vì để khách tự đọc hết trang mới biết */}
             <div className="absolute -bottom-6 -left-6 flex items-center gap-3 rounded-2xl border border-border-soft bg-white px-5 py-4 shadow-xl shadow-ink/10 sm:-left-10">
               <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-rose-light text-rose-dark">
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+                <svg
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                >
                   <path d="M3 6h2l2.4 12.4a2 2 0 0 0 2 1.6h8.4a2 2 0 0 0 2-1.6L22 8H6" />
                   <circle cx="9" cy="21" r="1" />
                   <circle cx="18" cy="21" r="1" />
@@ -145,9 +187,14 @@ export default async function StorefrontHomePage() {
                   className="flex h-14 w-14 items-center justify-center rounded-full transition-transform group-hover:scale-105"
                   style={{ backgroundColor: `${CATEGORY_COLORS[i % CATEGORY_COLORS.length]}1f` }}
                 >
-                  <FlowerIcon className="h-7 w-7" color={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                  <FlowerIcon
+                    className="h-7 w-7"
+                    color={CATEGORY_COLORS[i % CATEGORY_COLORS.length]}
+                  />
                 </span>
-                <span className="text-sm font-semibold text-ink group-hover:text-rose-dark">{cat.name}</span>
+                <span className="text-sm font-semibold text-ink group-hover:text-rose-dark">
+                  {cat.name}
+                </span>
               </Link>
             ))}
           </div>
@@ -158,7 +205,9 @@ export default async function StorefrontHomePage() {
       <section id="san-pham-noi-bat" className="scroll-mt-28 px-8 pb-24 lg:px-16">
         <div className="mb-8">
           <p className="text-sm font-semibold tracking-widest text-rose uppercase">Gợi ý cho bạn</p>
-          <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Mẫu hoa được chọn nhiều</h2>
+          <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
+            Mẫu hoa được chọn nhiều
+          </h2>
         </div>
 
         {products.length === 0 ? (
@@ -175,7 +224,9 @@ export default async function StorefrontHomePage() {
       {/* Vì sao chọn Hoa Xinh — đưa lợi ích cụ thể lên thành nội dung chính, không chỉ 1 dòng trên hero */}
       <section className="bg-white px-8 py-20 lg:px-16">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold tracking-widest text-rose uppercase">Vì sao chọn Hoa Xinh</p>
+          <p className="text-sm font-semibold tracking-widest text-rose uppercase">
+            Vì sao chọn Hoa Xinh
+          </p>
           <h2 className="mt-2 font-display text-3xl font-semibold text-ink">
             Đặt hoa đơn giản, nhận đúng những gì bạn cần
           </h2>

@@ -30,7 +30,8 @@ export default function AdminHomePage() {
       <div className="mt-8 rounded-3xl border border-dashed border-border p-8 text-center">
         <p className="text-sm text-ink-muted">
           Các module nghiệp vụ (sản phẩm, đơn hàng...) sẽ được thêm vào{' '}
-          <code className="rounded bg-ivory-50 px-1.5 py-0.5">features/domain</code>. Xem docs/03 §10.
+          <code className="rounded bg-ivory-50 px-1.5 py-0.5">features/domain</code>. Xem docs/03
+          §10.
         </p>
       </div>
     </div>

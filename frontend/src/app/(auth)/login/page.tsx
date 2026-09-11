@@ -16,7 +16,7 @@ import { getRedirectTarget } from '@/lib/redirect';
 
 function isEnabled(methods: { method: string; isEnabled: boolean }[] | undefined, method: string) {
   // Trong lúc đang tải danh sách, mặc định hiện — tránh nháy ẩn/hiện; backend vẫn là nơi chặn thật.
-  return methods ? methods.find((m) => m.method === method)?.isEnabled ?? false : true;
+  return methods ? (methods.find((m) => m.method === method)?.isEnabled ?? false) : true;
 }
 
 export default function LoginPage() {
@@ -54,15 +54,25 @@ export default function LoginPage() {
       </div>
 
       {isEnabled(methods, 'email_password') && (
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit((values) => login.mutate(values))}>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={handleSubmit((values) => login.mutate(values))}
+        >
           <FormField label="Email" type="email" {...register('email')} error={errors.email} />
-          <FormField label="Mật khẩu" type="password" {...register('password')} error={errors.password} />
+          <FormField
+            label="Mật khẩu"
+            type="password"
+            {...register('password')}
+            error={errors.password}
+          />
           {login.isError && (
             <p className="text-xs text-red-600">
               {getErrorMessage(login.error, 'Email hoặc mật khẩu không đúng.')}
             </p>
           )}
-          <Button type="submit" loading={login.isPending}>Đăng nhập</Button>
+          <Button type="submit" loading={login.isPending}>
+            Đăng nhập
+          </Button>
         </form>
       )}
 
@@ -77,15 +87,21 @@ export default function LoginPage() {
       <div className="flex flex-col gap-2">
         {isEnabled(methods, 'magic_link') && (
           <Link href="/magic-link">
-            <Button type="button" variant="outline" className="w-full">Đăng nhập bằng liên kết qua email</Button>
+            <Button type="button" variant="outline" className="w-full">
+              Đăng nhập bằng liên kết qua email
+            </Button>
           </Link>
         )}
         {isEnabled(methods, 'google_oauth') && <GoogleLoginButton />}
       </div>
 
       <div className="flex justify-between text-xs text-ink-muted">
-        <Link href="/forgot-password" className="hover:text-rose">Quên mật khẩu?</Link>
-        <Link href="/register" className="hover:text-rose">Chưa có tài khoản? Đăng ký</Link>
+        <Link href="/forgot-password" className="hover:text-rose">
+          Quên mật khẩu?
+        </Link>
+        <Link href="/register" className="hover:text-rose">
+          Chưa có tài khoản? Đăng ký
+        </Link>
       </div>
     </div>
   );

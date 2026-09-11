@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { useOrders, useUpdateOrderStatus } from '@/features/domain/orders/orders.hooks';
-import { ORDER_STATUS_LABELS, ORDER_TIME_SLOT_LABELS, type OrderStatus } from '@/features/domain/orders/orders.service';
+import {
+  ORDER_STATUS_LABELS,
+  ORDER_TIME_SLOT_LABELS,
+  type OrderStatus,
+} from '@/features/domain/orders/orders.service';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { StatusBadge } from '@/components/admin/StatusBadge';
@@ -53,7 +57,10 @@ export default function AdminOrdersPage() {
 
   return (
     <div>
-      <PageHeader title="Đơn hàng" description="Đơn khách đặt qua storefront — xác nhận và cập nhật trạng thái." />
+      <PageHeader
+        title="Đơn hàng"
+        description="Đơn khách đặt qua storefront — xác nhận và cập nhật trạng thái."
+      />
 
       <div className="mb-6 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
@@ -95,13 +102,17 @@ export default function AdminOrdersPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-ink">{order.orderCode}</p>
-                      <StatusBadge tone={STATUS_TONE[order.status]}>{ORDER_STATUS_LABELS[order.status]}</StatusBadge>
+                      <StatusBadge tone={STATUS_TONE[order.status]}>
+                        {ORDER_STATUS_LABELS[order.status]}
+                      </StatusBadge>
                     </div>
                     <p className="mt-0.5 text-xs text-ink-muted">
-                      {order.recipientName} · {order.recipientPhone} · {formatDateTime(order.createdAt)}
+                      {order.recipientName} · {order.recipientPhone} ·{' '}
+                      {formatDateTime(order.createdAt)}
                     </p>
                     <p className="mt-0.5 text-xs text-ink-muted">
-                      Giao {formatDeliveryDate(order.deliveryDate)} — {ORDER_TIME_SLOT_LABELS[order.deliveryTimeSlot]}
+                      Giao {formatDeliveryDate(order.deliveryDate)} —{' '}
+                      {ORDER_TIME_SLOT_LABELS[order.deliveryTimeSlot]}
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-rose">{formatVnd(order.total)}</span>
@@ -110,7 +121,9 @@ export default function AdminOrdersPage() {
                 {expanded && (
                   <div className="mt-4 border-t border-border-soft pt-4">
                     <p className="text-xs text-ink-muted">Địa chỉ giao: {order.deliveryAddress}</p>
-                    {order.note && <p className="mt-1 text-xs text-ink-muted">Ghi chú: {order.note}</p>}
+                    {order.note && (
+                      <p className="mt-1 text-xs text-ink-muted">Ghi chú: {order.note}</p>
+                    )}
 
                     <div className="mt-3 flex flex-col gap-1.5">
                       {order.items.map((item) => (

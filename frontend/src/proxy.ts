@@ -26,7 +26,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  const needsAuth = pathname.startsWith('/account') || pathname.startsWith('/admin') || pathname.startsWith('/superadmin');
+  const needsAuth =
+    pathname.startsWith('/account') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/superadmin');
   if (needsAuth && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirectTo', pathname);

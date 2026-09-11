@@ -4,12 +4,19 @@ import { CheckoutSteps } from '@/components/storefront/CheckoutSteps';
 import { formatVnd } from '@/lib/currency';
 import { HOTLINE, HOTLINE_DISPLAY, ZALO_LINK } from '@/lib/contact-info';
 import { formatDeliveryDate } from '@/lib/date';
-import { ORDER_STATUS_LABELS, ORDER_TIME_SLOT_LABELS } from '@/features/domain/orders/orders.service';
+import {
+  ORDER_STATUS_LABELS,
+  ORDER_TIME_SLOT_LABELS,
+} from '@/features/domain/orders/orders.service';
 import { getOrderById } from '@/lib/storefront-api';
 
 // Public — `id` (UUID) đóng vai trò token tra cứu, xem ghi chú ở backend orders.routes.ts. Khách bookmark
 // hoặc lưu lại link này để xem lại tình trạng đơn bất cứ lúc nào, không cần tài khoản.
-export default async function OrderConfirmationPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrderConfirmationPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const order = await getOrderById(id);
   if (!order) notFound();
@@ -24,12 +31,24 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
           className={`flex h-14 w-14 items-center justify-center rounded-full ${isCancelled ? 'bg-red-100' : 'bg-rose-light'}`}
         >
           {isCancelled ? (
-            <svg className="h-7 w-7 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg
+              className="h-7 w-7 text-red-600"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+            >
               <line x1="6" y1="6" x2="18" y2="18" />
               <line x1="18" y1="6" x2="6" y2="18" />
             </svg>
           ) : (
-            <svg className="h-7 w-7 text-rose" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <svg
+              className="h-7 w-7 text-rose"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+            >
               <polyline points="4 12 9 17 20 6" />
             </svg>
           )}
@@ -39,8 +58,8 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
         </h1>
         {!isCancelled && (
           <p className="max-w-md text-sm text-ink-muted">
-            Cảm ơn bạn đã đặt hoa tại Hoa Xinh — cửa hàng sẽ gọi điện xác nhận đơn trong thời gian sớm
-            nhất.
+            Cảm ơn bạn đã đặt hoa tại Hoa Xinh — cửa hàng sẽ gọi điện xác nhận đơn trong thời gian
+            sớm nhất.
           </p>
         )}
       </div>
@@ -66,7 +85,8 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
             <p className="text-xs text-ink-muted">Giao hàng</p>
             <p className="font-medium text-ink">{order.deliveryAddress}</p>
             <p className="text-ink-soft">
-              {formatDeliveryDate(order.deliveryDate)} — {ORDER_TIME_SLOT_LABELS[order.deliveryTimeSlot]}
+              {formatDeliveryDate(order.deliveryDate)} —{' '}
+              {ORDER_TIME_SLOT_LABELS[order.deliveryTimeSlot]}
             </p>
           </div>
           {order.note && (

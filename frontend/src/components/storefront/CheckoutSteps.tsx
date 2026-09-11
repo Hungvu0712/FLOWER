@@ -30,14 +30,22 @@ export function CheckoutSteps({ current }: { current: StepKey }) {
                 }`}
               >
                 {done ? (
-                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <svg
+                    className="h-3 w-3"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                  >
                     <polyline points="4 12 9 17 20 6" />
                   </svg>
                 ) : (
                   i + 1
                 )}
               </span>
-              <span className={`text-xs font-medium whitespace-nowrap ${active || done ? 'text-ink' : 'text-ink-muted'}`}>
+              <span
+                className={`text-xs font-medium whitespace-nowrap ${active || done ? 'text-ink' : 'text-ink-muted'}`}
+              >
                 {step.label}
               </span>
             </div>

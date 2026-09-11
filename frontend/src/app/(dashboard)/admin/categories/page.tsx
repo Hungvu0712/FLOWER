@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import {
   useCategories,
   useCreateCategory,
@@ -115,7 +116,10 @@ export default function CategoriesPage() {
     setEditImagePreview(category.imageFile?.url ?? null);
   }
 
-  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>, target: 'create' | 'edit') {
+  async function handleImageChange(
+    e: React.ChangeEvent<HTMLInputElement>,
+    target: 'create' | 'edit',
+  ) {
     const file = e.target.files?.[0];
     if (!file) return;
     const uploaded = await uploadFile.mutateAsync({ file });
@@ -139,7 +143,10 @@ export default function CategoriesPage() {
   }
 
   function submitEdit(id: string) {
-    updateCategory.mutate({ id, input: toInput(editForm) }, { onSuccess: () => setEditingId(null) });
+    updateCategory.mutate(
+      { id, input: toInput(editForm) },
+      { onSuccess: () => setEditingId(null) },
+    );
   }
 
   return (
@@ -148,7 +155,11 @@ export default function CategoriesPage() {
         title="Danh mục"
         description="Quản lý danh mục sản phẩm dạng cây. Không xoá được danh mục còn danh mục con."
         actions={
-          <Button size="sm" variant={creating ? 'outline' : 'primary'} onClick={() => setCreating((v) => !v)}>
+          <Button
+            size="sm"
+            variant={creating ? 'outline' : 'primary'}
+            onClick={() => setCreating((v) => !v)}
+          >
             {creating ? 'Đóng' : 'Tạo danh mục mới'}
           </Button>
         }
@@ -160,8 +171,13 @@ export default function CategoriesPage() {
 
           <div className="mb-4 flex items-center gap-4">
             {createImagePreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={createImagePreview} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+              <Image
+                src={createImagePreview}
+                alt=""
+                width={64}
+                height={64}
+                className="h-16 w-16 rounded-2xl object-cover"
+              />
             ) : (
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-light">
                 <FlowerIcon className="h-7 w-7" color="var(--color-rose)" />
@@ -169,13 +185,20 @@ export default function CategoriesPage() {
             )}
             <label className="cursor-pointer text-sm font-medium text-rose hover:text-rose-dark">
               {uploadFile.isPending ? 'Đang tải ảnh lên...' : 'Chọn ảnh danh mục'}
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(e, 'create')} />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleImageChange(e, 'create')}
+              />
             </label>
           </div>
 
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Tên danh mục</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Tên danh mục
+              </label>
               <input
                 value={createForm.name}
                 onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
@@ -183,7 +206,9 @@ export default function CategoriesPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Slug (tuỳ chọn — tự sinh từ tên)</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Slug (tuỳ chọn — tự sinh từ tên)
+              </label>
               <input
                 value={createForm.slug}
                 onChange={(e) => setCreateForm((f) => ({ ...f, slug: e.target.value }))}
@@ -194,7 +219,9 @@ export default function CategoriesPage() {
 
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Danh mục cha (tuỳ chọn)</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Danh mục cha (tuỳ chọn)
+              </label>
               <select
                 value={createForm.parentId}
                 onChange={(e) => setCreateForm((f) => ({ ...f, parentId: e.target.value }))}
@@ -209,7 +236,9 @@ export default function CategoriesPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Thứ tự hiển thị</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Thứ tự hiển thị
+              </label>
               <input
                 type="number"
                 value={createForm.sortOrder}
@@ -220,7 +249,9 @@ export default function CategoriesPage() {
           </div>
 
           <div className="mb-5">
-            <label className="mb-1.5 block text-xs font-medium text-ink-muted">Mô tả (tuỳ chọn)</label>
+            <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+              Mô tả (tuỳ chọn)
+            </label>
             <input
               value={createForm.description}
               onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
@@ -228,7 +259,12 @@ export default function CategoriesPage() {
             />
           </div>
 
-          <Button size="sm" loading={createCategory.isPending} disabled={!createForm.name} onClick={submitCreate}>
+          <Button
+            size="sm"
+            loading={createCategory.isPending}
+            disabled={!createForm.name}
+            onClick={submitCreate}
+          >
             Tạo danh mục
           </Button>
         </div>
@@ -249,8 +285,13 @@ export default function CategoriesPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-4">
                   {category.imageFile ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={category.imageFile.url} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                    <Image
+                      src={category.imageFile.url}
+                      alt=""
+                      width={48}
+                      height={48}
+                      className="h-12 w-12 rounded-xl object-cover"
+                    />
                   ) : (
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-light">
                       <FlowerIcon className="h-5 w-5" color="var(--color-rose)" />
@@ -265,17 +306,25 @@ export default function CategoriesPage() {
                     </div>
                     <p className="mt-0.5 text-xs text-ink-muted">
                       /{category.slug}
-                      {category.parentId && <> · thuộc &quot;{nameById.get(category.parentId) ?? '—'}&quot;</>}
-                      {category._count.children > 0 && <> · {category._count.children} danh mục con</>}
+                      {category.parentId && (
+                        <> · thuộc &quot;{nameById.get(category.parentId) ?? '—'}&quot;</>
+                      )}
+                      {category._count.children > 0 && (
+                        <> · {category._count.children} danh mục con</>
+                      )}
                     </p>
-                    {category.description && <p className="mt-1 text-xs text-ink-muted">{category.description}</p>}
+                    {category.description && (
+                      <p className="mt-1 text-xs text-ink-muted">{category.description}</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => (editingId === category.id ? setEditingId(null) : startEdit(category))}
+                    onClick={() =>
+                      editingId === category.id ? setEditingId(null) : startEdit(category)
+                    }
                   >
                     {editingId === category.id ? 'Đóng' : 'Sửa'}
                   </Button>
@@ -301,8 +350,13 @@ export default function CategoriesPage() {
                 <div className="mt-5 border-t border-border-soft pt-5">
                   <div className="mb-4 flex items-center gap-4">
                     {editImagePreview ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={editImagePreview} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+                      <Image
+                        src={editImagePreview}
+                        alt=""
+                        width={64}
+                        height={64}
+                        className="h-16 w-16 rounded-2xl object-cover"
+                      />
                     ) : (
                       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-light">
                         <FlowerIcon className="h-7 w-7" color="var(--color-rose)" />
@@ -310,13 +364,20 @@ export default function CategoriesPage() {
                     )}
                     <label className="cursor-pointer text-sm font-medium text-rose hover:text-rose-dark">
                       {uploadFile.isPending ? 'Đang tải ảnh lên...' : 'Đổi ảnh'}
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(e, 'edit')} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleImageChange(e, 'edit')}
+                      />
                     </label>
                   </div>
 
                   <div className="mb-4 grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">Tên danh mục</label>
+                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                        Tên danh mục
+                      </label>
                       <input
                         value={editForm.name}
                         onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
@@ -324,7 +385,9 @@ export default function CategoriesPage() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">Slug</label>
+                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                        Slug
+                      </label>
                       <input
                         value={editForm.slug}
                         onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value }))}
@@ -335,7 +398,9 @@ export default function CategoriesPage() {
 
                   <div className="mb-4 grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">Danh mục cha</label>
+                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                        Danh mục cha
+                      </label>
                       <select
                         value={editForm.parentId}
                         onChange={(e) => setEditForm((f) => ({ ...f, parentId: e.target.value }))}
@@ -352,7 +417,9 @@ export default function CategoriesPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">Thứ tự hiển thị</label>
+                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                        Thứ tự hiển thị
+                      </label>
                       <input
                         type="number"
                         value={editForm.sortOrder}
@@ -374,7 +441,9 @@ export default function CategoriesPage() {
                   <div className="mb-5 flex items-center justify-between rounded-2xl border border-border-soft px-4 py-3">
                     <div>
                       <p className="text-sm font-medium text-ink">Hiển thị trên storefront</p>
-                      <p className="text-xs text-ink-muted">Tắt để ẩn tạm danh mục mà không cần xoá.</p>
+                      <p className="text-xs text-ink-muted">
+                        Tắt để ẩn tạm danh mục mà không cần xoá.
+                      </p>
                     </div>
                     <Switch
                       checked={editForm.isActive}
@@ -383,7 +452,11 @@ export default function CategoriesPage() {
                     />
                   </div>
 
-                  <Button size="sm" loading={updateCategory.isPending} onClick={() => submitEdit(category.id)}>
+                  <Button
+                    size="sm"
+                    loading={updateCategory.isPending}
+                    onClick={() => submitEdit(category.id)}
+                  >
                     Lưu thay đổi
                   </Button>
                 </div>

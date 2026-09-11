@@ -1,21 +1,46 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ProductCard } from "@/components/storefront/ProductCard";
-import { ProductGallery } from "@/components/storefront/ProductGallery";
-import { AddToCartControls } from "@/components/storefront/AddToCartControls";
-import { formatVnd } from "@/lib/currency";
-import { HOTLINE, ZALO_LINK } from "@/lib/contact-info";
-import {
-  getStorefrontProductBySlug,
-  getStorefrontProducts,
-} from "@/lib/storefront-api";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ProductCard } from '@/components/storefront/ProductCard';
+import { ProductGallery } from '@/components/storefront/ProductGallery';
+import { AddToCartControls } from '@/components/storefront/AddToCartControls';
+import { formatVnd } from '@/lib/currency';
+import { stripHtml } from '@/lib/html';
+import { HOTLINE, ZALO_LINK } from '@/lib/contact-info';
+import { getStorefrontProductBySlug, getStorefrontProducts } from '@/lib/storefront-api';
 
-// Next.js 16: `params` là Promise trong Server Component route động — phải `await` trước khi dùng.
-export default async function ProductDetailPage({
+// docs/12 FE-06: mỗi sản phẩm cần title/description RIÊNG cho SEO + khi chia sẻ link (Zalo/Facebook
+// đọc og:title/og:description/og:image) — trước đây mọi trang dùng chung metadata tĩnh ở layout gốc.
+// Next.js tự dedupe với lần gọi `getStorefrontProductBySlug` trong page bên dưới (cùng URL fetch +
+// revalidate: 60s ở storefront-api.ts) — không tốn thêm round-trip mạng.
+export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
-}) {
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getStorefrontProductBySlug(slug);
+  if (!product) return { title: 'Không tìm thấy sản phẩm' };
+
+  const description = product.description
+    ? stripHtml(product.description).slice(0, 160)
+    : `${product.name} — ${formatVnd(product.basePrice)}. Đặt hoa tươi giao tận nơi tại Hoa Xinh.`;
+  const image = product.images[0]?.file.url;
+
+  return {
+    title: product.name,
+    description,
+    openGraph: {
+      title: product.name,
+      description,
+      type: 'website',
+      ...(image && { images: [{ url: image }] }),
+    },
+  };
+}
+
+// Next.js 16: `params` là Promise trong Server Component route động — phải `await` trước khi dùng.
+export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const product = await getStorefrontProductBySlug(slug);
   if (!product) notFound();
@@ -40,10 +65,7 @@ export default async function ProductDetailPage({
         {product.category && (
           <>
             <span className="mx-2">/</span>
-            <Link
-              href={`/danh-muc/${product.category.slug}`}
-              className="hover:text-rose"
-            >
+            <Link href={`/danh-muc/${product.category.slug}`} className="hover:text-rose">
               {product.category.name}
             </Link>
           </>
@@ -64,12 +86,8 @@ export default async function ProductDetailPage({
               {product.category.name}
             </Link>
           )}
-          <h1 className="mt-3 font-display text-4xl font-semibold text-ink">
-            {product.name}
-          </h1>
-          <p className="mt-4 text-3xl font-semibold text-rose">
-            {formatVnd(product.basePrice)}
-          </p>
+          <h1 className="mt-3 font-display text-4xl font-semibold text-ink">{product.name}</h1>
+          <p className="mt-4 text-3xl font-semibold text-rose">{formatVnd(product.basePrice)}</p>
 
           {product.description && (
             // Mô tả đã được sanitize (allowlist thẻ, KHÔNG thuộc tính) ở thời điểm LƯU trên backend
@@ -93,7 +111,13 @@ export default async function ProductDetailPage({
 
           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-muted">
             <a href={`tel:${HOTLINE}`} className="inline-flex items-center gap-1.5 hover:text-rose">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M4 5.5c0-1.1.9-2 2-2h2.2c.5 0 .95.35 1.06.85l.9 4c.1.45-.06.9-.4 1.2l-1.7 1.4a13 13 0 0 0 5.9 5.9l1.4-1.7c.3-.34.75-.5 1.2-.4l4 .9c.5.1.85.56.85 1.06V19c0 1.1-.9 2-2 2h-1C10.8 21 3 13.2 3 3.6v-1Z" />
               </svg>
               Hoặc gọi đặt nhanh
@@ -104,7 +128,13 @@ export default async function ProductDetailPage({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 hover:text-rose"
             >
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M21 15.5a2 2 0 0 1-2 2H8l-5 4V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9.5Z" />
               </svg>
               Nhắn Zalo hỏi thêm
@@ -119,7 +149,13 @@ export default async function ProductDetailPage({
               { label: 'Thanh toán khi nhận', desc: 'Không cần chuyển khoản trước' },
             ].map((item) => (
               <div key={item.label} className="flex items-start gap-2.5">
-                <svg className="mt-0.5 h-4 w-4 flex-none text-rose" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <svg
+                  className="mt-0.5 h-4 w-4 flex-none text-rose"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                >
                   <polyline points="4 12 9 17 20 6" />
                 </svg>
                 <div>

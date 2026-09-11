@@ -48,7 +48,12 @@ export default function PermissionsPage() {
         groupName: createForm.groupName,
         ...(createForm.description && { description: createForm.description }),
       },
-      { onSuccess: () => { setCreating(false); setCreateForm(emptyForm); } },
+      {
+        onSuccess: () => {
+          setCreating(false);
+          setCreateForm(emptyForm);
+        },
+      },
     );
   }
 
@@ -72,7 +77,11 @@ export default function PermissionsPage() {
         title="Permission"
         description="Danh sách quyền hạn dùng để gán cho role. Permission hệ thống (đã có route tham chiếu trong code) không thể đổi code hoặc xoá."
         actions={
-          <Button size="sm" variant={creating ? 'outline' : 'primary'} onClick={() => setCreating((v) => !v)}>
+          <Button
+            size="sm"
+            variant={creating ? 'outline' : 'primary'}
+            onClick={() => setCreating((v) => !v)}
+          >
             {creating ? 'Đóng' : 'Tạo permission mới'}
           </Button>
         }
@@ -83,7 +92,9 @@ export default function PermissionsPage() {
           <h2 className="mb-4 text-sm font-semibold text-ink">Permission mới</h2>
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Code (dạng &quot;group.action&quot;, vd products.export)</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Code (dạng &quot;group.action&quot;, vd products.export)
+              </label>
               <input
                 value={createForm.code}
                 onChange={(e) => setCreateForm((f) => ({ ...f, code: e.target.value }))}
@@ -91,7 +102,9 @@ export default function PermissionsPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Nhóm (groupName)</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Nhóm (groupName)
+              </label>
               <input
                 value={createForm.groupName}
                 onChange={(e) => setCreateForm((f) => ({ ...f, groupName: e.target.value }))}
@@ -100,7 +113,9 @@ export default function PermissionsPage() {
             </div>
           </div>
           <div className="mb-5">
-            <label className="mb-1.5 block text-xs font-medium text-ink-muted">Mô tả (tuỳ chọn)</label>
+            <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+              Mô tả (tuỳ chọn)
+            </label>
             <input
               value={createForm.description}
               onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
@@ -124,7 +139,9 @@ export default function PermissionsPage() {
         <div className="flex flex-col gap-6">
           {[...groups.entries()].map(([group, perms]) => (
             <div key={group}>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{group}</p>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+                {group}
+              </p>
               <div className="flex flex-col gap-3">
                 {perms.map((p) => (
                   <div key={p.id} className="rounded-3xl border border-border-soft bg-white p-6">
@@ -135,7 +152,9 @@ export default function PermissionsPage() {
                           {p.isSystem && <StatusBadge tone="neutral">System</StatusBadge>}
                           {p.isRestricted && <StatusBadge tone="warning">Hạn chế</StatusBadge>}
                         </div>
-                        {p.description && <p className="mt-1 text-xs text-ink-muted">{p.description}</p>}
+                        {p.description && (
+                          <p className="mt-1 text-xs text-ink-muted">{p.description}</p>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -178,23 +197,35 @@ export default function PermissionsPage() {
                             />
                           </div>
                           <div>
-                            <label className="mb-1.5 block text-xs font-medium text-ink-muted">Nhóm (groupName)</label>
+                            <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                              Nhóm (groupName)
+                            </label>
                             <input
                               value={editForm.groupName}
-                              onChange={(e) => setEditForm((f) => ({ ...f, groupName: e.target.value }))}
+                              onChange={(e) =>
+                                setEditForm((f) => ({ ...f, groupName: e.target.value }))
+                              }
                               className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
                             />
                           </div>
                         </div>
                         <div className="mb-5">
-                          <label className="mb-1.5 block text-xs font-medium text-ink-muted">Mô tả</label>
+                          <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                            Mô tả
+                          </label>
                           <input
                             value={editForm.description}
-                            onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                            onChange={(e) =>
+                              setEditForm((f) => ({ ...f, description: e.target.value }))
+                            }
                             className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
                           />
                         </div>
-                        <Button size="sm" loading={updatePermission.isPending} onClick={() => submitEdit(p)}>
+                        <Button
+                          size="sm"
+                          loading={updatePermission.isPending}
+                          onClick={() => submitEdit(p)}
+                        >
                           Lưu thay đổi
                         </Button>
                       </div>

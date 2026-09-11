@@ -9,7 +9,10 @@ import { CheckoutSteps } from '@/components/storefront/CheckoutSteps';
 import { formatVnd } from '@/lib/currency';
 import { useCartStore, useCartTotal } from '@/store/useCartStore';
 import { useCreateOrder } from '@/features/domain/orders/orders.hooks';
-import { ORDER_TIME_SLOT_LABELS, type OrderTimeSlot } from '@/features/domain/orders/orders.service';
+import {
+  ORDER_TIME_SLOT_LABELS,
+  type OrderTimeSlot,
+} from '@/features/domain/orders/orders.service';
 
 type FormState = {
   recipientName: string;
@@ -104,38 +107,53 @@ export default function CheckoutPage() {
           onSubmit={handleSubmit}
           className="relative flex flex-col gap-5 rounded-3xl border border-border-soft bg-white p-6 shadow-sm lg:col-span-2 lg:p-8"
         >
-          <HoneypotField value={form.website} onChange={(website) => setForm((f) => ({ ...f, website }))} />
+          <HoneypotField
+            value={form.website}
+            onChange={(website) => setForm((f) => ({ ...f, website }))}
+          />
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Tên người nhận</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Tên người nhận
+              </label>
               <input
                 value={form.recipientName}
                 onChange={(e) => setForm((f) => ({ ...f, recipientName: e.target.value }))}
                 className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-rose focus:ring-1 focus:ring-rose"
               />
-              {fieldErrors.recipientName && <p className="mt-1 text-xs text-red-600">{fieldErrors.recipientName}</p>}
+              {fieldErrors.recipientName && (
+                <p className="mt-1 text-xs text-red-600">{fieldErrors.recipientName}</p>
+              )}
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Số điện thoại</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Số điện thoại
+              </label>
               <input
                 value={form.recipientPhone}
                 onChange={(e) => setForm((f) => ({ ...f, recipientPhone: e.target.value }))}
                 className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-rose focus:ring-1 focus:ring-rose"
               />
-              {fieldErrors.recipientPhone && <p className="mt-1 text-xs text-red-600">{fieldErrors.recipientPhone}</p>}
+              {fieldErrors.recipientPhone && (
+                <p className="mt-1 text-xs text-red-600">{fieldErrors.recipientPhone}</p>
+              )}
             </div>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-ink-muted">Địa chỉ giao hoa</label>
+            <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+              Địa chỉ giao hoa
+            </label>
             <input
               value={form.deliveryAddress}
               onChange={(e) => setForm((f) => ({ ...f, deliveryAddress: e.target.value }))}
               placeholder="Số nhà, đường, phường/xã, quận/huyện..."
               className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-ink outline-none placeholder:text-ink-muted/60 focus:border-rose focus:ring-1 focus:ring-rose"
             />
-            {fieldErrors.deliveryAddress && <p className="mt-1 text-xs text-red-600">{fieldErrors.deliveryAddress}</p>}
+            {fieldErrors.deliveryAddress && (
+              <p className="mt-1 text-xs text-red-600">{fieldErrors.deliveryAddress}</p>
+            )}
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
@@ -148,10 +166,14 @@ export default function CheckoutPage() {
                 onChange={(e) => setForm((f) => ({ ...f, deliveryDate: e.target.value }))}
                 className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-rose focus:ring-1 focus:ring-rose"
               />
-              {fieldErrors.deliveryDate && <p className="mt-1 text-xs text-red-600">{fieldErrors.deliveryDate}</p>}
+              {fieldErrors.deliveryDate && (
+                <p className="mt-1 text-xs text-red-600">{fieldErrors.deliveryDate}</p>
+              )}
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Khung giờ giao</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Khung giờ giao
+              </label>
               <div className="flex gap-2">
                 {TIME_SLOT_ORDER.map((slot) => (
                   <button
@@ -173,7 +195,9 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-ink-muted">Ghi chú (thiệp chúc, yêu cầu riêng...)</label>
+            <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+              Ghi chú (thiệp chúc, yêu cầu riêng...)
+            </label>
             <textarea
               rows={3}
               value={form.note}
@@ -187,10 +211,16 @@ export default function CheckoutPage() {
           </div>
 
           {createOrder.isError && !Object.keys(fieldErrors).length && (
-            <p className="text-xs text-red-600">Đặt hàng không thành công, vui lòng thử lại sau ít phút.</p>
+            <p className="text-xs text-red-600">
+              Đặt hàng không thành công, vui lòng thử lại sau ít phút.
+            </p>
           )}
 
-          <Button type="submit" loading={createOrder.isPending} className="shadow-lg shadow-rose/25">
+          <Button
+            type="submit"
+            loading={createOrder.isPending}
+            className="shadow-lg shadow-rose/25"
+          >
             Đặt hàng
           </Button>
         </form>
@@ -203,7 +233,9 @@ export default function CheckoutPage() {
                 <span className="text-ink-soft">
                   {item.name} × {item.quantity}
                 </span>
-                <span className="font-medium text-ink">{formatVnd(item.basePrice * item.quantity)}</span>
+                <span className="font-medium text-ink">
+                  {formatVnd(item.basePrice * item.quantity)}
+                </span>
               </div>
             ))}
           </div>

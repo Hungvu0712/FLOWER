@@ -57,7 +57,8 @@ export function RichTextEditor({ value, onChange, placeholder }: Props) {
     content: value,
     editorProps: {
       attributes: {
-        class: 'prose-sm max-w-none min-h-[120px] px-3 py-2 text-sm text-ink outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-display [&_h3]:text-base [&_h3]:font-semibold [&_blockquote]:border-l-2 [&_blockquote]:border-rose [&_blockquote]:pl-3 [&_blockquote]:text-ink-muted',
+        class:
+          'prose-sm max-w-none min-h-[120px] px-3 py-2 text-sm text-ink outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-display [&_h3]:text-base [&_h3]:font-semibold [&_blockquote]:border-l-2 [&_blockquote]:border-rose [&_blockquote]:pl-3 [&_blockquote]:text-ink-muted',
       },
     },
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
@@ -135,7 +136,9 @@ export function RichTextEditor({ value, onChange, placeholder }: Props) {
       </div>
       <div className="relative bg-white">
         {isEmpty && placeholder && (
-          <p className="pointer-events-none absolute left-3 top-2 text-sm text-ink-muted">{placeholder}</p>
+          <p className="pointer-events-none absolute left-3 top-2 text-sm text-ink-muted">
+            {placeholder}
+          </p>
         )}
         <EditorContent editor={editor} />
       </div>

@@ -46,7 +46,9 @@ export function DashboardShell({ brandSubtitle, sections, footerLine, children }
         <FlowerIcon className="h-6 w-6" color="var(--color-rose)" />
         <div>
           <p className="font-display text-lg font-semibold leading-tight text-ink">Hoa Xinh</p>
-          <p className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">{brandSubtitle}</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">
+            {brandSubtitle}
+          </p>
         </div>
       </Link>
 
@@ -62,7 +64,10 @@ export function DashboardShell({ brandSubtitle, sections, footerLine, children }
               {section.items.map((item) => {
                 if (item.soon) {
                   return (
-                    <span key={item.href} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink-muted/60">
+                    <span
+                      key={item.href}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-ink-muted/60"
+                    >
                       <item.icon className="h-5 w-5" />
                       {item.label}
                       <span className="ml-auto rounded-full bg-border-soft px-2 py-0.5 text-[10px] font-medium text-ink-muted">
@@ -71,7 +76,8 @@ export function DashboardShell({ brandSubtitle, sections, footerLine, children }
                     </span>
                   );
                 }
-                const active = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
+                const active =
+                  item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
                 return (
                   <Link
                     key={item.href}
@@ -126,7 +132,9 @@ export function DashboardShell({ brandSubtitle, sections, footerLine, children }
       <div className="flex items-center justify-between border-b border-border-soft bg-white px-4 py-4 md:hidden">
         <Link href="/" className="flex items-center gap-2">
           <FlowerIcon className="h-5 w-5" color="var(--color-rose)" />
-          <span className="font-display text-base font-semibold text-ink">Hoa Xinh — {brandSubtitle}</span>
+          <span className="font-display text-base font-semibold text-ink">
+            Hoa Xinh — {brandSubtitle}
+          </span>
         </Link>
         <button onClick={() => setMobileOpen(true)} className="text-ink-soft" aria-label="Mở menu">
           <IconMenu className="h-6 w-6" />

@@ -18,7 +18,11 @@ function VerifyMagicLinkInner() {
 
   if (!token) return <p className="text-sm text-red-600">Thiếu token trong liên kết.</p>;
   if (verify.isError) {
-    return <p className="text-sm text-red-600">Liên kết không hợp lệ hoặc đã hết hạn — vui lòng yêu cầu liên kết mới.</p>;
+    return (
+      <p className="text-sm text-red-600">
+        Liên kết không hợp lệ hoặc đã hết hạn — vui lòng yêu cầu liên kết mới.
+      </p>
+    );
   }
   return <p className="text-sm text-ink-soft">Đang xác thực đăng nhập...</p>;
 }

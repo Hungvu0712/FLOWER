@@ -18,7 +18,15 @@ const sizeClasses: Record<NonNullable<Props['size']>, string> = {
   md: 'px-6 py-3 text-sm',
 };
 
-export function Button({ variant = 'primary', size = 'md', loading, disabled, className = '', children, ...rest }: Props) {
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  loading,
+  disabled,
+  className = '',
+  children,
+  ...rest
+}: Props) {
   return (
     <button
       disabled={disabled || loading}

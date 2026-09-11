@@ -5,8 +5,16 @@ import { adminUsersService } from './adminUsers.service';
 import { useToastStore } from '@/store/useToastStore';
 import { getErrorMessage } from '@/lib/errors';
 
-export function useAdminUsers(params: { status?: string; role?: string; search?: string; page?: number }) {
-  return useQuery({ queryKey: ['admin', 'users', params], queryFn: () => adminUsersService.list(params) });
+export function useAdminUsers(params: {
+  status?: string;
+  role?: string;
+  search?: string;
+  page?: number;
+}) {
+  return useQuery({
+    queryKey: ['admin', 'users', params],
+    queryFn: () => adminUsersService.list(params),
+  });
 }
 
 function useInvalidateUsers() {
@@ -66,7 +74,8 @@ export function useUpdateUserRole() {
   const invalidate = useInvalidateUsers();
   const push = useToastStore((s) => s.push);
   return useMutation({
-    mutationFn: ({ id, roleCode }: { id: string; roleCode: string }) => adminUsersService.updateRole(id, roleCode),
+    mutationFn: ({ id, roleCode }: { id: string; roleCode: string }) =>
+      adminUsersService.updateRole(id, roleCode),
     onSuccess: () => {
       invalidate();
       push('Đã cập nhật role');

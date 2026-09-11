@@ -7,7 +7,10 @@ import { getErrorMessage } from '@/lib/errors';
 
 // Khai báo tối thiểu cho window.google — Google không xuất @types chính thức cho Identity Services.
 interface GoogleAccountsId {
-  initialize: (config: { client_id: string; callback: (response: { credential: string }) => void }) => void;
+  initialize: (config: {
+    client_id: string;
+    callback: (response: { credential: string }) => void;
+  }) => void;
   renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
 }
 
@@ -44,7 +47,11 @@ export function GoogleLoginButton() {
 
   return (
     <>
-      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" onReady={initialize} />
+      <Script
+        src="https://accounts.google.com/gsi/client"
+        strategy="afterInteractive"
+        onReady={initialize}
+      />
       <div ref={containerRef} className="flex justify-center" />
       {loginWithGoogle.isError && (
         <p className="mt-2 text-center text-xs text-red-600">

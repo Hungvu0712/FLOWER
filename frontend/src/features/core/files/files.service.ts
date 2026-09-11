@@ -56,7 +56,9 @@ export const filesService = {
   },
 
   list: (folderId?: string, view: 'grid' | 'list' = 'grid') =>
-    api.get<{ data: FileRecord[]; meta: unknown }>('/api/v1/files', { params: { folderId, view } }).then((r) => r.data),
+    api
+      .get<{ data: FileRecord[]; meta: unknown }>('/api/v1/files', { params: { folderId, view } })
+      .then((r) => r.data),
 
   remove: (id: string) => api.delete(`/api/v1/files/${id}`),
 };

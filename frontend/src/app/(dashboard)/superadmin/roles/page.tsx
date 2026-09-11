@@ -51,13 +51,25 @@ export default function RolesPage() {
         ...(createForm.description && { description: createForm.description }),
         permissionIds: createForm.permissionIds,
       },
-      { onSuccess: () => { setCreating(false); setCreateForm(emptyForm); } },
+      {
+        onSuccess: () => {
+          setCreating(false);
+          setCreateForm(emptyForm);
+        },
+      },
     );
   }
 
   function submitEdit(id: number) {
     updateRole.mutate(
-      { id, input: { name: editForm.name, description: editForm.description, permissionIds: editForm.permissionIds } },
+      {
+        id,
+        input: {
+          name: editForm.name,
+          description: editForm.description,
+          permissionIds: editForm.permissionIds,
+        },
+      },
       { onSuccess: () => setEditingId(null) },
     );
   }
@@ -83,7 +95,9 @@ export default function RolesPage() {
           <h2 className="mb-4 text-sm font-semibold text-ink">Role mới</h2>
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Code (vd: sales_staff)</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Code (vd: sales_staff)
+              </label>
               <input
                 value={createForm.code}
                 onChange={(e) => setCreateForm((f) => ({ ...f, code: e.target.value }))}
@@ -91,7 +105,9 @@ export default function RolesPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">Tên hiển thị</label>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Tên hiển thị
+              </label>
               <input
                 value={createForm.name}
                 onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
@@ -100,7 +116,9 @@ export default function RolesPage() {
             </div>
           </div>
           <div className="mb-4">
-            <label className="mb-1.5 block text-xs font-medium text-ink-muted">Mô tả (tuỳ chọn)</label>
+            <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+              Mô tả (tuỳ chọn)
+            </label>
             <input
               value={createForm.description}
               onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
@@ -143,14 +161,18 @@ export default function RolesPage() {
                   <p className="mt-0.5 text-xs text-ink-muted">
                     {role.code} · {role.permissions.length} quyền · {role._count.users} người dùng
                   </p>
-                  {role.description && <p className="mt-1 text-xs text-ink-muted">{role.description}</p>}
+                  {role.description && (
+                    <p className="mt-1 text-xs text-ink-muted">{role.description}</p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={role.isSystem}
-                    title={role.isSystem ? 'Không thể sửa cấu trúc quyền của System Role' : undefined}
+                    title={
+                      role.isSystem ? 'Không thể sửa cấu trúc quyền của System Role' : undefined
+                    }
                     onClick={() => (editingId === role.id ? setEditingId(null) : startEdit(role))}
                   >
                     {editingId === role.id ? 'Đóng' : 'Sửa'}
@@ -167,10 +189,13 @@ export default function RolesPage() {
                           : undefined
                     }
                     onClick={async () => {
-                      const ok = await confirmDialog(`Xoá role "${role.name}"? Hành động này không thể hoàn tác.`, {
-                        title: 'Xoá role',
-                        danger: true,
-                      });
+                      const ok = await confirmDialog(
+                        `Xoá role "${role.name}"? Hành động này không thể hoàn tác.`,
+                        {
+                          title: 'Xoá role',
+                          danger: true,
+                        },
+                      );
                       if (ok) deleteRole.mutate(role.id);
                     }}
                   >
@@ -183,7 +208,9 @@ export default function RolesPage() {
                 <div className="mt-5 border-t border-border-soft pt-5">
                   <div className="mb-4 grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">Tên hiển thị</label>
+                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                        Tên hiển thị
+                      </label>
                       <input
                         value={editForm.name}
                         onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
@@ -191,10 +218,14 @@ export default function RolesPage() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">Mô tả</label>
+                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                        Mô tả
+                      </label>
                       <input
                         value={editForm.description}
-                        onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, description: e.target.value }))
+                        }
                         className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
                       />
                     </div>
@@ -207,7 +238,11 @@ export default function RolesPage() {
                       onChange={(ids) => setEditForm((f) => ({ ...f, permissionIds: ids }))}
                     />
                   </div>
-                  <Button size="sm" loading={updateRole.isPending} onClick={() => submitEdit(role.id)}>
+                  <Button
+                    size="sm"
+                    loading={updateRole.isPending}
+                    onClick={() => submitEdit(role.id)}
+                  >
                     Lưu thay đổi
                   </Button>
                 </div>

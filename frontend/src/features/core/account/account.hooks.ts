@@ -59,6 +59,7 @@ export function useRevokeOtherSessions() {
       queryClient.invalidateQueries({ queryKey: ['account', 'sessions'] });
       push('Đã đăng xuất các thiết bị khác');
     },
-    onError: (error) => push(getErrorMessage(error, 'Không đăng xuất được các thiết bị khác'), 'error'),
+    onError: (error) =>
+      push(getErrorMessage(error, 'Không đăng xuất được các thiết bị khác'), 'error'),
   });
 }

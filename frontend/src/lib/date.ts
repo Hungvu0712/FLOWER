@@ -4,7 +4,10 @@
 // UTC+7) sẽ không sai (vì local muộn hơn UTC), nhưng ở múi giờ ÂM (vd UTC-5) sẽ hiển thị NHẦM SANG
 // NGÀY HÔM TRƯỚC. Luôn cố định 'UTC' để đúng bất kể máy khách ở múi giờ nào.
 export function formatDeliveryDate(iso: string): string {
-  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(
-    new Date(iso),
-  );
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(iso));
 }

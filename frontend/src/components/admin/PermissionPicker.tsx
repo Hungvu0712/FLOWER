@@ -28,7 +28,9 @@ export function PermissionPicker({ permissions, selected, onChange }: Props) {
     <div className="flex flex-col gap-4">
       {[...groups.entries()].map(([group, perms]) => (
         <div key={group}>
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{group}</p>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+            {group}
+          </p>
           <div className="flex flex-wrap gap-2">
             {perms.map((p) => {
               const checked = selected.includes(p.id);
@@ -37,10 +39,17 @@ export function PermissionPicker({ permissions, selected, onChange }: Props) {
                   key={p.id}
                   title={p.description ?? undefined}
                   className={`cursor-pointer rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    checked ? 'border-rose bg-rose-light text-rose-dark' : 'border-border text-ink-soft hover:border-ink-soft'
+                    checked
+                      ? 'border-rose bg-rose-light text-rose-dark'
+                      : 'border-border text-ink-soft hover:border-ink-soft'
                   }`}
                 >
-                  <input type="checkbox" className="hidden" checked={checked} onChange={() => toggle(p.id)} />
+                  <input
+                    type="checkbox"
+                    className="hidden"
+                    checked={checked}
+                    onChange={() => toggle(p.id)}
+                  />
                   {p.code}
                 </label>
               );

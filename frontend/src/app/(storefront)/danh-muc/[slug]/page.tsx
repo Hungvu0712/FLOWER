@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ProductCard } from '@/components/storefront/ProductCard';
@@ -7,6 +8,31 @@ import {
   getStorefrontCategoryBySlug,
   getStorefrontProducts,
 } from '@/lib/storefront-api';
+
+// docs/12 FE-06 — xem giải thích chung ở san-pham/[slug]/page.tsx (cùng cơ chế dedupe fetch).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const category = await getStorefrontCategoryBySlug(slug);
+  if (!category) return { title: 'Không tìm thấy danh mục' };
+
+  const description =
+    category.description ??
+    `Hoa tươi cho dịp ${category.name.toLowerCase()} — giao tận nơi, đặt trước.`;
+
+  return {
+    title: category.name,
+    description,
+    openGraph: {
+      title: category.name,
+      description,
+      ...(category.imageFile && { images: [{ url: category.imageFile.url }] }),
+    },
+  };
+}
 
 // Next.js 16: `params` là Promise trong Server Component route động — phải `await` trước khi dùng.
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -27,12 +53,16 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       {/* Băng tiêu đề riêng — tách khỏi lưới sản phẩm bên dưới, giống cấu trúc trang Liên hệ */}
       <section className="bg-rose-light px-8 py-14 lg:px-16">
         <nav className="text-sm text-ink-muted">
-          <Link href="/" className="hover:text-rose">Trang chủ</Link>
+          <Link href="/" className="hover:text-rose">
+            Trang chủ
+          </Link>
           <span className="mx-2">/</span>
           <span className="text-ink">{category.name}</span>
         </nav>
 
-        <h1 className="mt-3 font-display text-4xl font-semibold text-ink lg:text-5xl">{category.name}</h1>
+        <h1 className="mt-3 font-display text-4xl font-semibold text-ink lg:text-5xl">
+          {category.name}
+        </h1>
         {category.description && (
           <p className="mt-3 max-w-2xl text-ink-muted">{category.description}</p>
         )}
@@ -59,7 +89,9 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         {products.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <FlowerIcon className="h-10 w-10" color="var(--color-rose)" />
-            <p className="text-sm text-ink-muted">Chưa có sản phẩm nào trong danh mục này — quay lại sau nhé.</p>
+            <p className="text-sm text-ink-muted">
+              Chưa có sản phẩm nào trong danh mục này — quay lại sau nhé.
+            </p>
             <Link href="/" className="text-sm font-semibold text-rose hover:text-rose-dark">
               ← Về trang chủ xem mẫu khác
             </Link>

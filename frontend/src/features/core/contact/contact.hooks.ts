@@ -11,7 +11,11 @@ export function useSubmitContact() {
   return useMutation({ mutationFn: contactService.submit });
 }
 
-export function useContactMessages(params?: { isHandled?: boolean; page?: number; limit?: number }) {
+export function useContactMessages(params?: {
+  isHandled?: boolean;
+  page?: number;
+  limit?: number;
+}) {
   return useQuery({
     queryKey: ['admin', 'contact-messages', params ?? null],
     queryFn: () => contactService.list(params),
@@ -22,7 +26,8 @@ export function useSetContactHandled() {
   const queryClient = useQueryClient();
   const push = useToastStore((s) => s.push);
   return useMutation({
-    mutationFn: ({ id, isHandled }: { id: string; isHandled: boolean }) => contactService.setHandled(id, isHandled),
+    mutationFn: ({ id, isHandled }: { id: string; isHandled: boolean }) =>
+      contactService.setHandled(id, isHandled),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'contact-messages'] }),
     onError: (error) => push(getErrorMessage(error, 'Không cập nhật được'), 'error'),
   });

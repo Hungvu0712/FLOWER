@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 // 'use client' riêng chỉ cho nút này — phần còn lại của Footer vẫn là Server Component, không cần
 // kéo cả cây xuống client chỉ vì 1 nút cuộn trang.
@@ -6,7 +6,7 @@ export function BackToTopButton() {
   return (
     <button
       type="button"
-      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="Lên đầu trang"
       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-white text-ink-soft shadow-sm transition-colors hover:border-rose hover:text-rose"
     >

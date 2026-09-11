@@ -41,16 +41,26 @@ export default function RegisterPage() {
         <p className="mt-1 text-sm text-ink-muted">Đăng ký để lưu đơn hàng và nhắc lịch đặc biệt</p>
       </div>
 
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit((values) => registerMutation.mutate(values))}>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={handleSubmit((values) => registerMutation.mutate(values))}
+      >
         <FormField label="Họ tên" {...register('fullName')} error={errors.fullName} />
         <FormField label="Email" type="email" {...register('email')} error={errors.email} />
-        <FormField label="Mật khẩu" type="password" {...register('password')} error={errors.password} />
+        <FormField
+          label="Mật khẩu"
+          type="password"
+          {...register('password')}
+          error={errors.password}
+        />
         {registerMutation.isError && (
           <p className="text-xs text-red-600">
             {getErrorMessage(registerMutation.error, 'Email đã được sử dụng hoặc có lỗi xảy ra.')}
           </p>
         )}
-        <Button type="submit" loading={registerMutation.isPending}>Tạo tài khoản</Button>
+        <Button type="submit" loading={registerMutation.isPending}>
+          Tạo tài khoản
+        </Button>
       </form>
 
       <Link href="/login" className="text-center text-xs text-ink-muted hover:text-rose">

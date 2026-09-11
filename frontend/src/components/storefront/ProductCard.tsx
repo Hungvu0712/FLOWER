@@ -1,24 +1,18 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { FlowerIcon } from "@/components/ui/FlowerIcon";
-import { formatVnd } from "@/lib/currency";
-import { stripHtml } from "@/lib/html";
-import { HOTLINE, ZALO_LINK } from "@/lib/contact-info";
-import { useCartStore } from "@/store/useCartStore";
-import { useToastStore } from "@/store/useToastStore";
-import type { StorefrontProduct } from "@/lib/storefront-api";
+import Link from 'next/link';
+import Image from 'next/image';
+import { FlowerIcon } from '@/components/ui/FlowerIcon';
+import { formatVnd } from '@/lib/currency';
+import { stripHtml } from '@/lib/html';
+import { HOTLINE, ZALO_LINK } from '@/lib/contact-info';
+import { useCartStore } from '@/store/useCartStore';
+import { useToastStore } from '@/store/useToastStore';
+import type { StorefrontProduct } from '@/lib/storefront-api';
 
 // Màu nền tròn thay thế cho sản phẩm CHƯA có ảnh — đổi vòng qua mảng này theo index thay vì 1 màu cố
 // định, giữ chút sinh động khi nhiều sản phẩm liền kề đều chưa có ảnh thật (vd dữ liệu mẫu mới seed).
-const PLACEHOLDER_COLORS = [
-  "#c95b52",
-  "#d69a3a",
-  "#c17a4a",
-  "#c98fae",
-  "#7a9b6e",
-  "#b3856b",
-];
+const PLACEHOLDER_COLORS = ['#c95b52', '#d69a3a', '#c17a4a', '#c98fae', '#7a9b6e', '#b3856b'];
 
 // pointer-events-none khi ẩn — nếu không, lớp overlay (dù trong suốt) vẫn nằm ĐÈ lên toàn bộ ảnh và
 // chặn click vào Link bên dưới ngay cả lúc chưa hover. Chỉ bật lại pointer-events khi thật sự hiện.
@@ -72,9 +66,7 @@ export function ProductCard({
 }) {
   const image = product.images[0]?.file.url;
   const color = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.length];
-  const description = product.description
-    ? stripHtml(product.description)
-    : null;
+  const description = product.description ? stripHtml(product.description) : null;
   const addItem = useCartStore((s) => s.addItem);
   const push = useToastStore((s) => s.push);
 
@@ -95,12 +87,15 @@ export function ProductCard({
       <div className="group relative">
         <Link href={`/san-pham/${product.slug}`} tabIndex={-1} aria-hidden>
           {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={image}
-              alt={product.name}
-              className="aspect-square rounded-2xl object-cover"
-            />
+            <div className="relative aspect-square overflow-hidden rounded-2xl">
+              <Image
+                src={image}
+                alt={product.name}
+                fill
+                sizes="(min-width: 1024px) 23vw, (min-width: 640px) 46vw, 90vw"
+                className="object-cover"
+              />
+            </div>
           ) : (
             <div
               className="flex aspect-square items-center justify-center rounded-2xl"
@@ -114,23 +109,19 @@ export function ProductCard({
       </div>
       <div>
         {product.category && (
-          <p className="text-xs font-semibold tracking-wide text-rose/70 uppercase">{product.category.name}</p>
+          <p className="text-xs font-semibold tracking-wide text-rose/70 uppercase">
+            {product.category.name}
+          </p>
         )}
         <h3 className="mt-0.5 text-lg font-semibold text-ink">
           <Link href={`/san-pham/${product.slug}`} className="hover:text-rose">
             {product.name}
           </Link>
         </h3>
-        {description && (
-          <p className="mt-1 line-clamp-2 text-sm text-ink-muted">
-            {description}
-          </p>
-        )}
+        {description && <p className="mt-1 line-clamp-2 text-sm text-ink-muted">{description}</p>}
       </div>
       <div className="mt-auto flex items-center justify-between">
-        <span className="text-lg font-semibold text-rose">
-          {formatVnd(product.basePrice)}
-        </span>
+        <span className="text-lg font-semibold text-rose">{formatVnd(product.basePrice)}</span>
         <button
           type="button"
           onClick={handleAddToCart}

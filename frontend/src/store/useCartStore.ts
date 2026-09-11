@@ -50,7 +50,8 @@ export const useCartStore = create<CartState>()(
           }
           return { items: [...state.items, { ...item, quantity }] };
         }),
-      removeItem: (productId) => set((state) => ({ items: state.items.filter((i) => i.productId !== productId) })),
+      removeItem: (productId) =>
+        set((state) => ({ items: state.items.filter((i) => i.productId !== productId) })),
       setQuantity: (productId, quantity) =>
         set((state) => ({
           items:
@@ -67,5 +68,7 @@ export const useCartStore = create<CartState>()(
   ),
 );
 
-export const useCartCount = () => useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
-export const useCartTotal = () => useCartStore((s) => s.items.reduce((sum, i) => sum + i.basePrice * i.quantity, 0));
+export const useCartCount = () =>
+  useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
+export const useCartTotal = () =>
+  useCartStore((s) => s.items.reduce((sum, i) => sum + i.basePrice * i.quantity, 0));

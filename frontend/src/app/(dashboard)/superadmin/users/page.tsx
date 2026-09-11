@@ -34,7 +34,10 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <PageHeader title="Người dùng" description="Quản lý tài khoản, khoá/mở khoá và đặt lại mật khẩu." />
+      <PageHeader
+        title="Người dùng"
+        description="Quản lý tài khoản, khoá/mở khoá và đặt lại mật khẩu."
+      />
 
       <div className="rounded-3xl border border-border-soft bg-white p-6">
         <input
@@ -66,7 +69,8 @@ export default function AdminUsersPage() {
                 {data.items.map((user) => {
                   const isSelf = user.id === me?.id;
                   const currentRoleCode = user.roles[0]?.role.code ?? '';
-                  const roleDisabled = isSelf || currentRoleCode === 'super_admin' || updateRole.isPending;
+                  const roleDisabled =
+                    isSelf || currentRoleCode === 'super_admin' || updateRole.isPending;
                   return (
                     <tr key={user.id} className="border-b border-border-soft/70">
                       <td className="py-3">
@@ -89,10 +93,14 @@ export default function AdminUsersPage() {
                                 ? 'Không thể đổi role của super_admin qua đây'
                                 : undefined
                           }
-                          onChange={(e) => updateRole.mutate({ id: user.id, roleCode: e.target.value })}
+                          onChange={(e) =>
+                            updateRole.mutate({ id: user.id, roleCode: e.target.value })
+                          }
                           className="rounded-xl border border-border bg-white px-2.5 py-1.5 text-xs text-ink-soft outline-none focus:border-rose focus:ring-1 focus:ring-rose disabled:bg-ivory-50 disabled:text-ink-muted"
                         >
-                          {currentRoleCode === 'super_admin' && <option value="super_admin">Super Admin</option>}
+                          {currentRoleCode === 'super_admin' && (
+                            <option value="super_admin">Super Admin</option>
+                          )}
                           {assignableRoles.map((role) => (
                             <option key={role.code} value={role.code}>
                               {role.name}
@@ -108,15 +116,28 @@ export default function AdminUsersPage() {
                       <td className="py-3">
                         <div className="flex flex-wrap gap-2">
                           {user.status === 'active' ? (
-                            <Button variant="outline" size="sm" disabled={isSelf} onClick={() => blockUser.mutate(user.id)}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={isSelf}
+                              onClick={() => blockUser.mutate(user.id)}
+                            >
                               Khoá
                             </Button>
                           ) : (
-                            <Button variant="outline" size="sm" onClick={() => unblockUser.mutate(user.id)}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => unblockUser.mutate(user.id)}
+                            >
                               Mở khoá
                             </Button>
                           )}
-                          <Button variant="outline" size="sm" onClick={() => resetPassword.mutate(user.id)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => resetPassword.mutate(user.id)}
+                          >
                             Reset mật khẩu
                           </Button>
                           <Button
@@ -149,7 +170,12 @@ export default function AdminUsersPage() {
               Trang {data.meta.page}/{data.meta.totalPages} · {data.meta.total} người dùng
             </p>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
                 Trước
               </Button>
               <Button

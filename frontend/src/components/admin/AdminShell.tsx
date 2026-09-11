@@ -4,7 +4,17 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useMe } from '@/features/core/account/account.hooks';
 import { DashboardShell, type ShellNavSection } from '@/components/shell/DashboardShell';
-import { IconDashboard, IconUsers, IconSliders, IconPackage, IconReceipt, IconShield, IconKey, IconTag, IconMail } from './icons';
+import {
+  IconDashboard,
+  IconUsers,
+  IconSliders,
+  IconPackage,
+  IconReceipt,
+  IconShield,
+  IconKey,
+  IconTag,
+  IconMail,
+} from './icons';
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
