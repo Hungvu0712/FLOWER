@@ -20,6 +20,15 @@ type PresignResponse = {
   allowedFormats: string;
 };
 
+type PaginationMeta = { page: number; limit: number; total: number; totalPages: number };
+
+export type ListFilesParams = {
+  folderId?: string | null;
+  view?: 'grid' | 'list';
+  page?: number;
+  limit?: number;
+};
+
 export const filesService = {
   // Bước 1: backend ký tham số upload (publicId/timestamp/signature) — bước 2: POST thẳng file lên
   // Cloudinary (không qua server Express) — bước 3: báo backend lưu metadata. Xem docs/02 §6.
@@ -55,9 +64,11 @@ export const filesService = {
       .then((r) => r.data.data);
   },
 
-  list: (folderId?: string, view: 'grid' | 'list' = 'grid') =>
+  list: ({ folderId, view = 'grid', page = 1, limit = 24 }: ListFilesParams = {}) =>
     api
-      .get<{ data: FileRecord[]; meta: unknown }>('/api/v1/files', { params: { folderId, view } })
+      .get<{ data: FileRecord[]; meta: PaginationMeta }>('/api/v1/files', {
+        params: { folderId: folderId ?? undefined, view, page, limit },
+      })
       .then((r) => r.data),
 
   remove: (id: string) => api.delete(`/api/v1/files/${id}`),

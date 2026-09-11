@@ -10,6 +10,9 @@ const { authService } = await import('@/features/core/auth/auth.service');
 const { accountService } = await import('@/features/core/account/account.service');
 const { categoriesService } = await import('@/features/domain/categories/categories.service');
 const { adminUsersService } = await import('@/features/core/admin-users/adminUsers.service');
+const { foldersService } = await import('@/features/core/files/folders.service');
+const { filesService } = await import('@/features/core/files/files.service');
+const { systemSettingsService } = await import('@/features/core/admin-settings/systemSettings.service');
 
 // `api.get/post/...` là hàm generic có nhiều overload nên `vi.mocked()` không suy ra được kiểu mock —
 // ép kiểu tường minh sang Mock để dùng `.mockReturnValue()` / `.mock.calls`.
@@ -109,6 +112,86 @@ describe('categoriesService', () => {
     mocked.delete.mockReturnValue(envelope(null) as never);
     await categoriesService.remove('cat-1');
     expect(mocked.delete).toHaveBeenCalledWith('/api/v1/admin/categories/cat-1');
+  });
+});
+
+describe('foldersService', () => {
+  it('list gọi GET /api/v1/folders kèm parentId (bỏ trống = cấp gốc)', async () => {
+    mocked.get.mockReturnValue(envelope([]) as never);
+    await foldersService.list('folder-1');
+    expect(mocked.get).toHaveBeenCalledWith('/api/v1/folders', { params: { parentId: 'folder-1' } });
+
+    await foldersService.list();
+    expect(mocked.get).toHaveBeenLastCalledWith('/api/v1/folders', { params: { parentId: undefined } });
+  });
+
+  it('create/update/remove gọi đúng method và path', async () => {
+    mocked.post.mockReturnValue(envelope({ id: 'f1' }) as never);
+    await foldersService.create({ name: 'Ảnh sản phẩm', parentId: null });
+    expect(mocked.post).toHaveBeenCalledWith('/api/v1/folders', {
+      name: 'Ảnh sản phẩm',
+      parentId: null,
+    });
+
+    mocked.patch.mockReturnValue(envelope({ id: 'f1' }) as never);
+    await foldersService.update('f1', { name: 'Tên mới' });
+    expect(mocked.patch).toHaveBeenCalledWith('/api/v1/folders/f1', { name: 'Tên mới' });
+
+    mocked.delete.mockReturnValue(envelope(null) as never);
+    await foldersService.remove('f1');
+    expect(mocked.delete).toHaveBeenCalledWith('/api/v1/folders/f1');
+  });
+});
+
+describe('filesService — list (docs/12 Phase 4, màn quản lý tài nguyên)', () => {
+  it('bỏ trống folderId → gọi API KHÔNG kèm folderId (backend hiểu là cấp gốc)', async () => {
+    mocked.get.mockReturnValue(
+      Promise.resolve({
+        data: { success: true, data: [], meta: { page: 1, limit: 24, total: 0, totalPages: 1 } },
+      }) as never,
+    );
+    await filesService.list();
+    expect(mocked.get).toHaveBeenCalledWith('/api/v1/files', {
+      params: { folderId: undefined, view: 'grid', page: 1, limit: 24 },
+    });
+  });
+
+  it('có folderId → truyền đúng kèm view/page/limit tuỳ chỉnh', async () => {
+    mocked.get.mockReturnValue(
+      Promise.resolve({
+        data: { success: true, data: [], meta: { page: 2, limit: 12, total: 0, totalPages: 1 } },
+      }) as never,
+    );
+    await filesService.list({ folderId: 'folder-1', view: 'list', page: 2, limit: 12 });
+    expect(mocked.get).toHaveBeenCalledWith('/api/v1/files', {
+      params: { folderId: 'folder-1', view: 'list', page: 2, limit: 12 },
+    });
+  });
+});
+
+describe('systemSettingsService (docs/12, Phase 4)', () => {
+  it('list gọi GET /api/v1/superadmin/settings', async () => {
+    mocked.get.mockReturnValue(envelope([]) as never);
+    await systemSettingsService.list();
+    expect(mocked.get).toHaveBeenCalledWith('/api/v1/superadmin/settings');
+  });
+
+  it('update gọi PATCH đúng key, gửi value trong body', async () => {
+    mocked.patch.mockReturnValue(
+      envelope({ key: 'site_name', value: 'Tên mới', updatedAt: '2026-01-01' }) as never,
+    );
+    await systemSettingsService.update('site_name', 'Tên mới');
+    expect(mocked.patch).toHaveBeenCalledWith('/api/v1/superadmin/settings/site_name', {
+      value: 'Tên mới',
+    });
+  });
+
+  it('update site_logo gửi fileId (không phải object {fileId,url} của response GET)', async () => {
+    mocked.patch.mockReturnValue(envelope({ key: 'site_logo', value: null }) as never);
+    await systemSettingsService.update('site_logo', 'file-123');
+    expect(mocked.patch).toHaveBeenCalledWith('/api/v1/superadmin/settings/site_logo', {
+      value: 'file-123',
+    });
   });
 });
 

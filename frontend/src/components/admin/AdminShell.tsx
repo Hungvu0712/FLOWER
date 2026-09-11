@@ -15,6 +15,8 @@ import {
   IconTag,
   IconMail,
   IconHistory,
+  IconFolder,
+  IconSettings,
 } from './icons';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -90,6 +92,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         { href: '/admin/categories', label: 'Danh mục', icon: IconTag },
         { href: '/admin/products', label: 'Sản phẩm', icon: IconPackage },
         { href: '/admin/orders', label: 'Đơn hàng', icon: IconReceipt },
+        { href: '/admin/resources', label: 'Tài nguyên', icon: IconFolder },
         { href: '/admin/contact', label: 'Liên hệ', icon: IconMail },
       ],
     },
@@ -103,6 +106,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         { href: '/superadmin/roles', label: 'Role', icon: IconShield },
         { href: '/superadmin/permissions', label: 'Permission', icon: IconKey },
         { href: '/superadmin/login-methods', label: 'Phương thức đăng nhập', icon: IconSliders },
+        { href: '/superadmin/settings', label: 'Cấu hình hệ thống', icon: IconSettings },
         { href: '/superadmin/audit-logs', label: 'Nhật ký Audit', icon: IconHistory },
       ],
     });
