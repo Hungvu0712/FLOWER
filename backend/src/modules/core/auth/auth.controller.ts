@@ -53,10 +53,7 @@ export const googleLogin = asyncHandler(async (req, res) => {
 });
 
 export const refresh = asyncHandler(async (req, res) => {
-  const session = await authService.refreshSession(
-    req.cookies?.refresh_token,
-    requestMeta(req),
-  );
+  const session = await authService.refreshSession(req.cookies?.refresh_token, requestMeta(req));
   respondWithSession(res, session);
 });
 

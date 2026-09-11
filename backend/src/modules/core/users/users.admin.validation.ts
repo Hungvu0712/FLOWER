@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const userIdParamSchema = z.object({ id: z.string().uuid() });
 
@@ -8,7 +8,7 @@ export const updateRoleSchema = z.object({
 export type UpdateRoleInput = z.infer<typeof updateRoleSchema>;
 
 export const listUsersQuerySchema = z.object({
-  status: z.enum(['active', 'blocked']).optional(),
+  status: z.enum(["active", "blocked"]).optional(),
   role: z.string().optional(),
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),

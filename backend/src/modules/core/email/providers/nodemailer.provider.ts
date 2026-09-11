@@ -1,6 +1,6 @@
-import nodemailer, { type Transporter } from 'nodemailer';
-import { env } from '../../../../config/env';
-import type { EmailProvider, SendEmailInput, SendEmailResult } from '../email.provider';
+import nodemailer, { type Transporter } from "nodemailer";
+import { env } from "../../../../config/env";
+import type { EmailProvider, SendEmailInput, SendEmailResult } from "../email.provider";
 
 let transporter: Transporter | null = null;
 function getTransporter(): Transporter {

@@ -6,7 +6,12 @@ import * as service from "@/modules/core/users/users.admin.service";
 
 const ACTOR = "superadmin-1";
 const TARGET = "user-2";
-const TARGET_USER = { id: TARGET, email: "b@example.com", status: "active", deletedAt: null as Date | null };
+const TARGET_USER = {
+  id: TARGET,
+  email: "b@example.com",
+  status: "active",
+  deletedAt: null as Date | null,
+};
 
 beforeEach(() => {
   resetPrismaMock();
@@ -67,7 +72,9 @@ describe("setBlocked — chống tự khoá chính mình", () => {
   });
 
   it("chặn cả thao tác tự MỞ khoá chính mình", async () => {
-    await expect(service.setBlocked(ACTOR, ACTOR, false)).rejects.toMatchObject({ code: "CANNOT_TARGET_SELF" });
+    await expect(service.setBlocked(ACTOR, ACTOR, false)).rejects.toMatchObject({
+      code: "CANNOT_TARGET_SELF",
+    });
   });
 
   it("khoá user khác thành công và ghi audit log kèm giá trị trước/sau", async () => {
@@ -75,7 +82,10 @@ describe("setBlocked — chống tự khoá chính mình", () => {
     db.user.update.mockResolvedValue({});
     await service.setBlocked(ACTOR, TARGET, true, "1.2.3.4");
 
-    expect(db.user.update).toHaveBeenCalledWith({ where: { id: TARGET }, data: { status: "blocked" } });
+    expect(db.user.update).toHaveBeenCalledWith({
+      where: { id: TARGET },
+      data: { status: "blocked" },
+    });
     expect(auditLog.record).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: ACTOR,
@@ -90,13 +100,17 @@ describe("setBlocked — chống tự khoá chính mình", () => {
 
   it("404 khi user không tồn tại", async () => {
     db.user.findUnique.mockResolvedValue(null);
-    await expect(service.setBlocked(ACTOR, TARGET, true)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.setBlocked(ACTOR, TARGET, true)).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });
 
 describe("softDeleteUser", () => {
   it("chặn tự xoá chính mình", async () => {
-    await expect(service.softDeleteUser(ACTOR, ACTOR)).rejects.toMatchObject({ code: "CANNOT_TARGET_SELF" });
+    await expect(service.softDeleteUser(ACTOR, ACTOR)).rejects.toMatchObject({
+      code: "CANNOT_TARGET_SELF",
+    });
   });
 
   it("giải phóng email bằng hậu tố để địa chỉ đó đăng ký lại được sau này", async () => {
@@ -147,7 +161,8 @@ describe("resetPassword", () => {
 
     await service.resetPassword(ACTOR, TARGET);
 
-    const html = (emailService.sendEmail as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![0].html as string;
+    const html = (emailService.sendEmail as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+      .html as string;
     const plain = /<strong>(.+?)<\/strong>/.exec(html)![1]!;
     const storedHash = db.user.update.mock.calls[0]![0].data.passwordHash as string;
     expect(storedHash).not.toBe(plain);
@@ -169,6 +184,18 @@ describe("resetPassword", () => {
     expect(entry.action).toBe("user.reset_password");
     expect(JSON.stringify(entry)).not.toMatch(/password.{0,5}:.{0,3}"[A-Za-z0-9_-]{10,}"/);
     expect(entry).not.toHaveProperty("after");
+  });
+
+  it("thu hồi TOÀN BỘ session của target, không chừa phiên nào (mục đích chính thường là cắt quyền truy cập — docs/12 BE-01)", async () => {
+    db.user.findUnique.mockResolvedValue(TARGET_USER);
+    db.user.update.mockResolvedValue({});
+    db.session.updateMany.mockResolvedValue({});
+
+    await service.resetPassword(ACTOR, TARGET);
+
+    expect(db.session.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: TARGET, revokedAt: null } }),
+    );
   });
 });
 

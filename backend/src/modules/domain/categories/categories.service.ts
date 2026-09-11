@@ -25,10 +25,7 @@ const CATEGORY_SELECT = {
 } as const;
 
 // Tự thêm hậu tố -2, -3... nếu slug đã tồn tại — hiếm khi lặp quá 1-2 lần với dữ liệu thực tế.
-async function ensureUniqueSlug(
-  base: string,
-  excludeId?: string,
-): Promise<string> {
+async function ensureUniqueSlug(base: string, excludeId?: string): Promise<string> {
   let slug = base;
   let suffix = 2;
   while (
@@ -42,16 +39,9 @@ async function ensureUniqueSlug(
 }
 
 // Chặn gán danh mục con (hoặc chính nó) làm cha — tránh vòng lặp vô hạn khi duyệt cây sau này.
-async function assertNoCycle(
-  categoryId: string,
-  proposedParentId: string,
-): Promise<void> {
+async function assertNoCycle(categoryId: string, proposedParentId: string): Promise<void> {
   if (categoryId === proposedParentId) {
-    throw new AppError(
-      "Danh mục không thể là cha của chính nó",
-      400,
-      "CATEGORY_CYCLE",
-    );
+    throw new AppError("Danh mục không thể là cha của chính nó", 400, "CATEGORY_CYCLE");
   }
   const visited = new Set<string>();
   let current = await prisma.category.findUnique({
@@ -99,19 +89,14 @@ export async function listPublic() {
   });
 }
 
-export async function create(
-  actorId: string,
-  input: CreateCategoryInput,
-  ipAddress?: string,
-) {
+export async function create(actorId: string, input: CreateCategoryInput, ipAddress?: string) {
   const slug = await ensureUniqueSlug(slugify(input.slug || input.name));
 
   if (input.parentId) {
     const parent = await prisma.category.findUnique({
       where: { id: input.parentId },
     });
-    if (!parent)
-      throw new AppError("Danh mục cha không tồn tại", 404, "PARENT_NOT_FOUND");
+    if (!parent) throw new AppError("Danh mục cha không tồn tại", 404, "PARENT_NOT_FOUND");
   }
 
   const category = await prisma.category.create({
@@ -160,15 +145,12 @@ export async function update(
     const parent = await prisma.category.findUnique({
       where: { id: input.parentId },
     });
-    if (!parent)
-      throw new AppError("Danh mục cha không tồn tại", 404, "PARENT_NOT_FOUND");
+    if (!parent) throw new AppError("Danh mục cha không tồn tại", 404, "PARENT_NOT_FOUND");
   }
 
   // Đổi tên KHÔNG tự đổi slug (tránh gãy link đã chia sẻ) — chỉ đổi khi người dùng chủ động sửa slug.
   const slug =
-    input.slug !== undefined
-      ? await ensureUniqueSlug(slugify(input.slug), id)
-      : undefined;
+    input.slug !== undefined ? await ensureUniqueSlug(slugify(input.slug), id) : undefined;
 
   const updated = await prisma.category.update({
     where: { id },
@@ -208,11 +190,7 @@ export async function update(
   return updated;
 }
 
-export async function remove(
-  actorId: string,
-  id: string,
-  ipAddress?: string,
-): Promise<void> {
+export async function remove(actorId: string, id: string, ipAddress?: string): Promise<void> {
   const category = await prisma.category.findUnique({
     where: { id },
     include: { _count: { select: { children: true } } },

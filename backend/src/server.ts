@@ -5,16 +5,12 @@ import { logger } from "./shared/logger/logger";
 import { registerJobs } from "./jobs";
 
 const server = app.listen(env.port, () => {
-  logger.info(
-    `API đang chạy tại http://localhost:${env.port} (env=${env.nodeEnv})`,
-  );
+  logger.info(`API đang chạy tại http://localhost:${env.port} (env=${env.nodeEnv})`);
 
   if (env.isProd) {
     registerJobs();
   } else {
-    logger.info(
-      "Cron jobs không chạy ở development — bật bằng NODE_ENV=production nếu cần test.",
-    );
+    logger.info("Cron jobs không chạy ở development — bật bằng NODE_ENV=production nếu cần test.");
   }
 });
 

@@ -13,7 +13,11 @@ beforeEach(() => {
 
 describe("getMe", () => {
   it("trả roles/permissions HIỆN TẠI từ DB, không phải từ token", async () => {
-    db.user.findUnique.mockResolvedValue({ id: USER_ID, email: "a@example.com", passwordHash: "bi-mat" });
+    db.user.findUnique.mockResolvedValue({
+      id: USER_ID,
+      email: "a@example.com",
+      passwordHash: "bi-mat",
+    });
     db.userRole.findMany.mockResolvedValue([
       { role: { code: "admin", permissions: [{ permission: { code: "files.manage" } }] } },
     ]);
@@ -22,11 +26,17 @@ describe("getMe", () => {
 
     expect(me.roles).toEqual(["admin"]);
     expect(me.permissions).toEqual(["files.manage"]);
-    expect(db.userRole.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: USER_ID } }));
+    expect(db.userRole.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: USER_ID } }),
+    );
   });
 
   it("KHÔNG BAO GIỜ trả passwordHash ra API", async () => {
-    db.user.findUnique.mockResolvedValue({ id: USER_ID, email: "a@example.com", passwordHash: "$2a$12$bi-mat" });
+    db.user.findUnique.mockResolvedValue({
+      id: USER_ID,
+      email: "a@example.com",
+      passwordHash: "$2a$12$bi-mat",
+    });
     db.userRole.findMany.mockResolvedValue([]);
     const me = await service.getMe(USER_ID);
     expect(me).not.toHaveProperty("passwordHash");
@@ -66,22 +76,37 @@ describe("updateProfile", () => {
 
   it("không trả passwordHash sau khi cập nhật", async () => {
     db.user.update.mockResolvedValue({ id: USER_ID, passwordHash: "bi-mat" });
-    expect(await service.updateProfile(USER_ID, { fullName: "X" } as never)).not.toHaveProperty("passwordHash");
+    expect(await service.updateProfile(USER_ID, { fullName: "X" } as never)).not.toHaveProperty(
+      "passwordHash",
+    );
   });
 });
 
 describe("changePassword", () => {
   it("đổi mật khẩu thành công khi mật khẩu hiện tại đúng", async () => {
-    db.user.findUnique.mockResolvedValue({ id: USER_ID, passwordHash: await hashPassword("cu123456") });
+    db.user.findUnique.mockResolvedValue({
+      id: USER_ID,
+      passwordHash: await hashPassword("cu123456"),
+    });
     db.user.update.mockResolvedValue({});
-    await service.changePassword(USER_ID, { currentPassword: "cu123456", newPassword: "moi12345678" } as never);
+    db.session.updateMany.mockResolvedValue({});
+    await service.changePassword(USER_ID, {
+      currentPassword: "cu123456",
+      newPassword: "moi12345678",
+    } as never);
     expect(db.user.update.mock.calls[0]![0].data.passwordHash).toMatch(/^\$2[aby]\$12\$/);
   });
 
   it("401 khi mật khẩu hiện tại sai", async () => {
-    db.user.findUnique.mockResolvedValue({ id: USER_ID, passwordHash: await hashPassword("cu123456") });
+    db.user.findUnique.mockResolvedValue({
+      id: USER_ID,
+      passwordHash: await hashPassword("cu123456"),
+    });
     await expect(
-      service.changePassword(USER_ID, { currentPassword: "sai", newPassword: "moi12345678" } as never),
+      service.changePassword(USER_ID, {
+        currentPassword: "sai",
+        newPassword: "moi12345678",
+      } as never),
     ).rejects.toMatchObject({ statusCode: 401, code: "INVALID_CURRENT_PASSWORD" });
     expect(db.user.update).not.toHaveBeenCalled();
   });
@@ -89,14 +114,55 @@ describe("changePassword", () => {
   it("tài khoản Google/magic link (chưa có mật khẩu) được đặt mật khẩu đầu tiên", async () => {
     db.user.findUnique.mockResolvedValue({ id: USER_ID, passwordHash: null });
     db.user.update.mockResolvedValue({});
+    db.session.updateMany.mockResolvedValue({});
     await expect(
       service.changePassword(USER_ID, { currentPassword: "", newPassword: "moi12345678" } as never),
     ).resolves.toBeUndefined();
   });
+
+  it("thu hồi mọi session KHÁC (đuổi thiết bị khác), CHỪA LẠI phiên hiện tại (docs/12 BE-01)", async () => {
+    db.user.findUnique.mockResolvedValue({
+      id: USER_ID,
+      passwordHash: await hashPassword("cu123456"),
+    });
+    db.user.update.mockResolvedValue({});
+    db.session.updateMany.mockResolvedValue({});
+
+    await service.changePassword(
+      USER_ID,
+      { currentPassword: "cu123456", newPassword: "moi12345678" } as never,
+      "token-hien-tai",
+    );
+
+    expect(db.session.updateMany.mock.calls[0]![0].where).toEqual({
+      userId: USER_ID,
+      revokedAt: null,
+      refreshTokenHash: { not: sha256("token-hien-tai") },
+    });
+  });
+
+  it("không có refresh token hiện tại (vd gọi qua API khác /account) → thu hồi TẤT CẢ session", async () => {
+    db.user.findUnique.mockResolvedValue({
+      id: USER_ID,
+      passwordHash: await hashPassword("cu123456"),
+    });
+    db.user.update.mockResolvedValue({});
+    db.session.updateMany.mockResolvedValue({});
+
+    await service.changePassword(USER_ID, {
+      currentPassword: "cu123456",
+      newPassword: "moi12345678",
+    } as never);
+
+    expect(db.session.updateMany.mock.calls[0]![0].where).toEqual({
+      userId: USER_ID,
+      revokedAt: null,
+    });
+  });
 });
 
 describe("listSessions", () => {
-  it('đánh dấu isCurrent bằng cách so HASH của refresh token trong cookie', async () => {
+  it("đánh dấu isCurrent bằng cách so HASH của refresh token trong cookie", async () => {
     db.session.findMany.mockResolvedValue([
       { id: "s1", refreshTokenHash: sha256("token-hien-tai"), deviceName: "Chrome trên macOS" },
       { id: "s2", refreshTokenHash: sha256("token-khac"), deviceName: "Safari trên iOS" },
@@ -118,7 +184,10 @@ describe("listSessions", () => {
   it("chỉ lấy session chưa bị thu hồi", async () => {
     db.session.findMany.mockResolvedValue([]);
     await service.listSessions(USER_ID, undefined);
-    expect(db.session.findMany.mock.calls[0]![0].where).toEqual({ userId: USER_ID, revokedAt: null });
+    expect(db.session.findMany.mock.calls[0]![0].where).toEqual({
+      userId: USER_ID,
+      revokedAt: null,
+    });
   });
 
   it("không có cookie → không phiên nào là 'hiện tại'", async () => {
@@ -130,7 +199,9 @@ describe("listSessions", () => {
 describe("revokeSession — chống IDOR", () => {
   it("CHẶN thu hồi session của người khác dù biết đúng session id", async () => {
     db.session.findUnique.mockResolvedValue({ id: "s-nguoi-khac", userId: "user-999" });
-    await expect(service.revokeSession(USER_ID, "s-nguoi-khac")).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.revokeSession(USER_ID, "s-nguoi-khac")).rejects.toMatchObject({
+      statusCode: 404,
+    });
     expect(db.session.update).not.toHaveBeenCalled();
   });
 
@@ -146,7 +217,9 @@ describe("revokeSession — chống IDOR", () => {
 
   it("404 khi session không tồn tại", async () => {
     db.session.findUnique.mockResolvedValue(null);
-    await expect(service.revokeSession(USER_ID, "khong-co")).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.revokeSession(USER_ID, "khong-co")).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });
 

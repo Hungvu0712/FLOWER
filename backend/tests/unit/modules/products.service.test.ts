@@ -18,7 +18,10 @@ describe("listPublic — dữ liệu cho storefront", () => {
     db.product.findMany.mockResolvedValue([]);
     db.product.count.mockResolvedValue(0);
     await service.listPublic({ page: 1, limit: 24 } as never);
-    expect(db.product.findMany.mock.calls[0]![0].where).toEqual({ deletedAt: null, isActive: true });
+    expect(db.product.findMany.mock.calls[0]![0].where).toEqual({
+      deletedAt: null,
+      isActive: true,
+    });
   });
 
   it("KHÔNG lộ trường nội bộ (isActive, createdAt, updatedAt, categoryId dư thừa) ra API công khai", async () => {
@@ -79,7 +82,10 @@ describe("list — dữ liệu cho admin", () => {
     db.product.findMany.mockResolvedValue([]);
     db.product.count.mockResolvedValue(0);
     await service.list({ page: 1, limit: 24 } as never);
-    expect(db.product.findMany.mock.calls[0]![0].where).toEqual({ deletedAt: null, isActive: true });
+    expect(db.product.findMany.mock.calls[0]![0].where).toEqual({
+      deletedAt: null,
+      isActive: true,
+    });
   });
 
   it("includeInactive=true lấy cả sản phẩm đang ẩn (nhưng vẫn loại trừ đã xoá)", async () => {
@@ -119,9 +125,11 @@ describe("create", () => {
     await service.create(ACTOR, {
       name: "X",
       basePrice: 1000,
-      description: '<p>Hoa <strong>đẹp</strong></p><script>alert(1)</script>',
+      description: "<p>Hoa <strong>đẹp</strong></p><script>alert(1)</script>",
     } as never);
-    expect(db.product.create.mock.calls[0]![0].data.description).toBe("<p>Hoa <strong>đẹp</strong></p>");
+    expect(db.product.create.mock.calls[0]![0].data.description).toBe(
+      "<p>Hoa <strong>đẹp</strong></p>",
+    );
   });
 
   it("404 CATEGORY_NOT_FOUND khi categoryId không tồn tại", async () => {
@@ -178,7 +186,9 @@ describe("update", () => {
   it("sanitize mô tả HTML trước khi lưu (giống create)", async () => {
     db.product.findFirst.mockResolvedValue({ id: "prod-1", slug: "hoa-cuoi" });
     db.product.update.mockResolvedValue({ id: "prod-1" });
-    await service.update(ACTOR, "prod-1", { description: '<p onclick="x()">A</p><img src=x>' } as never);
+    await service.update(ACTOR, "prod-1", {
+      description: '<p onclick="x()">A</p><img src=x>',
+    } as never);
     expect(db.product.update.mock.calls[0]![0].data.description).toBe("<p>A</p>");
   });
 
@@ -190,7 +200,9 @@ describe("update", () => {
   });
 
   it("chỉ đổi slug khi người dùng chủ động sửa slug", async () => {
-    db.product.findFirst.mockResolvedValueOnce({ id: "prod-1", slug: "hoa-cuoi" }).mockResolvedValueOnce(null);
+    db.product.findFirst
+      .mockResolvedValueOnce({ id: "prod-1", slug: "hoa-cuoi" })
+      .mockResolvedValueOnce(null);
     db.product.update.mockResolvedValue({ id: "prod-1" });
     await service.update(ACTOR, "prod-1", { slug: "Hoa Cưới Cao Cấp" } as never);
     expect(db.product.update.mock.calls[0]![0].data.slug).toBe("hoa-cuoi-cao-cap");
@@ -198,7 +210,9 @@ describe("update", () => {
 
   it("404 khi sản phẩm không tồn tại hoặc đã xoá mềm", async () => {
     db.product.findFirst.mockResolvedValue(null);
-    await expect(service.update(ACTOR, "khong-co", {} as never)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.update(ACTOR, "khong-co", {} as never)).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 
   it("gửi lại imageFileIds là THAY THẾ toàn bộ bộ ảnh cũ, không phải thêm vào", async () => {
@@ -241,12 +255,19 @@ describe("remove — soft delete", () => {
     });
     expect(db.product.delete).not.toHaveBeenCalled();
     expect(auditLog.record).toHaveBeenCalledWith(
-      expect.objectContaining({ action: "product.delete", entityType: "product", ipAddress: "1.2.3.4" }),
+      expect.objectContaining({
+        action: "product.delete",
+        entityType: "product",
+        ipAddress: "1.2.3.4",
+      }),
     );
   });
 
   it("404 khi sản phẩm không tồn tại hoặc đã xoá trước đó", async () => {
     db.product.findFirst.mockResolvedValue(null);
-    await expect(service.remove(ACTOR, "prod-1")).rejects.toMatchObject({ statusCode: 404, code: "NOT_FOUND" });
+    await expect(service.remove(ACTOR, "prod-1")).rejects.toMatchObject({
+      statusCode: 404,
+      code: "NOT_FOUND",
+    });
   });
 });

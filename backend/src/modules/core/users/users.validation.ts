@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const updateProfileSchema = z.object({
   fullName: z.string().min(1).optional(),
@@ -9,7 +9,7 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8, 'Mật khẩu tối thiểu 8 ký tự'),
+  newPassword: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 

@@ -41,7 +41,10 @@ describe("POST /api/v1/admin/categories", () => {
   });
 
   it("422 khi thiếu tên", async () => {
-    const res = await request(app).post("/api/v1/admin/categories").set("Cookie", adminCookie).send({});
+    const res = await request(app)
+      .post("/api/v1/admin/categories")
+      .set("Cookie", adminCookie)
+      .send({});
     expect(res.status).toBe(422);
     expect(res.body.errors).toHaveProperty("name");
   });
@@ -83,7 +86,9 @@ describe("DELETE /api/v1/admin/categories/:id", () => {
   it("409 khi còn danh mục con", async () => {
     const id = "88888888-8888-8888-8888-888888888888";
     db.category.findUnique.mockResolvedValue({ id, _count: { children: 3 } });
-    const res = await request(app).delete(`/api/v1/admin/categories/${id}`).set("Cookie", adminCookie);
+    const res = await request(app)
+      .delete(`/api/v1/admin/categories/${id}`)
+      .set("Cookie", adminCookie);
     expect(res.status).toBe(409);
     expect(res.body.code).toBe("CATEGORY_HAS_CHILDREN");
   });
@@ -92,7 +97,9 @@ describe("DELETE /api/v1/admin/categories/:id", () => {
     const id = "99999999-9999-9999-9999-999999999999";
     db.category.findUnique.mockResolvedValue({ id, _count: { children: 0 } });
     db.category.delete.mockResolvedValue({});
-    const res = await request(app).delete(`/api/v1/admin/categories/${id}`).set("Cookie", adminCookie);
+    const res = await request(app)
+      .delete(`/api/v1/admin/categories/${id}`)
+      .set("Cookie", adminCookie);
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Đã xoá danh mục");
   });

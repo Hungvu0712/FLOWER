@@ -67,8 +67,14 @@ describe("clearAuthCookies", () => {
   it("xoá đúng cookie với path khớp lúc set (path lệch thì trình duyệt không xoá được)", () => {
     const res = mockRes();
     clearAuthCookies(res);
-    expect(res.clearCookie).toHaveBeenCalledWith("access_token", expect.objectContaining({ path: "/" }));
-    expect(res.clearCookie).toHaveBeenCalledWith("refresh_token", expect.objectContaining({ path: "/api/v1" }));
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      "access_token",
+      expect.objectContaining({ path: "/" }),
+    );
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      "refresh_token",
+      expect.objectContaining({ path: "/api/v1" }),
+    );
   });
 });
 

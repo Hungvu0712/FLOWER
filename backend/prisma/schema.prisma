@@ -13,18 +13,22 @@ datasource db {
 // =====================================================================
 
 model User {
-  id              String    @id @default(uuid())
-  fullName        String    @map("full_name")
-  email           String    @unique
-  passwordHash    String?   @map("password_hash") // null nếu user chỉ dùng Google/magic link
-  phone           String?
-  avatarFileId    String?   @map("avatar_file_id")
-  avatarFile      File?     @relation(fields: [avatarFileId], references: [id])
-  status          String    @default("active") // 'active' | 'blocked'
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  deletedAt       DateTime? @map("deleted_at")
+  id                  String    @id @default(uuid())
+  fullName            String    @map("full_name")
+  email               String    @unique
+  passwordHash        String?   @map("password_hash") // null nếu user chỉ dùng Google/magic link
+  phone               String?
+  avatarFileId        String?   @map("avatar_file_id")
+  avatarFile          File?     @relation(fields: [avatarFileId], references: [id])
+  status              String    @default("active") // 'active' | 'blocked'
+  emailVerifiedAt     DateTime? @map("email_verified_at")
+  // docs/12 BE-17: khoá TẠM sau nhiều lần đăng nhập sai liên tiếp — khác `status: 'blocked'` (admin
+  // chủ động khoá, vĩnh viễn tới khi admin mở lại). Reset về 0/null ngay khi đăng nhập đúng mật khẩu.
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  deletedAt           DateTime? @map("deleted_at")
 
   roles         UserRole[]
   authAccounts  AuthAccount[]
@@ -167,19 +171,19 @@ model Folder {
 }
 
 model File {
-  id           String    @id @default(uuid())
-  folderId     String?   @map("folder_id")
-  cloudinaryPublicId String @unique @map("cloudinary_public_id")
-  url          String
-  mimeType     String    @map("mime_type")
-  sizeBytes    Int       @map("size_bytes")
-  originalName String    @map("original_name")
-  uploadedBy   String?   @map("uploaded_by")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  deletedAt    DateTime? @map("deleted_at")
+  id                 String    @id @default(uuid())
+  folderId           String?   @map("folder_id")
+  cloudinaryPublicId String    @unique @map("cloudinary_public_id")
+  url                String
+  mimeType           String    @map("mime_type")
+  sizeBytes          Int       @map("size_bytes")
+  originalName       String    @map("original_name")
+  uploadedBy         String?   @map("uploaded_by")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  deletedAt          DateTime? @map("deleted_at")
 
-  folder            Folder?     @relation(fields: [folderId], references: [id])
-  uploader          User?       @relation("UploadedBy", fields: [uploadedBy], references: [id])
+  folder            Folder?        @relation(fields: [folderId], references: [id])
+  uploader          User?          @relation("UploadedBy", fields: [uploadedBy], references: [id])
   usages            FileUsage[]
   avatarOf          User[]
   imageOfCategories Category[]
@@ -322,11 +326,11 @@ model ProductImage {
 // order_status_history riêng (dùng lại AuditLog chung, action "order.update_status"). Đây là các bảng
 // ⬜ trong docs/05 §3.4/§3.7 — xây tiếp khi làm thanh toán online / phân công shipper thật.
 model Order {
-  id       String @id @default(uuid())
+  id        String  @id @default(uuid())
   // Mã đơn NGẮN, DỄ ĐỌC để khách đọc qua điện thoại — KHÁC `id` (UUID): id dùng làm token tra cứu
   // công khai (GET /orders/:id không cần đăng nhập), orderCode chỉ để hiển thị/tìm kiếm nội bộ, không
   // đủ khó đoán để dùng làm quyền truy cập (tránh IDOR — xem docs/07 §2).
-  orderCode String @unique @map("order_code")
+  orderCode String  @unique @map("order_code")
   userId    String? @map("user_id") // null = khách đặt không đăng nhập (guest checkout)
 
   status        String @default("pending") @map("status") // 'pending'|'confirmed'|'preparing'|'delivering'|'completed'|'cancelled' — xem ORDER_STATUSES

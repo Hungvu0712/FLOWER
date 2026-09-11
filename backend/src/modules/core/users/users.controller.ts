@@ -13,15 +13,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
 });
 
 export const changePassword = asyncHandler(async (req, res) => {
-  await usersService.changePassword(req.user!.id, req.body);
+  await usersService.changePassword(req.user!.id, req.body, req.cookies?.refresh_token);
   ok(res, null, "Đổi mật khẩu thành công");
 });
 
 export const listSessions = asyncHandler(async (req, res) => {
-  const sessions = await usersService.listSessions(
-    req.user!.id,
-    req.cookies?.refresh_token,
-  );
+  const sessions = await usersService.listSessions(req.user!.id, req.cookies?.refresh_token);
   ok(res, sessions);
 });
 
@@ -31,9 +28,6 @@ export const revokeSession = asyncHandler(async (req, res) => {
 });
 
 export const revokeOtherSessions = asyncHandler(async (req, res) => {
-  await usersService.revokeOtherSessions(
-    req.user!.id,
-    req.cookies?.refresh_token,
-  );
+  await usersService.revokeOtherSessions(req.user!.id, req.cookies?.refresh_token);
   ok(res, null, "Đã đăng xuất tất cả thiết bị khác");
 });

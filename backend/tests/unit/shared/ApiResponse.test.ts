@@ -30,7 +30,11 @@ describe("created", () => {
     const res = mockRes();
     created(res, { id: "abc" });
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({ success: true, message: "Created", data: { id: "abc" } });
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: "Created",
+      data: { id: "abc" },
+    });
   });
 });
 
@@ -49,7 +53,12 @@ describe("paginated", () => {
 
 describe("buildPaginationMeta", () => {
   it("tính totalPages bằng cách làm tròn lên", () => {
-    expect(buildPaginationMeta(1, 20, 100)).toEqual({ page: 1, limit: 20, total: 100, totalPages: 5 });
+    expect(buildPaginationMeta(1, 20, 100)).toEqual({
+      page: 1,
+      limit: 20,
+      total: 100,
+      totalPages: 5,
+    });
     expect(buildPaginationMeta(1, 20, 101).totalPages).toBe(6);
     expect(buildPaginationMeta(1, 20, 1).totalPages).toBe(1);
   });

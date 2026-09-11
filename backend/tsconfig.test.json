@@ -7,7 +7,15 @@
     // build production vẫn dùng CommonJS theo tsconfig.json gốc.
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["node"]
+    "types": ["node"],
+    // docs/12 BE-14: alias "@/" CHỈ dùng trong test (khớp alias thật ở vitest.config.ts, nơi thật sự
+    // resolve module lúc chạy) — KHÔNG khai báo ở tsconfig.json gốc vì không file nào trong src/ dùng,
+    // và dù có dùng thì build production (CommonJS qua `tsc` thuần, không qua bundler/tsconfig-paths)
+    // cũng không tự resolve được — chỉ đây là type-check thuần, không ảnh hưởng runtime.
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
 }

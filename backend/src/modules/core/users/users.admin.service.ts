@@ -3,6 +3,7 @@ import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../shared/errors";
 import { buildPaginationMeta } from "../../../shared/response/ApiResponse";
 import { hashPassword } from "../../../shared/utils/hash";
+import { revokeAllUserSessions } from "../../../shared/utils/revokeSessions";
 import { emailService } from "../email/email.service";
 import { newPasswordTemplate } from "../email/email.templates";
 import * as auditLog from "../audit-log/auditLog.service";
@@ -11,23 +12,13 @@ import type { ListUsersQuery } from "./users.admin.validation";
 // Mọi hàm ở đây chỉ được gọi sau khi qua authorize('users.manage') (chỉ super_admin có permission
 // này — xem docs/05 §2.1/2.3). Các ràng buộc chống tự thao tác lên chính mình và chống leo thang
 // quyền được chặn cứng ở đây, không chỉ dựa vào UI — xem docs/07 §2.
-function assertNotSelf(
-  actorId: string,
-  targetId: string,
-  message: string,
-): void {
+function assertNotSelf(actorId: string, targetId: string, message: string): void {
   if (actorId === targetId) {
     throw new AppError(message, 400, "CANNOT_TARGET_SELF");
   }
 }
 
-export async function listUsers({
-  status,
-  role,
-  search,
-  page,
-  limit,
-}: ListUsersQuery) {
+export async function listUsers({ status, role, search, page, limit }: ListUsersQuery) {
   const where = {
     deletedAt: null,
     ...(status && { status }),
@@ -70,17 +61,14 @@ export async function setBlocked(
   assertNotSelf(
     actorId,
     targetId,
-    blocked
-      ? "Không thể tự khoá chính mình"
-      : "Không thể tự mở khoá chính mình",
+    blocked ? "Không thể tự khoá chính mình" : "Không thể tự mở khoá chính mình",
   );
 
   const before = await prisma.user.findUnique({
     where: { id: targetId },
     select: { status: true },
   });
-  if (!before)
-    throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
+  if (!before) throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
 
   await prisma.user.update({
     where: { id: targetId },
@@ -106,8 +94,7 @@ export async function softDeleteUser(
   assertNotSelf(actorId, targetId, "Không thể tự xoá chính mình");
 
   const user = await prisma.user.findUnique({ where: { id: targetId } });
-  if (!user || user.deletedAt)
-    throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
+  if (!user || user.deletedAt) throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
 
   // `email` có unique constraint toàn cục (docs/05 §3.8) — soft delete vẫn giữ lại row để không mất
   // lịch sử (đơn hàng, audit log tham chiếu theo user_id), nhưng phải "giải phóng" email gốc bằng cách
@@ -140,8 +127,7 @@ export async function resetPassword(
   ipAddress?: string,
 ): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: targetId } });
-  if (!user || user.deletedAt)
-    throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
+  if (!user || user.deletedAt) throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
 
   const newPassword = crypto.randomBytes(9).toString("base64url"); // đủ mạnh, dễ đọc để paste
 
@@ -157,6 +143,9 @@ export async function resetPassword(
 
   const passwordHash = await hashPassword(newPassword);
   await prisma.user.update({ where: { id: targetId }, data: { passwordHash } });
+  // Reset hộ thường CHÍNH LÀ để cắt quyền truy cập của target — thu hồi TOÀN BỘ session, không chừa
+  // phiên nào (khác luồng người dùng tự đổi mật khẩu). Xem docs/12 BE-01.
+  await revokeAllUserSessions(targetId);
 
   await auditLog.record({
     actorId,
@@ -190,8 +179,7 @@ export async function updateRole(
     }),
     prisma.role.findUnique({ where: { code: roleCode } }),
   ]);
-  if (!user || user.deletedAt)
-    throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
+  if (!user || user.deletedAt) throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
   if (!role) throw new AppError("Role không tồn tại", 404, "ROLE_NOT_FOUND");
 
   const before = user.roles.map((r) => r.role.code);

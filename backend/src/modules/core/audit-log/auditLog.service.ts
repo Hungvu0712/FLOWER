@@ -33,10 +33,7 @@ export async function record(input: RecordAuditInput): Promise<void> {
       },
     });
   } catch (err) {
-    logger.error(
-      "Ghi audit log thất bại:",
-      err instanceof Error ? err.message : err,
-    );
+    logger.error("Ghi audit log thất bại:", err instanceof Error ? err.message : err);
   }
 }
 
@@ -49,14 +46,7 @@ interface ListAuditParams {
   limit: number;
 }
 
-export async function list({
-  actorId,
-  entityType,
-  from,
-  to,
-  page,
-  limit,
-}: ListAuditParams) {
+export async function list({ actorId, entityType, from, to, page, limit }: ListAuditParams) {
   const where = {
     ...(actorId && { actorId }),
     ...(entityType && { entityType }),

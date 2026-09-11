@@ -1,7 +1,6 @@
 import { signAccessToken } from "@/shared/utils/jwt";
 import { db } from "../mocks/prisma.mock";
 
-
 /**
  * Giả lập một người dùng đã đăng nhập cho test integration: trả về cookie access_token hợp lệ và
  * mớm sẵn kết quả cho `loadUserRolesAndPermissions` (authenticate middleware luôn tra DB mỗi request).

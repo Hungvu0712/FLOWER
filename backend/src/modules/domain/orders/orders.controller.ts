@@ -1,7 +1,11 @@
 import { asyncHandler } from "../../../shared/middleware";
 import { ok, created, paginated } from "../../../shared/response/ApiResponse";
 import * as service from "./orders.service";
-import type { CreateOrderInput, ListOrdersQuery, UpdateOrderStatusInput } from "./orders.validation";
+import type {
+  CreateOrderInput,
+  ListOrdersQuery,
+  UpdateOrderStatusInput,
+} from "./orders.validation";
 
 export const create = asyncHandler(async (req, res) => {
   const order = await service.create(req.body as CreateOrderInput, req.user?.id, req.ip);
@@ -20,6 +24,12 @@ export const listAdmin = asyncHandler(async (req, res) => {
 
 export const updateStatus = asyncHandler(async (req, res) => {
   const { status } = req.body as UpdateOrderStatusInput;
-  const order = await service.updateStatus(req.user!.id, req.params.id as string, status, req.user!.permissions, req.ip);
+  const order = await service.updateStatus(
+    req.user!.id,
+    req.params.id as string,
+    status,
+    req.user!.permissions,
+    req.ip,
+  );
   ok(res, order);
 });

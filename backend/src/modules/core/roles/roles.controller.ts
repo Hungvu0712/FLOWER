@@ -13,12 +13,7 @@ export const create = asyncHandler(async (req, res) => {
 });
 
 export const update = asyncHandler(async (req, res) => {
-  const role = await service.update(
-    req.user!.id,
-    Number(req.params.id),
-    req.body,
-    req.ip,
-  );
+  const role = await service.update(req.user!.id, Number(req.params.id), req.body, req.ip);
   ok(res, role);
 });
 

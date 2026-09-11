@@ -1,6 +1,6 @@
-import type { NextFunction, Request, Response } from 'express';
-import type { ZodError, ZodSchema } from 'zod';
-import { ValidationError, type FieldErrors } from '../errors';
+import type { NextFunction, Request, Response } from "express";
+import type { ZodError, ZodSchema } from "zod";
+import { ValidationError, type FieldErrors } from "../errors";
 
 export interface ValidateSchemas {
   body?: ZodSchema;
@@ -11,7 +11,7 @@ export interface ValidateSchemas {
 function toFieldErrors(error: ZodError): FieldErrors {
   const fieldErrors: FieldErrors = {};
   for (const issue of error.issues) {
-    const key = issue.path.join('.') || '_root';
+    const key = issue.path.join(".") || "_root";
     if (!fieldErrors[key]) fieldErrors[key] = issue.message;
   }
   return fieldErrors;

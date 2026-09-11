@@ -21,7 +21,9 @@ describe("access token", () => {
   });
 
   it("từ chối token đã hết hạn", () => {
-    const expired = jwt.sign({ sub: "user-123" }, process.env.JWT_ACCESS_SECRET!, { expiresIn: "-1s" });
+    const expired = jwt.sign({ sub: "user-123" }, process.env.JWT_ACCESS_SECRET!, {
+      expiresIn: "-1s",
+    });
     expect(() => verifyAccessToken(expired)).toThrow(jwt.TokenExpiredError);
   });
 

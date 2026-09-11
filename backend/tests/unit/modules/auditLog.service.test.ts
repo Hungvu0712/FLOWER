@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db, resetPrismaMock } from "../../mocks/prisma.mock";
 import * as service from "@/modules/core/audit-log/auditLog.service";
-
+import { logger } from "@/shared/logger/logger";
 
 beforeEach(() => resetPrismaMock());
 
@@ -36,8 +36,11 @@ describe("record — best effort", () => {
 
   it("LỖI GHI LOG KHÔNG được làm hỏng nghiệp vụ chính", async () => {
     db.auditLog.create.mockRejectedValue(new Error("DB sập"));
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    await expect(service.record({ action: "x", entityType: "y", entityId: "z" })).resolves.toBeUndefined();
+    // docs/12 BE-18: logger đổi sang pino, không còn gọi console.error trực tiếp — spy thẳng logger.error.
+    const spy = vi.spyOn(logger, "error").mockImplementation(() => {});
+    await expect(
+      service.record({ action: "x", entityType: "y", entityId: "z" }),
+    ).resolves.toBeUndefined();
     expect(spy).toHaveBeenCalled();
   });
 
@@ -66,7 +69,10 @@ describe("list", () => {
     expect(db.auditLog.findMany.mock.calls[0]![0].where).toEqual({
       actorId: "u1",
       entityType: "user",
-      createdAt: { gte: new Date("2026-09-01T00:00:00.000Z"), lte: new Date("2026-09-30T00:00:00.000Z") },
+      createdAt: {
+        gte: new Date("2026-09-01T00:00:00.000Z"),
+        lte: new Date("2026-09-30T00:00:00.000Z"),
+      },
     });
   });
 

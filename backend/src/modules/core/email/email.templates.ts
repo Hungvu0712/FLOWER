@@ -28,6 +28,18 @@ export function newPasswordTemplate({ password }: { password: string }): string 
   `;
 }
 
+// Gửi khi phát hiện refresh token ĐÃ BỊ THU HỒI được dùng lại — dấu hiệu gần như chắc chắn token bị
+// đánh cắp (người dùng hợp lệ không bao giờ dùng lại token đã xoay vòng). Xem docs/12 BE-03.
+export function securityAlertTemplate({ fullName }: { fullName: string }): string {
+  return `
+    <p>Chào ${fullName},</p>
+    <p>Hệ thống phát hiện hoạt động đăng nhập bất thường trên tài khoản của bạn — một phiên đăng nhập
+    cũ đã bị thu hồi nhưng vẫn có yêu cầu sử dụng lại.</p>
+    <p>Để đảm bảo an toàn, chúng tôi đã <strong>đăng xuất tài khoản của bạn khỏi mọi thiết bị</strong>.
+    Vui lòng đăng nhập lại và đổi mật khẩu ngay nếu bạn không thực hiện hoạt động này.</p>
+  `;
+}
+
 // name/phone/email/message đã được escapeHtml() ở contact.service.ts TRƯỚC KHI truyền vào đây — nội
 // dung này do khách công khai tự nhập (form Liên hệ, không cần đăng nhập), không escape thì dán thẳng
 // HTML/script của khách vào email nội bộ.

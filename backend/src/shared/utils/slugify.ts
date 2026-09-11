@@ -7,24 +7,24 @@ const D_STROKE_LOWER = 0x0111; // chu "d gach ngang" thuong
 const D_STROKE_UPPER = 0x0110; // chu "d gach ngang" hoa
 
 function stripDiacritics(value: string): string {
-  return Array.from(value.normalize('NFD'))
+  return Array.from(value.normalize("NFD"))
     .filter((ch) => {
       const code = ch.codePointAt(0) ?? 0;
       return code < COMBINING_MARK_START || code > COMBINING_MARK_END;
     })
     .map((ch) => {
       const code = ch.codePointAt(0);
-      if (code === D_STROKE_LOWER) return 'd';
-      if (code === D_STROKE_UPPER) return 'D';
+      if (code === D_STROKE_LOWER) return "d";
+      if (code === D_STROKE_UPPER) return "D";
       return ch;
     })
-    .join('');
+    .join("");
 }
 
 export function slugify(input: string): string {
   return stripDiacritics(input)
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }

@@ -26,14 +26,8 @@ export async function list() {
   });
 }
 
-export async function create(
-  actorId: string,
-  input: CreateRoleInput,
-  ipAddress?: string,
-) {
-  const safePermissionIds = await stripRestrictedPermissionIds(
-    input.permissionIds,
-  );
+export async function create(actorId: string, input: CreateRoleInput, ipAddress?: string) {
+  const safePermissionIds = await stripRestrictedPermissionIds(input.permissionIds);
 
   const role = await prisma.role.create({
     data: {
@@ -67,25 +61,24 @@ export async function update(
   const role = await prisma.role.findUnique({ where: { id } });
   if (!role) throw new AppError("Role không tồn tại", 404, "NOT_FOUND");
   if (role.isSystem)
-    throw new AppError(
-      "Không thể sửa cấu trúc quyền của System Role",
-      403,
-      "SYSTEM_ROLE_LOCKED",
-    );
+    throw new AppError("Không thể sửa cấu trúc quyền của System Role", 403, "SYSTEM_ROLE_LOCKED");
 
   const before = role;
 
   if (input.permissionIds) {
-    const safePermissionIds = await stripRestrictedPermissionIds(
-      input.permissionIds,
-    );
-    await prisma.rolePermission.deleteMany({ where: { roleId: id } });
-    await prisma.rolePermission.createMany({
-      data: safePermissionIds.map((permissionId) => ({
-        roleId: id,
-        permissionId,
-      })),
-    });
+    const safePermissionIds = await stripRestrictedPermissionIds(input.permissionIds);
+    // Bọc transaction — trước đây 2 lệnh này chạy tách rời: nếu createMany lỗi giữa chừng (vd mất kết
+    // nối DB), role đã bị xoá sạch permission ở bước deleteMany nhưng KHÔNG có gì thay thế, ảnh hưởng
+    // ngay lập tức tới mọi người dùng đang gán role đó. Xem docs/12 BE-06.
+    await prisma.$transaction([
+      prisma.rolePermission.deleteMany({ where: { roleId: id } }),
+      prisma.rolePermission.createMany({
+        data: safePermissionIds.map((permissionId) => ({
+          roleId: id,
+          permissionId,
+        })),
+      }),
+    ]);
   }
 
   const updated = await prisma.role.update({
@@ -110,18 +103,13 @@ export async function update(
   return updated;
 }
 
-export async function remove(
-  actorId: string,
-  id: number,
-  ipAddress?: string,
-): Promise<void> {
+export async function remove(actorId: string, id: number, ipAddress?: string): Promise<void> {
   const role = await prisma.role.findUnique({
     where: { id },
     include: { _count: { select: { users: true } } },
   });
   if (!role) throw new AppError("Role không tồn tại", 404, "NOT_FOUND");
-  if (role.isSystem)
-    throw new AppError("Không thể xoá System Role", 403, "SYSTEM_ROLE_LOCKED");
+  if (role.isSystem) throw new AppError("Không thể xoá System Role", 403, "SYSTEM_ROLE_LOCKED");
   if (role._count.users > 0)
     throw new AppError("Vẫn còn user đang gán role này", 409, "ROLE_IN_USE");
 

@@ -11,11 +11,7 @@ export const usersRouter = Router();
 
 // Mount với `authenticate` ở app.ts (prefix /api/v1/account) — mọi route ở đây yêu cầu đã đăng nhập.
 usersRouter.get("/me", controller.getMe);
-usersRouter.patch(
-  "/profile",
-  validate({ body: updateProfileSchema }),
-  controller.updateProfile,
-);
+usersRouter.patch("/profile", validate({ body: updateProfileSchema }), controller.updateProfile);
 usersRouter.post(
   "/change-password",
   validate({ body: changePasswordSchema }),

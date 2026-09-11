@@ -13,16 +13,8 @@ import {
 export const categoriesAdminRouter = Router();
 categoriesAdminRouter.use(authorize("categories.manage"));
 
-categoriesAdminRouter.get(
-  "/",
-  validate({ query: listCategoriesQuerySchema }),
-  controller.list,
-);
-categoriesAdminRouter.post(
-  "/",
-  validate({ body: createCategorySchema }),
-  controller.create,
-);
+categoriesAdminRouter.get("/", validate({ query: listCategoriesQuerySchema }), controller.list);
+categoriesAdminRouter.post("/", validate({ body: createCategorySchema }), controller.create);
 categoriesAdminRouter.patch(
   "/:id",
   validate({ params: categoryIdParamSchema, body: updateCategorySchema }),

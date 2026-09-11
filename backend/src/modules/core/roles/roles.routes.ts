@@ -1,11 +1,7 @@
 import { Router } from "express";
 import { authorize, validate } from "../../../shared/middleware";
 import * as controller from "./roles.controller";
-import {
-  createRoleSchema,
-  updateRoleSchema,
-  roleIdParamSchema,
-} from "./roles.validation";
+import { createRoleSchema, updateRoleSchema, roleIdParamSchema } from "./roles.validation";
 
 export const rolesRouter = Router();
 
@@ -19,8 +15,4 @@ rolesRouter.patch(
   validate({ params: roleIdParamSchema, body: updateRoleSchema }),
   controller.update,
 );
-rolesRouter.delete(
-  "/:id",
-  validate({ params: roleIdParamSchema }),
-  controller.remove,
-);
+rolesRouter.delete("/:id", validate({ params: roleIdParamSchema }), controller.remove);

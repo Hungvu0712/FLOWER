@@ -6,7 +6,6 @@ import { signAccessToken } from "@/shared/utils/jwt";
 import { AppError } from "@/shared/errors";
 import { db, resetPrismaMock } from "../../mocks/prisma.mock";
 
-
 function ctx(cookies: Record<string, string> = {}, headers: Record<string, string> = {}) {
   const req = { cookies, headers, requestId: "req-1" } as unknown as Request;
   const res = {} as Response;
@@ -27,7 +26,10 @@ describe("authenticate", () => {
       {
         role: {
           code: "admin",
-          permissions: [{ permission: { code: "files.manage" } }, { permission: { code: "products.view" } }],
+          permissions: [
+            { permission: { code: "files.manage" } },
+            { permission: { code: "products.view" } },
+          ],
         },
       },
     ]);
@@ -68,7 +70,10 @@ describe("authenticate", () => {
       {
         role: {
           code: "sales_staff",
-          permissions: [{ permission: { code: "orders.view_all" } }, { permission: { code: "customers.view" } }],
+          permissions: [
+            { permission: { code: "orders.view_all" } },
+            { permission: { code: "customers.view" } },
+          ],
         },
       },
     ]);

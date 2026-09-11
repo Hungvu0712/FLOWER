@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const listAuditLogQuerySchema = z.object({
   actorId: z.string().uuid().optional(),

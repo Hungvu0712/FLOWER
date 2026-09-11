@@ -2,7 +2,11 @@ import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../shared/errors";
 import { buildPaginationMeta } from "../../../shared/response/ApiResponse";
 import * as auditLog from "../../core/audit-log/auditLog.service";
-import type { CreateOrderInput, ListOrdersQuery, UpdateOrderStatusInput } from "./orders.validation";
+import type {
+  CreateOrderInput,
+  ListOrdersQuery,
+  UpdateOrderStatusInput,
+} from "./orders.validation";
 
 const ORDER_SELECT = {
   id: true,
@@ -21,7 +25,14 @@ const ORDER_SELECT = {
   createdAt: true,
   updatedAt: true,
   items: {
-    select: { id: true, productId: true, productName: true, unitPrice: true, quantity: true, subtotal: true },
+    select: {
+      id: true,
+      productId: true,
+      productName: true,
+      unitPrice: true,
+      quantity: true,
+      subtotal: true,
+    },
   },
 } as const;
 
@@ -43,7 +54,11 @@ async function generateOrderCode(): Promise<string> {
 // Guest checkout (userId optional — có đăng nhập thì gắn đơn vào tài khoản, không thì vẫn đặt được
 // bình thường). Chốt tên/giá sản phẩm NGAY thời điểm đặt (snapshot vào order_items) — sản phẩm sau
 // này đổi tên/giá/bị ẩn không ảnh hưởng đơn đã tạo.
-export async function create(input: CreateOrderInput, userId: string | undefined, ipAddress?: string) {
+export async function create(
+  input: CreateOrderInput,
+  userId: string | undefined,
+  ipAddress?: string,
+) {
   // Honeypot — bot điền form tự động thường điền vào MỌI field nhìn thấy trong DOM, kể cả field ẩn
   // bằng CSS (khác type="hidden" mà bot có thể lọc ra), người dùng thật không bao giờ điền được field
   // này (xem input `website` tương ứng ở thanh-toan/page.tsx). Bail NGAY, trước khi đụng DB — vừa chặn
@@ -58,7 +73,10 @@ export async function create(input: CreateOrderInput, userId: string | undefined
   // Gộp trùng productId — khách có thể lỡ thêm cùng sản phẩm nhiều lần ở giỏ hàng phía client.
   const quantityByProductId = new Map<string, number>();
   for (const item of input.items) {
-    quantityByProductId.set(item.productId, (quantityByProductId.get(item.productId) ?? 0) + item.quantity);
+    quantityByProductId.set(
+      item.productId,
+      (quantityByProductId.get(item.productId) ?? 0) + item.quantity,
+    );
   }
 
   const products = await prisma.product.findMany({
@@ -68,14 +86,30 @@ export async function create(input: CreateOrderInput, userId: string | undefined
   const productById = new Map(products.map((p) => [p.id, p]));
 
   let subtotal = 0;
-  const orderItemsData: { productId: string; productName: string; unitPrice: number; quantity: number; subtotal: number }[] = [];
+  const orderItemsData: {
+    productId: string;
+    productName: string;
+    unitPrice: number;
+    quantity: number;
+    subtotal: number;
+  }[] = [];
   for (const [productId, quantity] of quantityByProductId) {
     const product = productById.get(productId);
     if (!product) {
-      throw new AppError("Một số sản phẩm trong giỏ không còn khả dụng, vui lòng tải lại giỏ hàng", 409, "PRODUCT_UNAVAILABLE");
+      throw new AppError(
+        "Một số sản phẩm trong giỏ không còn khả dụng, vui lòng tải lại giỏ hàng",
+        409,
+        "PRODUCT_UNAVAILABLE",
+      );
     }
     const itemSubtotal = product.basePrice * quantity;
-    orderItemsData.push({ productId, productName: product.name, unitPrice: product.basePrice, quantity, subtotal: itemSubtotal });
+    orderItemsData.push({
+      productId,
+      productName: product.name,
+      unitPrice: product.basePrice,
+      quantity,
+      subtotal: itemSubtotal,
+    });
     subtotal += itemSubtotal;
   }
 
@@ -106,7 +140,10 @@ export async function create(input: CreateOrderInput, userId: string | undefined
     return order;
   });
 
-  const full = await prisma.order.findUniqueOrThrow({ where: { id: created.id }, select: ORDER_SELECT });
+  const full = await prisma.order.findUniqueOrThrow({
+    where: { id: created.id },
+    select: ORDER_SELECT,
+  });
 
   await auditLog.record({
     ...(userId && { actorId: userId }),
@@ -158,7 +195,11 @@ export async function updateStatus(
   if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
 
   if (TERMINAL_STATUSES.includes(order.status)) {
-    throw new AppError("Đơn đã ở trạng thái cuối (hoàn tất/đã huỷ), không thể đổi tiếp", 409, "ORDER_STATUS_FINAL");
+    throw new AppError(
+      "Đơn đã ở trạng thái cuối (hoàn tất/đã huỷ), không thể đổi tiếp",
+      409,
+      "ORDER_STATUS_FINAL",
+    );
   }
 
   if (newStatus === "cancelled") {
@@ -172,7 +213,11 @@ export async function updateStatus(
     throw new AppError("Bạn không có quyền cập nhật trạng thái đơn", 403, "FORBIDDEN");
   }
 
-  const updated = await prisma.order.update({ where: { id }, data: { status: newStatus }, select: ORDER_SELECT });
+  const updated = await prisma.order.update({
+    where: { id },
+    data: { status: newStatus },
+    select: ORDER_SELECT,
+  });
 
   await auditLog.record({
     actorId,

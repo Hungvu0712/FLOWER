@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { zBooleanQuery } from '../../../shared/utils/zBooleanQuery';
+import { z } from "zod";
+import { zBooleanQuery } from "../../../shared/utils/zBooleanQuery";
 
 export const createProductSchema = z.object({
   name: z.string().min(1),

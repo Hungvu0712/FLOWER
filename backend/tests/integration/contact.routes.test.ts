@@ -21,7 +21,9 @@ describe("POST /api/v1/contact (công khai)", () => {
   });
 
   it("422 khi thiếu message", async () => {
-    const res = await request(app).post("/api/v1/contact").send({ name: "An", phone: "0900000000" });
+    const res = await request(app)
+      .post("/api/v1/contact")
+      .send({ name: "An", phone: "0900000000" });
     expect(res.status).toBe(422);
     expect(res.body.errors).toHaveProperty("message");
   });
@@ -85,7 +87,9 @@ describe("Admin — /api/v1/admin/contact-messages", () => {
 
   it("member KHÔNG có contact.manage → 403", async () => {
     const memberCookie = loginAs("member-1", ["member"], []);
-    const res = await request(app).get("/api/v1/admin/contact-messages").set("Cookie", memberCookie);
+    const res = await request(app)
+      .get("/api/v1/admin/contact-messages")
+      .set("Cookie", memberCookie);
     expect(res.status).toBe(403);
   });
 });

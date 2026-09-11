@@ -12,11 +12,7 @@ import {
 export const contactAdminRouter = Router();
 contactAdminRouter.use(authorize("contact.manage"));
 
-contactAdminRouter.get(
-  "/",
-  validate({ query: listContactMessagesQuerySchema }),
-  controller.list,
-);
+contactAdminRouter.get("/", validate({ query: listContactMessagesQuerySchema }), controller.list);
 contactAdminRouter.patch(
   "/:id",
   validate({ params: contactMessageIdParamSchema, body: updateContactMessageSchema }),

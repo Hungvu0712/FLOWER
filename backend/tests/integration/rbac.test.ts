@@ -9,14 +9,23 @@ import { db, loginAs, SUPER_ADMIN_PERMISSIONS } from "./helpers";
 const PROTECTED = [
   { method: "get" as const, path: "/api/v1/superadmin/users", permission: "users.manage" },
   { method: "get" as const, path: "/api/v1/superadmin/roles", permission: "roles.manage" },
-  { method: "get" as const, path: "/api/v1/superadmin/permissions", permission: "permissions.manage" },
-  { method: "get" as const, path: "/api/v1/superadmin/login-methods", permission: "settings.manage" },
+  {
+    method: "get" as const,
+    path: "/api/v1/superadmin/permissions",
+    permission: "permissions.manage",
+  },
+  {
+    method: "get" as const,
+    path: "/api/v1/superadmin/login-methods",
+    permission: "settings.manage",
+  },
   { method: "get" as const, path: "/api/v1/superadmin/audit-logs", permission: "audit.view" },
   { method: "get" as const, path: "/api/v1/admin/categories", permission: "categories.manage" },
   { method: "get" as const, path: "/api/v1/admin/products", permission: "products.manage" },
   { method: "get" as const, path: "/api/v1/admin/contact-messages", permission: "contact.manage" },
   { method: "get" as const, path: "/api/v1/admin/orders", permission: "orders.view_all" },
   { method: "get" as const, path: "/api/v1/files", permission: "files.manage" },
+  { method: "get" as const, path: "/api/v1/folders", permission: "files.manage" },
   { method: "get" as const, path: "/api/v1/account/me", permission: null },
 ];
 
@@ -64,55 +73,68 @@ describe("Tầng 2 — đã đăng nhập nhưng thiếu permission", () => {
   it("admin KHÔNG vào được khu quản trị hệ thống, nhưng VÀO ĐƯỢC nghiệp vụ domain", async () => {
     const adminCookie = loginAs("admin-1", ["admin"], ["categories.manage", "files.manage"]);
 
-    expect((await request(app).get("/api/v1/superadmin/users").set("Cookie", adminCookie)).status).toBe(403);
+    expect(
+      (await request(app).get("/api/v1/superadmin/users").set("Cookie", adminCookie)).status,
+    ).toBe(403);
 
     db.category.findMany.mockResolvedValue([]);
-    expect((await request(app).get("/api/v1/admin/categories").set("Cookie", adminCookie)).status).toBe(200);
+    expect(
+      (await request(app).get("/api/v1/admin/categories").set("Cookie", adminCookie)).status,
+    ).toBe(200);
   });
 });
 
 describe("Tầng 3 — đủ quyền", () => {
-  it.each(PROTECTED.filter((p) => p.permission))("super_admin gọi $path → không bị 401/403", async ({ method, path }) => {
-    const cookie = loginAs("sa-1", ["super_admin"], SUPER_ADMIN_PERMISSIONS);
-    db.user.findMany.mockResolvedValue([]);
-    db.user.count.mockResolvedValue(0);
-    db.role.findMany.mockResolvedValue([]);
-    db.permission.findMany.mockResolvedValue([]);
-    db.loginMethodSetting.findMany.mockResolvedValue([]);
-    db.auditLog.findMany.mockResolvedValue([]);
-    db.auditLog.count.mockResolvedValue(0);
-    db.category.findMany.mockResolvedValue([]);
-    db.product.findMany.mockResolvedValue([]);
-    db.product.count.mockResolvedValue(0);
-    db.contactMessage.findMany.mockResolvedValue([]);
-    db.contactMessage.count.mockResolvedValue(0);
-    db.file.findMany.mockResolvedValue([]);
-    db.file.count.mockResolvedValue(0);
-    db.order.findMany.mockResolvedValue([]);
-    db.order.count.mockResolvedValue(0);
+  it.each(PROTECTED.filter((p) => p.permission))(
+    "super_admin gọi $path → không bị 401/403",
+    async ({ method, path }) => {
+      const cookie = loginAs("sa-1", ["super_admin"], SUPER_ADMIN_PERMISSIONS);
+      db.user.findMany.mockResolvedValue([]);
+      db.user.count.mockResolvedValue(0);
+      db.role.findMany.mockResolvedValue([]);
+      db.permission.findMany.mockResolvedValue([]);
+      db.loginMethodSetting.findMany.mockResolvedValue([]);
+      db.auditLog.findMany.mockResolvedValue([]);
+      db.auditLog.count.mockResolvedValue(0);
+      db.category.findMany.mockResolvedValue([]);
+      db.product.findMany.mockResolvedValue([]);
+      db.product.count.mockResolvedValue(0);
+      db.contactMessage.findMany.mockResolvedValue([]);
+      db.contactMessage.count.mockResolvedValue(0);
+      db.file.findMany.mockResolvedValue([]);
+      db.file.count.mockResolvedValue(0);
+      db.folder.findMany.mockResolvedValue([]);
+      db.order.findMany.mockResolvedValue([]);
+      db.order.count.mockResolvedValue(0);
 
-    const res = await request(app)[method](path).set("Cookie", cookie);
-    expect([401, 403]).not.toContain(res.status);
-  });
+      const res = await request(app)[method](path).set("Cookie", cookie);
+      expect([401, 403]).not.toContain(res.status);
+    },
+  );
 });
 
 describe("Endpoint công khai — KHÔNG yêu cầu đăng nhập", () => {
-  it.each([
-    "/health",
-    "/api/v1/auth/login-methods",
-    "/api/v1/categories",
-    "/api/v1/products",
-  ])("%s trả 200 khi chưa đăng nhập", async (path) => {
-    db.loginMethodSetting.findMany.mockResolvedValue([]);
-    db.category.findMany.mockResolvedValue([]);
-    db.product.findMany.mockResolvedValue([]);
-    db.product.count.mockResolvedValue(0);
-    expect((await request(app).get(path)).status).toBe(200);
-  });
+  it.each(["/health", "/api/v1/auth/login-methods", "/api/v1/categories", "/api/v1/products"])(
+    "%s trả 200 khi chưa đăng nhập",
+    async (path) => {
+      db.loginMethodSetting.findMany.mockResolvedValue([]);
+      db.category.findMany.mockResolvedValue([]);
+      db.product.findMany.mockResolvedValue([]);
+      db.product.count.mockResolvedValue(0);
+      expect((await request(app).get(path)).status).toBe(200);
+    },
+  );
 
   it("GET /api/v1/categories chỉ trả danh mục đang bật và không lộ trường nội bộ", async () => {
     db.category.findMany.mockResolvedValue([
-      { id: "c1", name: "Hoa sinh nhật", slug: "hoa-sinh-nhat", description: null, parentId: null, imageFile: null },
+      {
+        id: "c1",
+        name: "Hoa sinh nhật",
+        slug: "hoa-sinh-nhat",
+        description: null,
+        parentId: null,
+        imageFile: null,
+      },
     ]);
     const res = await request(app).get("/api/v1/categories");
     expect(res.body.data[0]).not.toHaveProperty("sortOrder");

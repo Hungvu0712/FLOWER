@@ -54,7 +54,9 @@ describe("update — luôn phải còn ≥ 1 phương thức đăng nhập", () 
 
   it("404 khi phương thức không tồn tại", async () => {
     db.loginMethodSetting.findMany.mockResolvedValue(all(true, true, true));
-    await expect(service.update(ACTOR, "facebook", false)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.update(ACTOR, "facebook", false)).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 
   it("ghi audit log kèm trạng thái trước/sau", async () => {

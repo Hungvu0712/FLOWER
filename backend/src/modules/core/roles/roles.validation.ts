@@ -1,7 +1,7 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const createRoleSchema = z.object({
-  code: z.string().regex(/^[a-z][a-z0-9_]*$/, 'Code chỉ gồm chữ thường, số, gạch dưới'),
+  code: z.string().regex(/^[a-z][a-z0-9_]*$/, "Code chỉ gồm chữ thường, số, gạch dưới"),
   name: z.string().min(1),
   description: z.string().optional(),
   permissionIds: z.array(z.number().int()).default([]),

@@ -7,6 +7,7 @@ import { rolesRouter } from "../../modules/core/roles/roles.routes";
 import { permissionsRouter } from "../../modules/core/permissions/permissions.routes";
 import { loginMethodsRouter } from "../../modules/core/settings/loginMethods.routes";
 import { filesRouter } from "../../modules/core/files/files.routes";
+import { foldersRouter } from "../../modules/core/files/folders.routes";
 import { auditLogRouter } from "../../modules/core/audit-log/auditLog.routes";
 import { contactRouter } from "../../modules/core/contact/contact.routes";
 import { contactAdminRouter } from "../../modules/core/contact/contact.admin.routes";
@@ -23,6 +24,7 @@ export const v1Router = Router();
 v1Router.use("/auth", authRouter); // công khai (bản thân route tự kiểm tra token khi cần)
 v1Router.use("/account", authenticate, usersRouter); // cần đăng nhập (bất kỳ role nào)
 v1Router.use("/files", authenticate, filesRouter); // cần đăng nhập; ghi/xoá cần thêm files.manage
+v1Router.use("/folders", authenticate, foldersRouter); // cần files.manage cho MỌI route (BE-19)
 v1Router.use("/contact", contactRouter); // công khai — form Liên hệ, có rate limit riêng
 
 // /superadmin/* — chỉ super_admin (quản trị hệ thống: user, role, permission, cấu hình đăng nhập).

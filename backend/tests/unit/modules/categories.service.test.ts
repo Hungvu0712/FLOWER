@@ -72,7 +72,10 @@ describe("create", () => {
     db.category.findFirst.mockResolvedValue(null);
     db.category.findUnique.mockResolvedValue(null);
     await expect(
-      service.create(ACTOR, { name: "Con", parentId: "11111111-1111-1111-1111-111111111111" } as never),
+      service.create(ACTOR, {
+        name: "Con",
+        parentId: "11111111-1111-1111-1111-111111111111",
+      } as never),
     ).rejects.toMatchObject({ statusCode: 404, code: "PARENT_NOT_FOUND" });
   });
 
@@ -91,7 +94,10 @@ describe("create", () => {
     db.category.findFirst.mockResolvedValue(null);
     db.category.create.mockResolvedValue({ id: "cat-1" });
     await service.create(ACTOR, { name: "X" } as never);
-    expect(db.category.create.mock.calls[0]![0].data).toMatchObject({ sortOrder: 0, isActive: true });
+    expect(db.category.create.mock.calls[0]![0].data).toMatchObject({
+      sortOrder: 0,
+      isActive: true,
+    });
   });
 });
 
@@ -113,7 +119,9 @@ describe("update", () => {
 
   it("chặn chọn CHÍNH NÓ làm danh mục cha", async () => {
     db.category.findUnique.mockResolvedValue({ id: "cat-1" });
-    await expect(service.update(ACTOR, "cat-1", { parentId: "cat-1" } as never)).rejects.toMatchObject({
+    await expect(
+      service.update(ACTOR, "cat-1", { parentId: "cat-1" } as never),
+    ).rejects.toMatchObject({
       statusCode: 400,
       code: "CATEGORY_CYCLE",
     });
@@ -131,7 +139,9 @@ describe("update", () => {
       return tree[where.id] ?? null;
     });
 
-    await expect(service.update(ACTOR, "cat-1", { parentId: "cat-3" } as never)).rejects.toMatchObject({
+    await expect(
+      service.update(ACTOR, "cat-1", { parentId: "cat-3" } as never),
+    ).rejects.toMatchObject({
       code: "CATEGORY_CYCLE",
     });
   });
@@ -145,7 +155,9 @@ describe("update", () => {
       return tree[where.id] ?? null;
     });
     db.category.update.mockResolvedValue({ id: "cat-1" });
-    await expect(service.update(ACTOR, "cat-1", { parentId: "cat-9" } as never)).resolves.toBeDefined();
+    await expect(
+      service.update(ACTOR, "cat-1", { parentId: "cat-9" } as never),
+    ).resolves.toBeDefined();
   });
 
   it("thoát an toàn nếu dữ liệu lỡ đã có vòng lặp sẵn (không loop vô hạn)", async () => {
@@ -158,12 +170,16 @@ describe("update", () => {
       return tree[where.id] ?? null;
     });
     db.category.update.mockResolvedValue({ id: "cat-1" });
-    await expect(service.update(ACTOR, "cat-1", { parentId: "cat-a" } as never)).resolves.toBeDefined();
+    await expect(
+      service.update(ACTOR, "cat-1", { parentId: "cat-a" } as never),
+    ).resolves.toBeDefined();
   });
 
   it("404 khi danh mục không tồn tại", async () => {
     db.category.findUnique.mockResolvedValue(null);
-    await expect(service.update(ACTOR, "khong-co", {} as never)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(service.update(ACTOR, "khong-co", {} as never)).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });
 
@@ -183,7 +199,11 @@ describe("remove", () => {
     await service.remove(ACTOR, "cat-1", "1.2.3.4");
     expect(db.category.delete).toHaveBeenCalledWith({ where: { id: "cat-1" } });
     expect(auditLog.record).toHaveBeenCalledWith(
-      expect.objectContaining({ action: "category.delete", entityType: "category", ipAddress: "1.2.3.4" }),
+      expect.objectContaining({
+        action: "category.delete",
+        entityType: "category",
+        ipAddress: "1.2.3.4",
+      }),
     );
   });
 });

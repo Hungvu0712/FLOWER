@@ -17,7 +17,9 @@ beforeEach(() => {
 
 describe("GET /api/v1/superadmin/users", () => {
   it("trả envelope phân trang chuẩn", async () => {
-    db.user.findMany.mockResolvedValue([{ id: "u1", fullName: "A", email: "a@x.com", status: "active", roles: [] }]);
+    db.user.findMany.mockResolvedValue([
+      { id: "u1", fullName: "A", email: "a@x.com", status: "active", roles: [] },
+    ]);
     db.user.count.mockResolvedValue(1);
 
     const res = await request(app).get("/api/v1/superadmin/users").set("Cookie", cookie);
@@ -45,7 +47,9 @@ describe("GET /api/v1/superadmin/users", () => {
   });
 
   it("422 khi status không thuộc tập cho phép", async () => {
-    const res = await request(app).get("/api/v1/superadmin/users?status=lung-tung").set("Cookie", cookie);
+    const res = await request(app)
+      .get("/api/v1/superadmin/users?status=lung-tung")
+      .set("Cookie", cookie);
     expect(res.status).toBe(422);
   });
 });
@@ -56,7 +60,11 @@ describe("Ràng buộc chống tự thao tác lên chính mình", () => {
     ["PATCH", `/api/v1/superadmin/users/${SA_ID}/unblock`],
     ["DELETE", `/api/v1/superadmin/users/${SA_ID}`],
   ])("%s %s → 400 CANNOT_TARGET_SELF", async (method, path) => {
-    const saCookie = loginAs("11111111-1111-1111-1111-111111111111", ["super_admin"], SUPER_ADMIN_PERMISSIONS);
+    const saCookie = loginAs(
+      "11111111-1111-1111-1111-111111111111",
+      ["super_admin"],
+      SUPER_ADMIN_PERMISSIONS,
+    );
     const selfPath = path.replace(SA_ID, "11111111-1111-1111-1111-111111111111");
     const res = await request(app)
       [method.toLowerCase() as "patch" | "delete"](selfPath)
@@ -85,7 +93,9 @@ describe("Ràng buộc chống tự thao tác lên chính mình", () => {
   });
 
   it("422 khi :id không phải UUID (chặn payload rác trước khi vào service)", async () => {
-    const res = await request(app).patch("/api/v1/superadmin/users/khong-phai-uuid/block").set("Cookie", cookie);
+    const res = await request(app)
+      .patch("/api/v1/superadmin/users/khong-phai-uuid/block")
+      .set("Cookie", cookie);
     expect(res.status).toBe(422);
   });
 });
@@ -103,7 +113,9 @@ describe("POST /api/v1/superadmin/roles — chốt chặn shadow super_admin", (
 
     expect(res.status).toBe(201);
     expect(db.permission.findMany.mock.calls[0]![0].where).toMatchObject({ isRestricted: false });
-    const granted = db.role.create.mock.calls[0]![0].data.permissions.create as { permissionId: number }[];
+    const granted = db.role.create.mock.calls[0]![0].data.permissions.create as {
+      permissionId: number;
+    }[];
     expect(granted.map((p) => p.permissionId)).toEqual([1, 2]);
   });
 
@@ -206,7 +218,9 @@ describe("Audit logs", () => {
   });
 
   it("422 khi from không đúng định dạng datetime", async () => {
-    const res = await request(app).get("/api/v1/superadmin/audit-logs?from=hom-qua").set("Cookie", cookie);
+    const res = await request(app)
+      .get("/api/v1/superadmin/audit-logs?from=hom-qua")
+      .set("Cookie", cookie);
     expect(res.status).toBe(422);
   });
 });

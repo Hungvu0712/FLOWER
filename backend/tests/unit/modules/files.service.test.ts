@@ -32,7 +32,11 @@ describe("getUploadSignature", () => {
   it("ký (HMAC) đúng bộ tham số public_id/timestamp/allowed_formats", async () => {
     const result = await service.getUploadSignature(input as never);
     expect(cloudinary.utils.api_sign_request).toHaveBeenCalledWith(
-      { public_id: result.publicId, timestamp: result.timestamp, allowed_formats: result.allowedFormats },
+      {
+        public_id: result.publicId,
+        timestamp: result.timestamp,
+        allowed_formats: result.allowedFormats,
+      },
       expect.any(String),
     );
     expect(result.signature).toBe("signed-abc");
@@ -63,7 +67,9 @@ describe("createFileRecord", () => {
       "user-1",
     );
 
-    expect(cloudinary.api.resource).toHaveBeenCalledWith("uploads/2026-09-09/x", { resource_type: "image" });
+    expect(cloudinary.api.resource).toHaveBeenCalledWith("uploads/2026-09-09/x", {
+      resource_type: "image",
+    });
     expect(db.file.create.mock.calls[0]![0].data).toMatchObject({
       cloudinaryPublicId: "uploads/2026-09-09/x",
       url: "https://res.cloudinary.com/test-cloud/image/upload/uploads/2026-09-09/x.jpg",
@@ -76,7 +82,10 @@ describe("createFileRecord", () => {
   it("404 khi publicId không tồn tại trên Cloudinary (client tự bịa publicId — đóng lỗ hổng BE-10)", async () => {
     vi.mocked(cloudinary.api.resource).mockRejectedValue(new Error("not found"));
     await expect(
-      service.createFileRecord({ publicId: "uploads/bia-dat", originalName: "x.jpg" } as never, "user-1"),
+      service.createFileRecord(
+        { publicId: "uploads/bia-dat", originalName: "x.jpg" } as never,
+        "user-1",
+      ),
     ).rejects.toMatchObject({ statusCode: 404, code: "FILE_NOT_FOUND" });
     expect(db.file.create).not.toHaveBeenCalled();
   });
@@ -89,10 +98,15 @@ describe("createFileRecord", () => {
     } as never);
 
     await expect(
-      service.createFileRecord({ publicId: "uploads/qua-to", originalName: "x.jpg" } as never, "user-1"),
+      service.createFileRecord(
+        { publicId: "uploads/qua-to", originalName: "x.jpg" } as never,
+        "user-1",
+      ),
     ).rejects.toMatchObject({ statusCode: 422, code: "FILE_TOO_LARGE" });
 
-    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("uploads/qua-to", { resource_type: "image" });
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("uploads/qua-to", {
+      resource_type: "image",
+    });
     expect(db.file.create).not.toHaveBeenCalled();
   });
 });
@@ -148,7 +162,10 @@ describe("softDeleteFile", () => {
     db.file.findUnique.mockResolvedValue({ id: "f1", cloudinaryPublicId: "uploads/x" });
     db.file.update.mockResolvedValue({});
     await service.softDeleteFile("f1");
-    expect(db.file.update).toHaveBeenCalledWith({ where: { id: "f1" }, data: { deletedAt: expect.any(Date) } });
+    expect(db.file.update).toHaveBeenCalledWith({
+      where: { id: "f1" },
+      data: { deletedAt: expect.any(Date) },
+    });
     expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
   });
 
@@ -161,6 +178,8 @@ describe("softDeleteFile", () => {
 describe("purgeFileFromCloudinary", () => {
   it("gọi destroy đúng publicId + resourceType image", async () => {
     await service.purgeFileFromCloudinary("uploads/2026-09-09/x");
-    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("uploads/2026-09-09/x", { resource_type: "image" });
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("uploads/2026-09-09/x", {
+      resource_type: "image",
+    });
   });
 });

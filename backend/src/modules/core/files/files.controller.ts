@@ -14,9 +14,7 @@ export const create = asyncHandler(async (req, res) => {
 });
 
 export const list = asyncHandler(async (req, res) => {
-  const { items, meta } = await filesService.listFiles(
-    req.query as unknown as ListFilesQuery,
-  );
+  const { items, meta } = await filesService.listFiles(req.query as unknown as ListFilesQuery);
   paginated(res, items, meta);
 });
 

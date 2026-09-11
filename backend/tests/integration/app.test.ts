@@ -54,6 +54,29 @@ describe("Middleware hạ tầng", () => {
   });
 });
 
+describe("Trust proxy (docs/12 BE-02)", () => {
+  it("KHÔNG bật trust proxy ở môi trường test/dev (không có reverse proxy nào phía trước)", () => {
+    expect(app.get("trust proxy")).toBe(false);
+  });
+
+  it("bật trust proxy đúng số hop TRUST_PROXY_HOPS khi NODE_ENV=production", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalHops = process.env.TRUST_PROXY_HOPS;
+    process.env.NODE_ENV = "production";
+    process.env.TRUST_PROXY_HOPS = "2";
+    vi.resetModules();
+    try {
+      const { app: prodApp } = await import("@/app");
+      expect(prodApp.get("trust proxy")).toBe(2);
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalHops === undefined) delete process.env.TRUST_PROXY_HOPS;
+      else process.env.TRUST_PROXY_HOPS = originalHops;
+      vi.resetModules();
+    }
+  });
+});
+
 describe("404 handler", () => {
   it("endpoint không tồn tại → 404 theo đúng envelope chuẩn", async () => {
     const res = await request(app).get("/api/v1/khong-ton-tai");

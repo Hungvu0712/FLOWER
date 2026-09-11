@@ -1,20 +1,16 @@
 import type { User } from "@prisma/client";
 import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../shared/errors";
-import {
-  hashPassword,
-  verifyPassword,
-  sha256,
-} from "../../../shared/utils/hash";
+import { hashPassword, verifyPassword, sha256 } from "../../../shared/utils/hash";
 import { loadUserRolesAndPermissions } from "../../../shared/utils/rbac";
+import { revokeAllUserSessions } from "../../../shared/utils/revokeSessions";
 import * as filesService from "../files/files.service";
-import type {
-  UpdateProfileInput,
-  ChangePasswordInput,
-} from "./users.validation";
+import type { UpdateProfileInput, ChangePasswordInput } from "./users.validation";
 
+// failedLoginAttempts/lockedUntil (docs/12 BE-17) là chi tiết bảo mật nội bộ, không lộ qua API —
+// giống nguyên tắc với passwordHash.
 function sanitizeUser(user: User) {
-  const { passwordHash: _passwordHash, ...safe } = user;
+  const { passwordHash: _passwordHash, failedLoginAttempts: _a, lockedUntil: _l, ...safe } = user;
   return safe;
 }
 
@@ -60,31 +56,28 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
 export async function changePassword(
   userId: string,
   input: ChangePasswordInput,
+  currentRefreshToken?: string,
 ): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
 
   if (user.passwordHash) {
-    const valid = await verifyPassword(
-      input.currentPassword,
-      user.passwordHash,
-    );
-    if (!valid)
-      throw new AppError(
-        "Mật khẩu hiện tại không đúng",
-        401,
-        "INVALID_CURRENT_PASSWORD",
-      );
+    const valid = await verifyPassword(input.currentPassword, user.passwordHash);
+    if (!valid) throw new AppError("Mật khẩu hiện tại không đúng", 401, "INVALID_CURRENT_PASSWORD");
   }
 
   const passwordHash = await hashPassword(input.newPassword);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+  // Đổi mật khẩu = "đuổi" mọi thiết bị khác — chừa lại phiên hiện tại để không tự đăng xuất chính
+  // mình. Xem docs/12 BE-01.
+  await revokeAllUserSessions(
+    userId,
+    currentRefreshToken ? sha256(currentRefreshToken) : undefined,
+  );
 }
 
-export async function listSessions(
-  userId: string,
-  currentRefreshToken: string | undefined,
-) {
+export async function listSessions(userId: string, currentRefreshToken: string | undefined) {
   const currentHash = currentRefreshToken ? sha256(currentRefreshToken) : null;
   const sessions = await prisma.session.findMany({
     where: { userId, revokedAt: null },
@@ -100,10 +93,7 @@ export async function listSessions(
   }));
 }
 
-export async function revokeSession(
-  userId: string,
-  sessionId: string,
-): Promise<void> {
+export async function revokeSession(userId: string, sessionId: string): Promise<void> {
   const session = await prisma.session.findUnique({ where: { id: sessionId } });
   if (!session || session.userId !== userId) {
     throw new AppError("Không tìm thấy thiết bị", 404, "NOT_FOUND");
@@ -118,13 +108,8 @@ export async function revokeOtherSessions(
   userId: string,
   currentRefreshToken: string | undefined,
 ): Promise<void> {
-  const currentHash = currentRefreshToken ? sha256(currentRefreshToken) : null;
-  await prisma.session.updateMany({
-    where: {
-      userId,
-      revokedAt: null,
-      ...(currentHash && { refreshTokenHash: { not: currentHash } }),
-    },
-    data: { revokedAt: new Date() },
-  });
+  await revokeAllUserSessions(
+    userId,
+    currentRefreshToken ? sha256(currentRefreshToken) : undefined,
+  );
 }

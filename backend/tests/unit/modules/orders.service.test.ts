@@ -21,7 +21,9 @@ beforeEach(() => {
 
 describe("create — honeypot chống bot", () => {
   it("422 INVALID_SUBMISSION khi field honeypot 'website' có giá trị, KHÔNG đụng DB sản phẩm", async () => {
-    await expect(service.create({ ...VALID_INPUT, website: "http://spam.example" } as never, undefined)).rejects.toMatchObject({
+    await expect(
+      service.create({ ...VALID_INPUT, website: "http://spam.example" } as never, undefined),
+    ).rejects.toMatchObject({
       statusCode: 422,
       code: "INVALID_SUBMISSION",
     });
@@ -30,7 +32,9 @@ describe("create — honeypot chống bot", () => {
   });
 
   it("chỉ toàn khoảng trắng cũng bị coi là bot điền vào (không phải field thật sự rỗng)", async () => {
-    await expect(service.create({ ...VALID_INPUT, website: "   " } as never, undefined)).rejects.toMatchObject({
+    await expect(
+      service.create({ ...VALID_INPUT, website: "   " } as never, undefined),
+    ).rejects.toMatchObject({
       statusCode: 422,
       code: "INVALID_SUBMISSION",
     });
@@ -53,9 +57,20 @@ describe("create", () => {
 
     await service.create(VALID_INPUT as never, undefined);
 
-    expect(db.order.create.mock.calls[0]![0].data).toMatchObject({ subtotal: 200000, total: 200000, userId: null });
+    expect(db.order.create.mock.calls[0]![0].data).toMatchObject({
+      subtotal: 200000,
+      total: 200000,
+      userId: null,
+    });
     expect(db.orderItem.createMany.mock.calls[0]![0].data).toEqual([
-      { productId: "p1", productName: "Hoa hồng", unitPrice: 100000, quantity: 2, subtotal: 200000, orderId: "o1" },
+      {
+        productId: "p1",
+        productName: "Hoa hồng",
+        unitPrice: 100000,
+        quantity: 2,
+        subtotal: 200000,
+        orderId: "o1",
+      },
     ]);
   });
 
@@ -65,12 +80,21 @@ describe("create", () => {
     db.order.findUniqueOrThrow.mockResolvedValue({ id: "o1" });
 
     await service.create(
-      { ...VALID_INPUT, items: [{ productId: "p1", quantity: 2 }, { productId: "p1", quantity: 3 }] } as never,
+      {
+        ...VALID_INPUT,
+        items: [
+          { productId: "p1", quantity: 2 },
+          { productId: "p1", quantity: 3 },
+        ],
+      } as never,
       undefined,
     );
 
     expect(db.orderItem.createMany.mock.calls[0]![0].data).toHaveLength(1);
-    expect(db.orderItem.createMany.mock.calls[0]![0].data[0]).toMatchObject({ quantity: 5, subtotal: 500000 });
+    expect(db.orderItem.createMany.mock.calls[0]![0].data[0]).toMatchObject({
+      quantity: 5,
+      subtotal: 500000,
+    });
   });
 
   it("409 PRODUCT_UNAVAILABLE khi sản phẩm không tồn tại/đã ẩn/đã xoá (chỉ tìm isActive+deletedAt:null)", async () => {
@@ -79,7 +103,10 @@ describe("create", () => {
       statusCode: 409,
       code: "PRODUCT_UNAVAILABLE",
     });
-    expect(db.product.findMany.mock.calls[0]![0].where).toMatchObject({ deletedAt: null, isActive: true });
+    expect(db.product.findMany.mock.calls[0]![0].where).toMatchObject({
+      deletedAt: null,
+      isActive: true,
+    });
   });
 
   it("guest checkout (không đăng nhập) — userId null, audit log KHÔNG có actorId", async () => {
@@ -90,7 +117,9 @@ describe("create", () => {
     await service.create(VALID_INPUT as never, undefined);
 
     expect(db.order.create.mock.calls[0]![0].data.userId).toBeNull();
-    expect(auditLog.record).toHaveBeenCalledWith(expect.not.objectContaining({ actorId: expect.anything() }));
+    expect(auditLog.record).toHaveBeenCalledWith(
+      expect.not.objectContaining({ actorId: expect.anything() }),
+    );
   });
 
   it("đã đăng nhập — gắn userId vào đơn và actorId vào audit log", async () => {
@@ -101,7 +130,9 @@ describe("create", () => {
     await service.create(VALID_INPUT as never, "user-1");
 
     expect(db.order.create.mock.calls[0]![0].data.userId).toBe("user-1");
-    expect(auditLog.record).toHaveBeenCalledWith(expect.objectContaining({ actorId: "user-1", action: "order.create" }));
+    expect(auditLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: "user-1", action: "order.create" }),
+    );
   });
 
   it("thử lại mã đơn khi trùng (generateOrderCode) cho tới khi tìm được mã chưa dùng", async () => {
@@ -121,7 +152,10 @@ describe("create", () => {
 describe("getById", () => {
   it("404 khi không tìm thấy đơn (dùng chung cho tra cứu công khai lẫn admin)", async () => {
     db.order.findUnique.mockResolvedValue(null);
-    await expect(service.getById("khong-ton-tai")).rejects.toMatchObject({ statusCode: 404, code: "NOT_FOUND" });
+    await expect(service.getById("khong-ton-tai")).rejects.toMatchObject({
+      statusCode: 404,
+      code: "NOT_FOUND",
+    });
   });
 
   it("trả đơn kèm items khi tìm thấy", async () => {
@@ -188,12 +222,22 @@ describe("updateStatus", () => {
     db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending" });
     db.order.update.mockResolvedValue({ id: "o1", status: "cancelled" });
 
-    const result = await service.updateStatus("staff-1", "o1", "cancelled", ["orders.cancel"], "1.2.3.4");
+    const result = await service.updateStatus(
+      "staff-1",
+      "o1",
+      "cancelled",
+      ["orders.cancel"],
+      "1.2.3.4",
+    );
 
     expect(result.status).toBe("cancelled");
     expect(db.order.update.mock.calls[0]![0].data).toEqual({ status: "cancelled" });
     expect(auditLog.record).toHaveBeenCalledWith(
-      expect.objectContaining({ actorId: "staff-1", action: "order.update_status", ipAddress: "1.2.3.4" }),
+      expect.objectContaining({
+        actorId: "staff-1",
+        action: "order.update_status",
+        ipAddress: "1.2.3.4",
+      }),
     );
   });
 
@@ -201,7 +245,9 @@ describe("updateStatus", () => {
     db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending" });
     db.order.update.mockResolvedValue({ id: "o1", status: "confirmed" });
 
-    const result = await service.updateStatus("staff-1", "o1", "confirmed", ["orders.update_status"]);
+    const result = await service.updateStatus("staff-1", "o1", "confirmed", [
+      "orders.update_status",
+    ]);
     expect(result.status).toBe("confirmed");
   });
 });

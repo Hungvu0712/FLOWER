@@ -29,7 +29,11 @@ describe("POST /api/v1/orders (công khai — guest checkout)", () => {
       { id: "11111111-1111-1111-1111-111111111111", name: "Hoa hồng", basePrice: 100000 },
     ]);
     db.order.create.mockResolvedValue({ id: "o1" });
-    db.order.findUniqueOrThrow.mockResolvedValue({ id: "o1", orderCode: "HX2609100001", status: "pending" });
+    db.order.findUniqueOrThrow.mockResolvedValue({
+      id: "o1",
+      orderCode: "HX2609100001",
+      status: "pending",
+    });
 
     const res = await request(app).post("/api/v1/orders").send(VALID_BODY);
     expect(res.status).toBe(201);
@@ -37,20 +41,26 @@ describe("POST /api/v1/orders (công khai — guest checkout)", () => {
   });
 
   it("422 khi field honeypot 'website' có giá trị (bot điền form tự động)", async () => {
-    const res = await request(app).post("/api/v1/orders").send({ ...VALID_BODY, website: "http://spam.example" });
+    const res = await request(app)
+      .post("/api/v1/orders")
+      .send({ ...VALID_BODY, website: "http://spam.example" });
     expect(res.status).toBe(422);
     expect(res.body.code).toBe("INVALID_SUBMISSION");
     expect(db.order.create).not.toHaveBeenCalled();
   });
 
   it("422 khi giỏ hàng rỗng", async () => {
-    const res = await request(app).post("/api/v1/orders").send({ ...VALID_BODY, items: [] });
+    const res = await request(app)
+      .post("/api/v1/orders")
+      .send({ ...VALID_BODY, items: [] });
     expect(res.status).toBe(422);
     expect(res.body.errors).toHaveProperty("items");
   });
 
   it("422 khi ngày giao ở quá khứ", async () => {
-    const res = await request(app).post("/api/v1/orders").send({ ...VALID_BODY, deliveryDate: "2020-01-01" });
+    const res = await request(app)
+      .post("/api/v1/orders")
+      .send({ ...VALID_BODY, deliveryDate: "2020-01-01" });
     expect(res.status).toBe(422);
     expect(res.body.errors).toHaveProperty("deliveryDate");
   });
@@ -129,7 +139,10 @@ describe("PATCH /api/v1/admin/orders/:id/status", () => {
     db.order.findUnique.mockResolvedValue({ id, status: "confirmed" });
     db.order.update.mockResolvedValue({ id, status: "preparing" });
 
-    const res = await request(app).patch(`/api/v1/admin/orders/${id}/status`).set("Cookie", cookie).send({ status: "preparing" });
+    const res = await request(app)
+      .patch(`/api/v1/admin/orders/${id}/status`)
+      .set("Cookie", cookie)
+      .send({ status: "preparing" });
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe("preparing");
   });
@@ -138,7 +151,10 @@ describe("PATCH /api/v1/admin/orders/:id/status", () => {
     const cookie = loginAs("florist-1", ["florist"], ["orders.update_status"]);
     db.order.findUnique.mockResolvedValue({ id, status: "pending" });
 
-    const res = await request(app).patch(`/api/v1/admin/orders/${id}/status`).set("Cookie", cookie).send({ status: "cancelled" });
+    const res = await request(app)
+      .patch(`/api/v1/admin/orders/${id}/status`)
+      .set("Cookie", cookie)
+      .send({ status: "cancelled" });
     expect(res.status).toBe(403);
   });
 
@@ -147,20 +163,29 @@ describe("PATCH /api/v1/admin/orders/:id/status", () => {
     db.order.findUnique.mockResolvedValue({ id, status: "pending" });
     db.order.update.mockResolvedValue({ id, status: "cancelled" });
 
-    const res = await request(app).patch(`/api/v1/admin/orders/${id}/status`).set("Cookie", cookie).send({ status: "cancelled" });
+    const res = await request(app)
+      .patch(`/api/v1/admin/orders/${id}/status`)
+      .set("Cookie", cookie)
+      .send({ status: "cancelled" });
     expect(res.status).toBe(200);
   });
 
   it("422 khi status không nằm trong danh sách cho phép", async () => {
     const cookie = loginAs("staff-1", ["sales_staff"], ["orders.update_status"]);
-    const res = await request(app).patch(`/api/v1/admin/orders/${id}/status`).set("Cookie", cookie).send({ status: "khong-hop-le" });
+    const res = await request(app)
+      .patch(`/api/v1/admin/orders/${id}/status`)
+      .set("Cookie", cookie)
+      .send({ status: "khong-hop-le" });
     expect(res.status).toBe(422);
   });
 
   it("member (không có permission nào) bị 403", async () => {
     const cookie = loginAs("member-1", ["member"], []);
     db.order.findUnique.mockResolvedValue({ id, status: "pending" });
-    const res = await request(app).patch(`/api/v1/admin/orders/${id}/status`).set("Cookie", cookie).send({ status: "confirmed" });
+    const res = await request(app)
+      .patch(`/api/v1/admin/orders/${id}/status`)
+      .set("Cookie", cookie)
+      .send({ status: "confirmed" });
     expect(res.status).toBe(403);
   });
 });

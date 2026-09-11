@@ -6,7 +6,6 @@ import {
   passwordResetTemplate,
 } from "@/modules/core/email/email.templates";
 
-
 vi.mock("@/modules/core/email/providers/nodemailer.provider", () => ({
   nodemailerProvider: { send: vi.fn() },
 }));
@@ -25,7 +24,12 @@ beforeEach(() => {
 });
 
 describe("emailService.sendEmail", () => {
-  const args = { to: "a@example.com", subject: "Chào", html: "<p>Xin chào</p>", type: "magic_link" };
+  const args = {
+    to: "a@example.com",
+    subject: "Chào",
+    html: "<p>Xin chào</p>",
+    type: "magic_link",
+  };
 
   it("chọn provider theo EMAIL_PROVIDER (test đang dùng smtp → nodemailer)", async () => {
     send.mockResolvedValue({ providerMessageId: "m-1" });

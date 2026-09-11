@@ -5,7 +5,6 @@ import { db, resetPrismaMock } from "../mocks/prisma.mock";
 import { hashPassword, sha256 } from "@/shared/utils/hash";
 import { emailService } from "@/modules/core/email/email.service";
 
-
 const ACTIVE_USER = {
   id: "user-1",
   email: "a@example.com",
@@ -82,13 +81,20 @@ describe("POST /api/v1/auth/register", () => {
       .post("/api/v1/auth/register")
       .send({ fullName: "A", email: "a@example.com", password: "matkhau123" });
     expect(res.status).toBe(409);
-    expect(res.body).toEqual({ success: false, message: "Email đã được sử dụng", code: "EMAIL_TAKEN" });
+    expect(res.body).toEqual({
+      success: false,
+      message: "Email đã được sử dụng",
+      code: "EMAIL_TAKEN",
+    });
   });
 });
 
 describe("POST /api/v1/auth/login", () => {
   it("đặt cả access_token và refresh_token dạng httpOnly", async () => {
-    db.user.findUnique.mockResolvedValue({ ...ACTIVE_USER, passwordHash: await hashPassword("matkhau123") });
+    db.user.findUnique.mockResolvedValue({
+      ...ACTIVE_USER,
+      passwordHash: await hashPassword("matkhau123"),
+    });
 
     const res = await request(app).post("/api/v1/auth/login").send({
       email: "a@example.com",
@@ -103,7 +109,10 @@ describe("POST /api/v1/auth/login", () => {
   });
 
   it("refresh_token dùng Path=/api/v1 để /account/sessions đọc được", async () => {
-    db.user.findUnique.mockResolvedValue({ ...ACTIVE_USER, passwordHash: await hashPassword("matkhau123") });
+    db.user.findUnique.mockResolvedValue({
+      ...ACTIVE_USER,
+      passwordHash: await hashPassword("matkhau123"),
+    });
     const res = await request(app).post("/api/v1/auth/login").send({
       email: "a@example.com",
       password: "matkhau123",
@@ -113,8 +122,14 @@ describe("POST /api/v1/auth/login", () => {
   });
 
   it("401 khi sai mật khẩu, KHÔNG set cookie", async () => {
-    db.user.findUnique.mockResolvedValue({ ...ACTIVE_USER, passwordHash: await hashPassword("dung") });
-    const res = await request(app).post("/api/v1/auth/login").send({ email: "a@example.com", password: "sai" });
+    db.user.findUnique.mockResolvedValue({
+      ...ACTIVE_USER,
+      passwordHash: await hashPassword("dung"),
+    });
+    db.user.update.mockResolvedValue({ failedLoginAttempts: 1 }); // docs/12 BE-17
+    const res = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ email: "a@example.com", password: "sai" });
     expect(res.status).toBe(401);
     expect(res.body.code).toBe("INVALID_CREDENTIALS");
     expect(res.headers["set-cookie"]).toBeUndefined();
@@ -128,6 +143,21 @@ describe("POST /api/v1/auth/login", () => {
     });
     expect(res.status).toBe(403);
     expect(res.body.code).toBe("LOGIN_METHOD_DISABLED");
+  });
+
+  it("429 ACCOUNT_TEMPORARILY_LOCKED khi tài khoản đang trong thời gian khoá tạm (docs/12 BE-17)", async () => {
+    db.user.findUnique.mockResolvedValue({
+      ...ACTIVE_USER,
+      passwordHash: await hashPassword("matkhau123"),
+      lockedUntil: new Date(Date.now() + 5 * 60_000),
+    });
+    const res = await request(app).post("/api/v1/auth/login").send({
+      email: "a@example.com",
+      password: "matkhau123", // kể cả đúng mật khẩu vẫn bị chặn trong lúc khoá
+    });
+    expect(res.status).toBe(429);
+    expect(res.body.code).toBe("ACCOUNT_TEMPORARILY_LOCKED");
+    expect(res.headers["set-cookie"]).toBeUndefined();
   });
 });
 
@@ -145,7 +175,9 @@ describe("POST /api/v1/auth/magic-link/request", () => {
   it("email TỒN TẠI trả response giống hệt nhánh trên", async () => {
     db.user.findUnique.mockResolvedValue(ACTIVE_USER);
     db.magicLinkToken.create.mockResolvedValue({});
-    const res = await request(app).post("/api/v1/auth/magic-link/request").send({ email: "a@example.com" });
+    const res = await request(app)
+      .post("/api/v1/auth/magic-link/request")
+      .send({ email: "a@example.com" });
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Nếu email tồn tại, liên kết đăng nhập đã được gửi.");
@@ -156,21 +188,21 @@ describe("POST /api/v1/auth/magic-link/request", () => {
     db.magicLinkToken.create.mockResolvedValue({});
     vi.spyOn(emailService, "sendEmail").mockRejectedValue(new Error("SMTP chết"));
 
-    const res = await request(app).post("/api/v1/auth/magic-link/request").send({ email: "a@example.com" });
+    const res = await request(app)
+      .post("/api/v1/auth/magic-link/request")
+      .send({ email: "a@example.com" });
     expect(res.status).toBe(200);
   });
 });
 
 describe("POST /api/v1/auth/magic-link/verify", () => {
   it("token hợp lệ → đăng nhập, đặt cookie", async () => {
+    db.magicLinkToken.updateMany.mockResolvedValue({ count: 1 });
     db.magicLinkToken.findUnique.mockResolvedValue({
       id: "ml-1",
       email: "a@example.com",
       userId: "user-1",
-      usedAt: null,
-      expiresAt: new Date(Date.now() + 60_000),
     });
-    db.magicLinkToken.update.mockResolvedValue({});
     db.user.findUnique.mockResolvedValue(ACTIVE_USER);
 
     const res = await request(app).post("/api/v1/auth/magic-link/verify").send({ token: "abc" });
@@ -179,11 +211,7 @@ describe("POST /api/v1/auth/magic-link/verify", () => {
   });
 
   it("token đã dùng → 401", async () => {
-    db.magicLinkToken.findUnique.mockResolvedValue({
-      id: "ml-1",
-      usedAt: new Date(),
-      expiresAt: new Date(Date.now() + 60_000),
-    });
+    db.magicLinkToken.updateMany.mockResolvedValue({ count: 0 });
     const res = await request(app).post("/api/v1/auth/magic-link/verify").send({ token: "abc" });
     expect(res.status).toBe(401);
     expect(res.body.code).toBe("INVALID_MAGIC_LINK");
@@ -198,15 +226,18 @@ describe("POST /api/v1/auth/refresh", () => {
   });
 
   it("token hợp lệ → xoay vòng, cookie mới KHÁC cookie cũ", async () => {
-    db.session.findFirst.mockResolvedValue({
+    db.session.findUnique.mockResolvedValue({
       id: "sess-1",
       userId: "user-1",
+      revokedAt: null,
       expiresAt: new Date(Date.now() + 60_000),
     });
     db.user.findUnique.mockResolvedValue(ACTIVE_USER);
     db.session.update.mockResolvedValue({});
 
-    const res = await request(app).post("/api/v1/auth/refresh").set("Cookie", ["refresh_token=cu-abc"]);
+    const res = await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", ["refresh_token=cu-abc"]);
 
     expect(res.status).toBe(200);
     expect(db.session.update).toHaveBeenCalledWith(
@@ -216,11 +247,32 @@ describe("POST /api/v1/auth/refresh", () => {
   });
 
   it("tra session bằng HASH của cookie, không bằng giá trị thô", async () => {
-    db.session.findFirst.mockResolvedValue(null);
+    db.session.findUnique.mockResolvedValue(null);
     await request(app).post("/api/v1/auth/refresh").set("Cookie", ["refresh_token=cu-abc"]);
-    expect(db.session.findFirst).toHaveBeenCalledWith({
-      where: { refreshTokenHash: sha256("cu-abc"), revokedAt: null },
+    expect(db.session.findUnique).toHaveBeenCalledWith({
+      where: { refreshTokenHash: sha256("cu-abc") },
     });
+  });
+
+  it("token ĐÃ BỊ THU HỒI được gửi lại → 401 SESSION_EXPIRED (không tiết lộ đã bị phát hiện) + thu hồi toàn bộ session (docs/12 BE-03)", async () => {
+    db.session.findUnique.mockResolvedValue({
+      id: "sess-1",
+      userId: "user-1",
+      revokedAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    db.user.findUnique.mockResolvedValue(ACTIVE_USER);
+    db.session.updateMany.mockResolvedValue({});
+
+    const res = await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", ["refresh_token=token-cu"]);
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe("SESSION_EXPIRED");
+    expect(db.session.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ userId: "user-1" }) }),
+    );
   });
 });
 

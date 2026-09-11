@@ -26,7 +26,10 @@ describe("list", () => {
   it("sắp xếp theo nhóm rồi tới code (để UI gom nhóm được)", async () => {
     db.permission.findMany.mockResolvedValue([]);
     await service.list({} as never);
-    expect(db.permission.findMany.mock.calls[0]![0].orderBy).toEqual([{ groupName: "asc" }, { code: "asc" }]);
+    expect(db.permission.findMany.mock.calls[0]![0].orderBy).toEqual([
+      { groupName: "asc" },
+      { code: "asc" },
+    ]);
   });
 });
 
@@ -67,7 +70,9 @@ describe("create", () => {
 describe("update", () => {
   it("chặn đổi CODE của permission hệ thống — route trong code đang tham chiếu code cũ", async () => {
     db.permission.findUnique.mockResolvedValue({ id: 1, code: "users.manage", isSystem: true });
-    await expect(service.update(ACTOR, 1, { code: "users.manage_new" } as never)).rejects.toMatchObject({
+    await expect(
+      service.update(ACTOR, 1, { code: "users.manage_new" } as never),
+    ).rejects.toMatchObject({
       statusCode: 403,
       code: "SYSTEM_PERMISSION_LOCKED",
     });
@@ -85,25 +90,38 @@ describe("update", () => {
   it("gửi lại đúng code cũ không bị coi là đổi code", async () => {
     db.permission.findUnique.mockResolvedValue({ id: 1, code: "users.manage", isSystem: true });
     db.permission.update.mockResolvedValue({ id: 1 });
-    await expect(service.update(ACTOR, 1, { code: "users.manage" } as never)).resolves.toBeDefined();
+    await expect(
+      service.update(ACTOR, 1, { code: "users.manage" } as never),
+    ).resolves.toBeDefined();
   });
 
   it("permission tự tạo (isSystem = false) đổi code thoải mái", async () => {
-    db.permission.findUnique.mockResolvedValue({ id: 50, code: "products.export", isSystem: false });
+    db.permission.findUnique.mockResolvedValue({
+      id: 50,
+      code: "products.export",
+      isSystem: false,
+    });
     db.permission.update.mockResolvedValue({ id: 50 });
-    await expect(service.update(ACTOR, 50, { code: "products.export_v2" } as never)).resolves.toBeDefined();
+    await expect(
+      service.update(ACTOR, 50, { code: "products.export_v2" } as never),
+    ).resolves.toBeDefined();
   });
 });
 
 describe("remove", () => {
   it("chặn xoá permission hệ thống", async () => {
     db.permission.findUnique.mockResolvedValue({ id: 1, isSystem: true, _count: { roles: 0 } });
-    await expect(service.remove(ACTOR, 1)).rejects.toMatchObject({ code: "SYSTEM_PERMISSION_LOCKED" });
+    await expect(service.remove(ACTOR, 1)).rejects.toMatchObject({
+      code: "SYSTEM_PERMISSION_LOCKED",
+    });
   });
 
   it("409 PERMISSION_IN_USE khi còn role đang gán", async () => {
     db.permission.findUnique.mockResolvedValue({ id: 50, isSystem: false, _count: { roles: 2 } });
-    await expect(service.remove(ACTOR, 50)).rejects.toMatchObject({ statusCode: 409, code: "PERMISSION_IN_USE" });
+    await expect(service.remove(ACTOR, 50)).rejects.toMatchObject({
+      statusCode: 409,
+      code: "PERMISSION_IN_USE",
+    });
   });
 
   it("xoá được permission tự tạo chưa gán cho role nào", async () => {

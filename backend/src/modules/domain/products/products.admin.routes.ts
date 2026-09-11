@@ -16,23 +16,11 @@ import {
 export const productsAdminRouter = Router();
 productsAdminRouter.use(authorize("products.manage"));
 
-productsAdminRouter.get(
-  "/",
-  validate({ query: listProductsQuerySchema }),
-  controller.list,
-);
-productsAdminRouter.post(
-  "/",
-  validate({ body: createProductSchema }),
-  controller.create,
-);
+productsAdminRouter.get("/", validate({ query: listProductsQuerySchema }), controller.list);
+productsAdminRouter.post("/", validate({ body: createProductSchema }), controller.create);
 productsAdminRouter.patch(
   "/:id",
   validate({ params: productIdParamSchema, body: updateProductSchema }),
   controller.update,
 );
-productsAdminRouter.delete(
-  "/:id",
-  validate({ params: productIdParamSchema }),
-  controller.remove,
-);
+productsAdminRouter.delete("/:id", validate({ params: productIdParamSchema }), controller.remove);

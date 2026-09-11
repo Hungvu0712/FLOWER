@@ -30,6 +30,23 @@ describe("GET /api/v1/account/me", () => {
     expect(res.body.data).not.toHaveProperty("passwordHash");
     expect(JSON.stringify(res.body)).not.toContain("bi-mat");
   });
+
+  it("KHÔNG lộ failedLoginAttempts/lockedUntil — chi tiết khoá tạm nội bộ, không phải dữ liệu hồ sơ (docs/12 BE-17)", async () => {
+    db.user.findUnique.mockResolvedValue({
+      id: USER_ID,
+      fullName: "Người A",
+      email: "a@example.com",
+      passwordHash: "$2a$12$bi-mat",
+      avatarFile: null,
+      failedLoginAttempts: 3,
+      lockedUntil: new Date(Date.now() + 60_000),
+    });
+
+    const res = await request(app).get("/api/v1/account/me").set("Cookie", cookie);
+
+    expect(res.body.data).not.toHaveProperty("failedLoginAttempts");
+    expect(res.body.data).not.toHaveProperty("lockedUntil");
+  });
 });
 
 describe("PATCH /api/v1/account/profile", () => {
@@ -77,7 +94,10 @@ describe("POST /api/v1/account/change-password", () => {
 
   it("401 khi mật khẩu hiện tại sai", async () => {
     const bcrypt = (await import("bcryptjs")).default;
-    db.user.findUnique.mockResolvedValue({ id: USER_ID, passwordHash: await bcrypt.hash("dung", 4) });
+    db.user.findUnique.mockResolvedValue({
+      id: USER_ID,
+      passwordHash: await bcrypt.hash("dung", 4),
+    });
     const res = await request(app)
       .post("/api/v1/account/change-password")
       .set("Cookie", cookie)
@@ -127,7 +147,9 @@ describe("DELETE /api/v1/account/sessions/:id — chống IDOR", () => {
     const own = "55555555-5555-5555-5555-555555555555";
     db.session.findUnique.mockResolvedValue({ id: own, userId: USER_ID });
     db.session.update.mockResolvedValue({});
-    expect((await request(app).delete(`/api/v1/account/sessions/${own}`).set("Cookie", cookie)).status).toBe(200);
+    expect(
+      (await request(app).delete(`/api/v1/account/sessions/${own}`).set("Cookie", cookie)).status,
+    ).toBe(200);
   });
 });
 

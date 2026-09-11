@@ -1,4 +1,4 @@
-import { prisma } from '../../config/prisma';
+import { prisma } from "../../config/prisma";
 
 export interface UserRolesAndPermissions {
   roles: string[];
@@ -9,7 +9,9 @@ export interface UserRolesAndPermissions {
 // gọi lại ở MỖI request qua authenticate middleware (không nhúng vào JWT) để đổi role trong DB có
 // hiệu lực ngay. Cũng dùng cho GET /account/me để frontend hiển thị đúng role/permission hiện tại.
 // Xem docs/02 §8.
-export async function loadUserRolesAndPermissions(userId: string): Promise<UserRolesAndPermissions> {
+export async function loadUserRolesAndPermissions(
+  userId: string,
+): Promise<UserRolesAndPermissions> {
   const userRoles = await prisma.userRole.findMany({
     where: { userId },
     include: { role: { include: { permissions: { include: { permission: true } } } } },

@@ -16,7 +16,13 @@ const createOrderLimiter = rateLimit({
 
 export const ordersRouter = Router();
 
-ordersRouter.post("/", createOrderLimiter, attachUserIfPresent, validate({ body: createOrderSchema }), controller.create);
+ordersRouter.post(
+  "/",
+  createOrderLimiter,
+  attachUserIfPresent,
+  validate({ body: createOrderSchema }),
+  controller.create,
+);
 
 // `id` (UUID) đóng vai trò token tra cứu — xem ghi chú ở schema.prisma (model Order). KHÔNG cần đăng
 // nhập/quyền gì, ai có link đều xem được, giống trang xác nhận đơn hàng khách của các nền tảng

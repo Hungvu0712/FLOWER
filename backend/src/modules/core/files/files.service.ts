@@ -5,11 +5,7 @@ import { env } from "../../../config/env";
 import { AppError } from "../../../shared/errors";
 import { buildPaginationMeta } from "../../../shared/response/ApiResponse";
 import { MAX_SIZE_BYTES } from "./files.validation";
-import type {
-  PresignInput,
-  CreateFileInput,
-  ListFilesQuery,
-} from "./files.validation";
+import type { PresignInput, CreateFileInput, ListFilesQuery } from "./files.validation";
 
 // Cloudinary xem PDF là "image" (dựng được thumbnail từng trang) nên toàn bộ file của module này
 // (ảnh + PDF) dùng resourceType "image" — không cần lưu riêng resourceType cho từng file trong DB.
@@ -62,11 +58,7 @@ export async function createFileRecord(input: CreateFileInput, userId: string) {
     .resource(input.publicId, { resource_type: CLOUDINARY_RESOURCE_TYPE })
     .catch(() => null);
   if (!resource) {
-    throw new AppError(
-      "Không tìm thấy file đã upload trên Cloudinary",
-      404,
-      "FILE_NOT_FOUND",
-    );
+    throw new AppError("Không tìm thấy file đã upload trên Cloudinary", 404, "FILE_NOT_FOUND");
   }
 
   if (resource.bytes > MAX_SIZE_BYTES) {
@@ -121,8 +113,7 @@ export async function setEntityFile({
   entityId,
 }: EntityFileInput): Promise<void> {
   const file = await prisma.file.findUnique({ where: { id: fileId } });
-  if (!file || file.deletedAt)
-    throw new AppError("File không tồn tại", 404, "FILE_NOT_FOUND");
+  if (!file || file.deletedAt) throw new AppError("File không tồn tại", 404, "FILE_NOT_FOUND");
 
   await prisma.fileUsage.deleteMany({ where: { entityType, entityId } });
   await prisma.fileUsage.create({ data: { fileId, entityType, entityId } });

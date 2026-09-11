@@ -11,7 +11,10 @@ export async function cleanupOrphanFiles(): Promise<void> {
   const candidates = await prisma.file.findMany({
     where: {
       OR: [
-        { deletedAt: { not: null } }, // đã bị xoá thủ công qua màn quản lý tài nguyên
+        // BE-09: trước đây xoá NGAY mọi file deletedAt != null, bất kể xoá cách đây bao lâu — người
+        // xoá nhầm ảnh lúc 03:59 thì cron 04:00 chạy là mất vĩnh viễn, không có cửa sổ hối tiếc/khôi
+        // phục. Áp cùng SAFETY_WINDOW_HOURS như nhánh mồ côi bên dưới.
+        { deletedAt: { lt: cutoff } },
         { deletedAt: null, createdAt: { lt: cutoff }, usages: { none: {} } }, // mồ côi thật sự
       ],
     },
@@ -31,7 +34,5 @@ export async function cleanupOrphanFiles(): Promise<void> {
     }
   }
 
-  logger.info(
-    `[cleanupOrphanFiles] Quét ${candidates.length} file, xoá thành công ${purged}.`,
-  );
+  logger.info(`[cleanupOrphanFiles] Quét ${candidates.length} file, xoá thành công ${purged}.`);
 }

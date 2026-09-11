@@ -12,11 +12,7 @@ export const filesRouter = Router();
 
 // Mount với `authenticate` ở app.ts — upload (presign/create) mở cho mọi user đã đăng nhập
 // (vd tự đổi avatar); xem/xoá trong màn quản lý tài nguyên yêu cầu quyền `files.manage`.
-filesRouter.post(
-  "/presign",
-  validate({ body: presignSchema }),
-  controller.presign,
-);
+filesRouter.post("/presign", validate({ body: presignSchema }), controller.presign);
 filesRouter.post("/", validate({ body: createFileSchema }), controller.create);
 filesRouter.get(
   "/",

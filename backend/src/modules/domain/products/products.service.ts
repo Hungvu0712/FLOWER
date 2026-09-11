@@ -138,7 +138,8 @@ export async function create(actorId: string, input: CreateProductInput, ipAddre
     data: {
       name: input.name,
       slug,
-      description: input.description !== undefined ? sanitizeDescriptionHtml(input.description) : undefined,
+      description:
+        input.description !== undefined ? sanitizeDescriptionHtml(input.description) : undefined,
       basePrice: input.basePrice,
       categoryId: input.categoryId ?? null,
       isActive: input.isActive ?? true,
@@ -147,7 +148,10 @@ export async function create(actorId: string, input: CreateProductInput, ipAddre
 
   await replaceImages(product.id, input.imageFileIds);
 
-  const full = await prisma.product.findUniqueOrThrow({ where: { id: product.id }, select: PRODUCT_SELECT });
+  const full = await prisma.product.findUniqueOrThrow({
+    where: { id: product.id },
+    select: PRODUCT_SELECT,
+  });
 
   await auditLog.record({
     actorId,
@@ -160,7 +164,12 @@ export async function create(actorId: string, input: CreateProductInput, ipAddre
   return full;
 }
 
-export async function update(actorId: string, id: string, input: UpdateProductInput, ipAddress?: string) {
+export async function update(
+  actorId: string,
+  id: string,
+  input: UpdateProductInput,
+  ipAddress?: string,
+) {
   const before = await prisma.product.findFirst({ where: { id, deletedAt: null } });
   if (!before) throw new AppError("Sản phẩm không tồn tại", 404, "NOT_FOUND");
 
@@ -170,14 +179,17 @@ export async function update(actorId: string, id: string, input: UpdateProductIn
   }
 
   // Đổi tên KHÔNG tự đổi slug (tránh gãy link đã chia sẻ) — chỉ đổi khi người dùng chủ động sửa slug.
-  const slug = input.slug !== undefined ? await ensureUniqueSlug(slugify(input.slug), id) : undefined;
+  const slug =
+    input.slug !== undefined ? await ensureUniqueSlug(slugify(input.slug), id) : undefined;
 
   await prisma.product.update({
     where: { id },
     data: {
       ...(input.name !== undefined && { name: input.name }),
       ...(slug !== undefined && { slug }),
-      ...(input.description !== undefined && { description: sanitizeDescriptionHtml(input.description) }),
+      ...(input.description !== undefined && {
+        description: sanitizeDescriptionHtml(input.description),
+      }),
       ...(input.basePrice !== undefined && { basePrice: input.basePrice }),
       ...(input.categoryId !== undefined && { categoryId: input.categoryId }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),

@@ -1,5 +1,5 @@
-import jwt from 'jsonwebtoken';
-import { env } from '../../config/env';
+import jwt from "jsonwebtoken";
+import { env } from "../../config/env";
 
 // JWT CHỈ dùng để xác thực danh tính (sub = user id) — KHÔNG nhúng role/permission vào token. Mọi
 // quyết định phân quyền (authorize()) luôn tra role/permission HIỆN TẠI từ DB qua authenticate
@@ -10,7 +10,9 @@ export interface AccessTokenPayload {
 }
 
 export function signAccessToken(payload: AccessTokenPayload): string {
-  return jwt.sign(payload, env.jwt.accessSecret, { expiresIn: env.jwt.accessExpiresIn as jwt.SignOptions['expiresIn'] });
+  return jwt.sign(payload, env.jwt.accessSecret, {
+    expiresIn: env.jwt.accessExpiresIn as jwt.SignOptions["expiresIn"],
+  });
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload & jwt.JwtPayload {

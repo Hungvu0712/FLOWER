@@ -4,9 +4,7 @@ import * as service from "./permissions.service";
 import type { ListPermissionsQuery } from "./permissions.validation";
 
 export const list = asyncHandler(async (req, res) => {
-  const permissions = await service.list(
-    req.query as unknown as ListPermissionsQuery,
-  );
+  const permissions = await service.list(req.query as unknown as ListPermissionsQuery);
   ok(res, permissions);
 });
 
@@ -16,12 +14,7 @@ export const create = asyncHandler(async (req, res) => {
 });
 
 export const update = asyncHandler(async (req, res) => {
-  const permission = await service.update(
-    req.user!.id,
-    Number(req.params.id),
-    req.body,
-    req.ip,
-  );
+  const permission = await service.update(req.user!.id, Number(req.params.id), req.body, req.ip);
   ok(res, permission);
 });
 

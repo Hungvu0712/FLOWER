@@ -39,7 +39,10 @@ describe("GET /api/v1/admin/products", () => {
       .get("/api/v1/admin/products?includeInactive=false")
       .set("Cookie", adminCookie);
     expect(res.status).toBe(200);
-    expect(db.product.findMany.mock.calls[0]![0].where).toEqual({ deletedAt: null, isActive: true });
+    expect(db.product.findMany.mock.calls[0]![0].where).toEqual({
+      deletedAt: null,
+      isActive: true,
+    });
   });
 });
 
@@ -91,7 +94,10 @@ describe("PATCH /api/v1/admin/products/:id", () => {
   it("404 khi sản phẩm không tồn tại", async () => {
     const id = "77777777-7777-7777-7777-777777777777";
     db.product.findFirst.mockResolvedValue(null);
-    const res = await request(app).patch(`/api/v1/admin/products/${id}`).set("Cookie", adminCookie).send({ name: "X" });
+    const res = await request(app)
+      .patch(`/api/v1/admin/products/${id}`)
+      .set("Cookie", adminCookie)
+      .send({ name: "X" });
     expect(res.status).toBe(404);
   });
 });
@@ -101,7 +107,9 @@ describe("DELETE /api/v1/admin/products/:id", () => {
     const id = "99999999-9999-9999-9999-999999999999";
     db.product.findFirst.mockResolvedValue({ id });
     db.product.update.mockResolvedValue({});
-    const res = await request(app).delete(`/api/v1/admin/products/${id}`).set("Cookie", adminCookie);
+    const res = await request(app)
+      .delete(`/api/v1/admin/products/${id}`)
+      .set("Cookie", adminCookie);
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Đã xoá sản phẩm");
   });
@@ -109,7 +117,9 @@ describe("DELETE /api/v1/admin/products/:id", () => {
   it("404 khi sản phẩm không tồn tại hoặc đã xoá trước đó", async () => {
     const id = "99999999-9999-9999-9999-999999999998";
     db.product.findFirst.mockResolvedValue(null);
-    const res = await request(app).delete(`/api/v1/admin/products/${id}`).set("Cookie", adminCookie);
+    const res = await request(app)
+      .delete(`/api/v1/admin/products/${id}`)
+      .set("Cookie", adminCookie);
     expect(res.status).toBe(404);
   });
 });

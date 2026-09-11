@@ -9,9 +9,7 @@ export const listPublic = asyncHandler(async (_req, res) => {
 });
 
 export const list = asyncHandler(async (req, res) => {
-  const categories = await service.list(
-    req.query as unknown as ListCategoriesQuery,
-  );
+  const categories = await service.list(req.query as unknown as ListCategoriesQuery);
   ok(res, categories);
 });
 
@@ -21,12 +19,7 @@ export const create = asyncHandler(async (req, res) => {
 });
 
 export const update = asyncHandler(async (req, res) => {
-  const category = await service.update(
-    req.user!.id,
-    req.params.id as string,
-    req.body,
-    req.ip,
-  );
+  const category = await service.update(req.user!.id, req.params.id as string, req.body, req.ip);
   ok(res, category);
 });
 

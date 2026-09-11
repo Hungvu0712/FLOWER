@@ -13,7 +13,11 @@ beforeEach(() => {
 describe("create", () => {
   it("lưu vào DB TRƯỚC, không phụ thuộc email gửi thành công", async () => {
     db.contactMessage.create.mockResolvedValue({ id: "c1" });
-    await service.create({ name: "An", phone: "0900000000", message: "Cho hỏi giá hoa cưới" } as never);
+    await service.create({
+      name: "An",
+      phone: "0900000000",
+      message: "Cho hỏi giá hoa cưới",
+    } as never);
     expect(db.contactMessage.create).toHaveBeenCalledWith({
       data: { name: "An", phone: "0900000000", email: null, message: "Cho hỏi giá hoa cưới" },
     });
@@ -21,14 +25,19 @@ describe("create", () => {
 
   it("email rỗng ('') chuyển thành null, không lưu chuỗi rỗng", async () => {
     db.contactMessage.create.mockResolvedValue({ id: "c1" });
-    await service.create({ name: "An", phone: "0900000000", email: "", message: "Hỏi giá" } as never);
+    await service.create({
+      name: "An",
+      phone: "0900000000",
+      email: "",
+      message: "Hỏi giá",
+    } as never);
     expect(db.contactMessage.create.mock.calls[0]![0].data.email).toBeNull();
   });
 
   it("gửi email thông báo, escape HTML trong nội dung khách nhập (chống XSS trong email)", async () => {
     db.contactMessage.create.mockResolvedValue({ id: "c1" });
     await service.create({
-      name: '<script>alert(1)</script>',
+      name: "<script>alert(1)</script>",
       phone: "0900000000",
       message: "Xin chào",
     } as never);

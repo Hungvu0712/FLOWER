@@ -16,8 +16,7 @@ export async function update(
 ) {
   const current = await prisma.loginMethodSetting.findMany();
   const target = current.find((m) => m.method === method);
-  if (!target)
-    throw new AppError("Phương thức đăng nhập không tồn tại", 404, "NOT_FOUND");
+  if (!target) throw new AppError("Phương thức đăng nhập không tồn tại", 404, "NOT_FOUND");
 
   const enabledAfterChange = current.filter((m) =>
     m.method === method ? isEnabled : m.isEnabled,

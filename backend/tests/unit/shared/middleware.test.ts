@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { asyncHandler } from "@/shared/middleware/asyncHandler";
 import { authorize } from "@/shared/middleware/authorize";
@@ -7,14 +8,38 @@ import { errorHandler } from "@/shared/middleware/errorHandler";
 import { requestId } from "@/shared/middleware/requestId";
 import { validate } from "@/shared/middleware/validate";
 import { AppError, ValidationError } from "@/shared/errors";
+import { logger } from "@/shared/logger/logger";
+
+// docs/12 BE-18: logger đổi sang pino, không còn gọi console.error trực tiếp — test log "còn ghi lại
+// lỗi để điều tra" giờ spy thẳng vào logger.withRequestId(...).error thay vì console.error.
+function spyOnLoggerError() {
+  const errorSpy = vi.fn();
+  vi.spyOn(logger, "withRequestId").mockReturnValue({
+    error: errorSpy,
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  });
+  return errorSpy;
+}
 
 function mockReqRes() {
-  const req = { headers: {}, body: {}, query: {}, params: {}, requestId: "req-1" } as unknown as Request;
+  const req = {
+    headers: {},
+    body: {},
+    query: {},
+    params: {},
+    requestId: "req-1",
+  } as unknown as Request;
   const res = {
     setHeader: vi.fn(),
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
-  } as unknown as Response & { status: ReturnType<typeof vi.fn>; json: ReturnType<typeof vi.fn>; setHeader: ReturnType<typeof vi.fn> };
+  } as unknown as Response & {
+    status: ReturnType<typeof vi.fn>;
+    json: ReturnType<typeof vi.fn>;
+    setHeader: ReturnType<typeof vi.fn>;
+  };
   const next = vi.fn() as unknown as NextFunction & ReturnType<typeof vi.fn>;
   return { req, res, next };
 }
@@ -84,7 +109,11 @@ describe("validate", () => {
   it("gán ngược giá trị đã coerce vào req (query string '2' → number 2)", () => {
     const { req, res, next } = mockReqRes();
     req.query = { page: "2", limit: "50" } as never;
-    validate({ query: z.object({ page: z.coerce.number(), limit: z.coerce.number() }) })(req, res, next);
+    validate({ query: z.object({ page: z.coerce.number(), limit: z.coerce.number() }) })(
+      req,
+      res,
+      next,
+    );
     expect(req.query).toEqual({ page: 2, limit: 50 });
     expect(next).toHaveBeenCalledWith();
   });
@@ -106,17 +135,23 @@ describe("validate", () => {
     })(req, res, next);
     const err = next.mock.calls[0]![0] as ValidationError;
     expect(err).toBeInstanceOf(ValidationError);
-    expect(err.errors).toEqual({ email: "Email không hợp lệ", password: "Mật khẩu tối thiểu 8 ký tự" });
+    expect(err.errors).toEqual({
+      email: "Email không hợp lệ",
+      password: "Mật khẩu tối thiểu 8 ký tự",
+    });
   });
 
   it("chỉ giữ lỗi ĐẦU TIÊN của mỗi field (UI chỉ hiện được một dòng dưới mỗi ô nhập)", () => {
     const { req, res, next } = mockReqRes();
     req.body = { code: "" };
-    validate({ body: z.object({ code: z.string().min(3, "Quá ngắn").regex(/^[a-z]+$/, "Chỉ chữ thường") }) })(
-      req,
-      res,
-      next,
-    );
+    validate({
+      body: z.object({
+        code: z
+          .string()
+          .min(3, "Quá ngắn")
+          .regex(/^[a-z]+$/, "Chỉ chữ thường"),
+      }),
+    })(req, res, next);
     expect((next.mock.calls[0]![0] as ValidationError).errors).toEqual({ code: "Quá ngắn" });
   });
 
@@ -170,13 +205,22 @@ describe("errorHandler", () => {
     const { req, res, next } = mockReqRes();
     errorHandler(new AppError("Không có quyền", 403, "FORBIDDEN"), req, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Không có quyền", code: "FORBIDDEN" });
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "Không có quyền",
+      code: "FORBIDDEN",
+    });
   });
 
   it("lỗi lạ → 500 với message chung, KHÔNG lộ stack trace hay chi tiết nội bộ ra client", () => {
     const { req, res, next } = mockReqRes();
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    errorHandler(new TypeError("Cannot read property 'x' of undefined at /src/secret.ts:42"), req, res, next);
+    spyOnLoggerError(); // chỉ để log không in ra terminal lúc chạy test, không assert ở đây
+    errorHandler(
+      new TypeError("Cannot read property 'x' of undefined at /src/secret.ts:42"),
+      req,
+      res,
+      next,
+    );
     expect(res.status).toHaveBeenCalledWith(500);
     const body = res.json.mock.calls[0]![0] as Record<string, unknown>;
     expect(body).toEqual({
@@ -189,9 +233,64 @@ describe("errorHandler", () => {
 
   it("vẫn log đầy đủ lỗi lạ ở phía server để điều tra", () => {
     const { req, res, next } = mockReqRes();
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = spyOnLoggerError();
     errorHandler(new Error("bug thật"), req, res, next);
-    expect(spy).toHaveBeenCalled();
-    expect(spy.mock.calls[0]!.join(" ")).toContain("req-1"); // có requestId để trace
+    expect(logger.withRequestId).toHaveBeenCalledWith("req-1"); // có requestId để trace
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  describe("lỗi Prisma đã biết (docs/12 BE-07)", () => {
+    function prismaError(code: string) {
+      return new Prisma.PrismaClientKnownRequestError("lỗi Prisma", {
+        code,
+        clientVersion: "5.0.0",
+      });
+    }
+
+    it("P2002 (vi phạm unique) → 409 DUPLICATE, không phải 500", () => {
+      const { req, res, next } = mockReqRes();
+      errorHandler(prismaError("P2002"), req, res, next);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Dữ liệu đã tồn tại",
+        code: "DUPLICATE",
+      });
+    });
+
+    it("P2025 (không tìm thấy bản ghi) → 404 NOT_FOUND", () => {
+      const { req, res, next } = mockReqRes();
+      errorHandler(prismaError("P2025"), req, res, next);
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Không tìm thấy dữ liệu",
+        code: "NOT_FOUND",
+      });
+    });
+
+    it("P2003 (vi phạm khoá ngoại) → 409 FOREIGN_KEY_CONSTRAINT", () => {
+      const { req, res, next } = mockReqRes();
+      errorHandler(prismaError("P2003"), req, res, next);
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Dữ liệu đang được tham chiếu ở nơi khác",
+        code: "FOREIGN_KEY_CONSTRAINT",
+      });
+    });
+
+    it("mã Prisma KHÔNG nằm trong danh sách đã biết vẫn rơi vào nhánh lỗi lạ → 500, có log", () => {
+      const { req, res, next } = mockReqRes();
+      const errorSpy = spyOnLoggerError();
+      errorHandler(prismaError("P9999"), req, res, next);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Đã có lỗi xảy ra, vui lòng thử lại",
+        code: "INTERNAL_ERROR",
+      });
+      expect(errorSpy).toHaveBeenCalled();
+    });
   });
 });
