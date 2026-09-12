@@ -40,6 +40,26 @@ export function securityAlertTemplate({ fullName }: { fullName: string }): strin
   `;
 }
 
+// fullName/label không escapeHtml() — giống securityAlertTemplate ở trên, đây là dữ liệu CHÍNH chủ
+// tài khoản tự nhập về CHÍNH mình (users.fullName, special_dates.label), gửi lại đúng cho họ, khác
+// contactMessageTemplate (dữ liệu khách LẠ nhập, gửi cho NGƯỜI KHÁC đọc — mới cần escape).
+export function specialDateReminderTemplate({
+  fullName,
+  label,
+  daysBefore,
+}: {
+  fullName: string;
+  label: string;
+  daysBefore: number;
+}): string {
+  const when = daysBefore === 0 ? "hôm nay" : `còn ${daysBefore} ngày nữa`;
+  return `
+    <p>Chào ${fullName},</p>
+    <p>Nhắc bạn: <strong>${label}</strong> ${when}!</p>
+    <p>Đặt hoa ngay hôm nay để kịp chuẩn bị một bó hoa tươi thật đẹp cho dịp này nhé.</p>
+  `;
+}
+
 // name/phone/email/message đã được escapeHtml() ở contact.service.ts TRƯỚC KHI truyền vào đây — nội
 // dung này do khách công khai tự nhập (form Liên hệ, không cần đăng nhập), không escape thì dán thẳng
 // HTML/script của khách vào email nội bộ.

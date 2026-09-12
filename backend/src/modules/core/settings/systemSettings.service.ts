@@ -40,9 +40,7 @@ export async function list(): Promise<SystemSettingDTO[]> {
 // Đọc 1 giá trị để nơi khác trong hệ thống dùng làm điều kiện nghiệp vụ (vd auth.service.ts đọc
 // `registration_enabled` trước khi cho tạo tài khoản mới) — trả `undefined` nếu key chưa được seed,
 // KHÔNG throw, để nơi gọi tự quyết định giá trị mặc định an toàn khi thiếu (xem auth.service.ts).
-export async function getValue<K extends SettingKey>(
-  key: K,
-): Promise<SettingValue<K> | undefined> {
+export async function getValue<K extends SettingKey>(key: K): Promise<SettingValue<K> | undefined> {
   const row = await prisma.systemSetting.findUnique({ where: { key } });
   return row ? JSON.parse(row.value) : undefined;
 }

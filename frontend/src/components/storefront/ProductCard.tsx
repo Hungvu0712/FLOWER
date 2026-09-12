@@ -2,13 +2,18 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { FlowerIcon } from '@/components/ui/FlowerIcon';
 import { formatVnd } from '@/lib/currency';
 import { stripHtml } from '@/lib/html';
-import { HOTLINE, ZALO_LINK } from '@/lib/contact-info';
 import { useCartStore } from '@/store/useCartStore';
 import { useToastStore } from '@/store/useToastStore';
-import type { StorefrontProduct } from '@/lib/storefront-api';
+import { WishlistButton } from './WishlistButton';
+import {
+  DEFAULT_STOREFRONT_SITE_CONTENT,
+  type StorefrontProduct,
+  type StorefrontSiteContent,
+} from '@/lib/storefront-api';
 
 // Màu nền tròn thay thế cho sản phẩm CHƯA có ảnh — đổi vòng qua mảng này theo index thay vì 1 màu cố
 // định, giữ chút sinh động khi nhiều sản phẩm liền kề đều chưa có ảnh thật (vd dữ liệu mẫu mới seed).
@@ -16,11 +21,17 @@ const PLACEHOLDER_COLORS = ['#c95b52', '#d69a3a', '#c17a4a', '#c98fae', '#7a9b6e
 
 // pointer-events-none khi ẩn — nếu không, lớp overlay (dù trong suốt) vẫn nằm ĐÈ lên toàn bộ ảnh và
 // chặn click vào Link bên dưới ngay cả lúc chưa hover. Chỉ bật lại pointer-events khi thật sự hiện.
-function QuickContactOverlay({ productName }: { productName: string }) {
+function QuickContactOverlay({
+  productName,
+  siteContent,
+}: {
+  productName: string;
+  siteContent: StorefrontSiteContent;
+}) {
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 rounded-2xl bg-ink/55 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
       <a
-        href={`tel:${HOTLINE}`}
+        href={`tel:${siteContent.hotlineTel}`}
         aria-label={`Gọi đặt ${productName}`}
         className="flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-rose hover:text-white"
       >
@@ -36,7 +47,7 @@ function QuickContactOverlay({ productName }: { productName: string }) {
         Gọi đặt
       </a>
       <a
-        href={ZALO_LINK}
+        href={siteContent.zaloLink}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`Nhắn Zalo hỏi về ${productName}`}
@@ -60,22 +71,32 @@ function QuickContactOverlay({ productName }: { productName: string }) {
 export function ProductCard({
   product,
   index = 0,
+  siteContent = DEFAULT_STOREFRONT_SITE_CONTENT,
 }: {
   product: StorefrontProduct;
   index?: number;
+  siteContent?: StorefrontSiteContent;
 }) {
   const image = product.images[0]?.file.url;
   const color = PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.length];
   const description = product.description ? stripHtml(product.description) : null;
   const addItem = useCartStore((s) => s.addItem);
   const push = useToastStore((s) => s.push);
+  const router = useRouter();
+  const hasVariants = product.variants.length > 0;
 
   function handleAddToCart() {
+    // Có biến thể (size) → phải chọn cụ thể mới biết giá thật, đưa thẳng tới trang chi tiết thay vì
+    // tự ý thêm 1 biến thể mặc định vào giỏ (dễ đặt nhầm size).
+    if (hasVariants) {
+      router.push(`/san-pham/${product.slug}`);
+      return;
+    }
     addItem({
       productId: product.id,
       name: product.name,
       slug: product.slug,
-      basePrice: product.basePrice,
+      unitPrice: product.basePrice,
       image: image ?? null,
     });
     push(`Đã thêm "${product.name}" vào giỏ hàng`);
@@ -105,7 +126,11 @@ export function ProductCard({
             </div>
           )}
         </Link>
-        <QuickContactOverlay productName={product.name} />
+        <WishlistButton
+          productId={product.id}
+          className="absolute right-3 top-3 z-10 h-8 w-8 rounded-full bg-white/90 text-ink-soft shadow-sm hover:text-rose"
+        />
+        <QuickContactOverlay productName={product.name} siteContent={siteContent} />
       </div>
       <div>
         {product.category && (
@@ -121,11 +146,13 @@ export function ProductCard({
         {description && <p className="mt-1 line-clamp-2 text-sm text-ink-muted">{description}</p>}
       </div>
       <div className="mt-auto flex items-center justify-between">
-        <span className="text-lg font-semibold text-rose">{formatVnd(product.basePrice)}</span>
+        <span className="text-lg font-semibold text-rose">
+          {hasVariants ? `Từ ${formatVnd(product.basePrice)}` : formatVnd(product.basePrice)}
+        </span>
         <button
           type="button"
           onClick={handleAddToCart}
-          aria-label={`Thêm ${product.name} vào giỏ`}
+          aria-label={hasVariants ? `Xem tuỳ chọn ${product.name}` : `Thêm ${product.name} vào giỏ`}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-rose text-white transition-colors hover:bg-rose-dark"
         >
           <svg

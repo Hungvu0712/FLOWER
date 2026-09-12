@@ -13,7 +13,9 @@ const auditLogEntrySchema = z.object({
   after: z.unknown().nullable(),
   ipAddress: z.string().nullable(),
   createdAt: z.string().datetime(),
-  actor: z.object({ id: z.string().uuid(), fullName: z.string(), email: z.string().email() }).nullable(),
+  actor: z
+    .object({ id: z.string().uuid(), fullName: z.string(), email: z.string().email() })
+    .nullable(),
 });
 
 registerRoute({

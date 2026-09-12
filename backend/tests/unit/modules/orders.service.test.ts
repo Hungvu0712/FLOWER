@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db, resetPrismaMock } from "../../mocks/prisma.mock";
 import * as auditLog from "@/modules/core/audit-log/auditLog.service";
+import * as ordersRealtime from "@/modules/domain/orders/orders.realtime";
 import * as service from "@/modules/domain/orders/orders.service";
 
 const VALID_INPUT = {
@@ -15,6 +16,8 @@ const VALID_INPUT = {
 beforeEach(() => {
   resetPrismaMock();
   vi.spyOn(auditLog, "record").mockResolvedValue(undefined);
+  vi.spyOn(ordersRealtime, "emitOrderCreated").mockImplementation(() => {});
+  vi.spyOn(ordersRealtime, "emitOrderStatusChanged").mockImplementation(() => {});
   db.order.findUnique.mockResolvedValue(null); // generateOrderCode: mã chưa tồn tại, dừng vòng lặp ngay
   db.orderItem.createMany.mockResolvedValue({});
 });
@@ -135,6 +138,201 @@ describe("create", () => {
     );
   });
 
+  it("áp dụng mã giảm giá hợp lệ — tính đúng total, tạo CouponUsage, tăng usedCount", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.coupon.findUnique.mockResolvedValue({
+      id: "c1",
+      code: "SALE10",
+      type: "percent",
+      value: 10,
+      minOrderValue: null,
+      startDate: null,
+      endDate: null,
+      usageLimit: null,
+      usedCount: 0,
+      isActive: true,
+    });
+    db.coupon.updateMany.mockResolvedValue({ count: 1 });
+    db.couponUsage.create.mockResolvedValue({});
+    db.order.create.mockResolvedValue({ id: "o1" });
+    db.order.findUniqueOrThrow.mockResolvedValue({ id: "o1" });
+
+    await service.create({ ...VALID_INPUT, couponCode: "sale10" } as never, "user-1");
+
+    expect(db.order.create.mock.calls[0]![0].data).toMatchObject({
+      subtotal: 200000,
+      discountAmount: 20000,
+      total: 180000,
+      couponCode: "SALE10",
+    });
+    expect(db.couponUsage.create.mock.calls[0]![0].data).toMatchObject({
+      couponId: "c1",
+      orderId: "o1",
+      userId: "user-1",
+      discountAmount: 20000,
+    });
+  });
+
+  it("404 COUPON_NOT_FOUND khi mã không tồn tại — KHÔNG tạo đơn", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.coupon.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.create({ ...VALID_INPUT, couponCode: "KHONGCO" } as never, undefined),
+    ).rejects.toMatchObject({ statusCode: 404, code: "COUPON_NOT_FOUND" });
+    expect(db.order.create).not.toHaveBeenCalled();
+  });
+
+  it("409 COUPON_USAGE_LIMIT_REACHED khi updateMany có điều kiện không khớp dòng nào (đã hết lượt ngay trong lúc đặt, chống race condition)", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.coupon.findUnique.mockResolvedValue({
+      id: "c1",
+      code: "SALE10",
+      type: "percent",
+      value: 10,
+      minOrderValue: null,
+      startDate: null,
+      endDate: null,
+      usageLimit: 1,
+      usedCount: 1,
+      isActive: true,
+    });
+    db.coupon.updateMany.mockResolvedValue({ count: 0 }); // race: request khác vừa dùng hết lượt cuối
+
+    await expect(
+      service.create({ ...VALID_INPUT, couponCode: "SALE10" } as never, undefined),
+    ).rejects.toMatchObject({ statusCode: 409, code: "COUPON_USAGE_LIMIT_REACHED" });
+    expect(db.order.create).not.toHaveBeenCalled();
+  });
+
+  it("không truyền couponCode — discountAmount 0, total = subtotal, không đụng bảng coupon", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.order.create.mockResolvedValue({ id: "o1" });
+    db.order.findUniqueOrThrow.mockResolvedValue({ id: "o1" });
+
+    await service.create(VALID_INPUT as never, undefined);
+
+    expect(db.order.create.mock.calls[0]![0].data).toMatchObject({
+      discountAmount: 0,
+      total: 200000,
+      couponCode: undefined,
+    });
+    expect(db.coupon.findUnique).not.toHaveBeenCalled();
+    expect(db.couponUsage.create).not.toHaveBeenCalled();
+  });
+
+  it("có variantId → dùng giá BIẾN THỂ (không phải basePrice), snapshot cả variantName", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.productVariant.findMany.mockResolvedValue([
+      { id: "v1", productId: "p1", name: "Lớn", price: 350000 },
+    ]);
+    db.order.create.mockResolvedValue({ id: "o1" });
+    db.order.findUniqueOrThrow.mockResolvedValue({ id: "o1" });
+
+    await service.create(
+      { ...VALID_INPUT, items: [{ productId: "p1", variantId: "v1", quantity: 2 }] } as never,
+      undefined,
+    );
+
+    expect(db.orderItem.createMany.mock.calls[0]![0].data).toEqual([
+      {
+        productId: "p1",
+        productName: "Hoa hồng",
+        variantId: "v1",
+        variantName: "Lớn",
+        unitPrice: 350000, // giá biến thể, KHÔNG phải basePrice 100000
+        quantity: 2,
+        subtotal: 700000,
+        orderId: "o1",
+      },
+    ]);
+  });
+
+  it("cùng productId nhưng KHÁC variantId → 2 dòng riêng, không gộp (giá khác nhau)", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.productVariant.findMany.mockResolvedValue([
+      { id: "v-nho", productId: "p1", name: "Nhỏ", price: 200000 },
+      { id: "v-lon", productId: "p1", name: "Lớn", price: 350000 },
+    ]);
+    db.order.create.mockResolvedValue({ id: "o1" });
+    db.order.findUniqueOrThrow.mockResolvedValue({ id: "o1" });
+
+    await service.create(
+      {
+        ...VALID_INPUT,
+        items: [
+          { productId: "p1", variantId: "v-nho", quantity: 1 },
+          { productId: "p1", variantId: "v-lon", quantity: 1 },
+        ],
+      } as never,
+      undefined,
+    );
+
+    expect(db.orderItem.createMany.mock.calls[0]![0].data).toHaveLength(2);
+  });
+
+  it("cùng productId + cùng variantId nhiều dòng → gộp số lượng", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.productVariant.findMany.mockResolvedValue([
+      { id: "v1", productId: "p1", name: "Lớn", price: 350000 },
+    ]);
+    db.order.create.mockResolvedValue({ id: "o1" });
+    db.order.findUniqueOrThrow.mockResolvedValue({ id: "o1" });
+
+    await service.create(
+      {
+        ...VALID_INPUT,
+        items: [
+          { productId: "p1", variantId: "v1", quantity: 1 },
+          { productId: "p1", variantId: "v1", quantity: 2 },
+        ],
+      } as never,
+      undefined,
+    );
+
+    expect(db.orderItem.createMany.mock.calls[0]![0].data).toHaveLength(1);
+    expect(db.orderItem.createMany.mock.calls[0]![0].data[0]).toMatchObject({ quantity: 3 });
+  });
+
+  it("409 PRODUCT_UNAVAILABLE khi variantId không tồn tại", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.productVariant.findMany.mockResolvedValue([]); // variantId gửi lên không khớp gì cả
+    await expect(
+      service.create(
+        {
+          ...VALID_INPUT,
+          items: [{ productId: "p1", variantId: "v-khong-ton-tai", quantity: 1 }],
+        } as never,
+        undefined,
+      ),
+    ).rejects.toMatchObject({ statusCode: 409, code: "PRODUCT_UNAVAILABLE" });
+    expect(db.order.create).not.toHaveBeenCalled();
+  });
+
+  it("409 PRODUCT_UNAVAILABLE khi variantId có thật nhưng thuộc SẢN PHẨM KHÁC (chặn giả mạo/lỗi client)", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    // v1 thật sự thuộc "p2", không phải "p1" đang gửi kèm — không được tin productId client tự khai.
+    db.productVariant.findMany.mockResolvedValue([
+      { id: "v1", productId: "p2", name: "Lớn", price: 350000 },
+    ]);
+    await expect(
+      service.create(
+        { ...VALID_INPUT, items: [{ productId: "p1", variantId: "v1", quantity: 1 }] } as never,
+        undefined,
+      ),
+    ).rejects.toMatchObject({ statusCode: 409, code: "PRODUCT_UNAVAILABLE" });
+  });
+
+  it("không có variantId thì KHÔNG truy vấn productVariant", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.order.create.mockResolvedValue({ id: "o1" });
+    db.order.findUniqueOrThrow.mockResolvedValue({ id: "o1" });
+
+    await service.create(VALID_INPUT as never, undefined);
+
+    expect(db.productVariant.findMany).not.toHaveBeenCalled();
+  });
+
   it("thử lại mã đơn khi trùng (generateOrderCode) cho tới khi tìm được mã chưa dùng", async () => {
     db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
     db.order.findUnique
@@ -146,6 +344,18 @@ describe("create", () => {
     await service.create(VALID_INPUT as never, undefined);
 
     expect(db.order.findUnique).toHaveBeenCalledTimes(2);
+  });
+
+  it("phát event realtime order:created cho dashboard quản trị SAU khi tạo đơn thành công", async () => {
+    db.product.findMany.mockResolvedValue([{ id: "p1", name: "Hoa hồng", basePrice: 100000 }]);
+    db.order.create.mockResolvedValue({ id: "o1" });
+    db.order.findUniqueOrThrow.mockResolvedValue({ id: "o1", orderCode: "HX2609100001" });
+
+    await service.create(VALID_INPUT as never, undefined);
+
+    expect(ordersRealtime.emitOrderCreated).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "o1" }),
+    );
   });
 });
 
@@ -195,6 +405,33 @@ describe("listOwn — row-level check cho module domain (docs/12 §5.1)", () => 
       take: 10,
     });
     expect(meta).toEqual({ page: 2, limit: 10, total: 50, totalPages: 5 });
+  });
+});
+
+describe("listDeliveryQueue — lịch giao hoa theo ngày (dashboard florist)", () => {
+  it("lọc đúng theo deliveryDate, loại trừ đơn đã huỷ", async () => {
+    db.order.findMany.mockResolvedValue([]);
+    await service.listDeliveryQueue({ date: "2026-12-25" } as never);
+    expect(db.order.findMany.mock.calls[0]![0].where).toEqual({
+      deliveryDate: new Date("2026-12-25T00:00:00.000Z"),
+      status: { not: "cancelled" },
+    });
+  });
+
+  it("sắp xếp theo khung giờ: sáng → chiều → tối, bất kể thứ tự trả về từ DB", async () => {
+    db.order.findMany.mockResolvedValue([
+      { id: "o-toi", deliveryTimeSlot: "toi" },
+      { id: "o-sang", deliveryTimeSlot: "sang" },
+      { id: "o-chieu", deliveryTimeSlot: "chieu" },
+    ]);
+    const result = await service.listDeliveryQueue({ date: "2026-12-25" } as never);
+    expect(result.map((o: { id: string }) => o.id)).toEqual(["o-sang", "o-chieu", "o-toi"]);
+  });
+
+  it("KHÔNG phân trang — trả thẳng mảng, không bọc meta", async () => {
+    db.order.findMany.mockResolvedValue([]);
+    const result = await service.listDeliveryQueue({ date: "2026-12-25" } as never);
+    expect(Array.isArray(result)).toBe(true);
   });
 });
 
@@ -282,5 +519,16 @@ describe("updateStatus", () => {
       "orders.update_status",
     ]);
     expect(result.status).toBe("confirmed");
+  });
+
+  it("phát event realtime order:status_changed cho CẢ dashboard quản trị lẫn khách đang xem đơn", async () => {
+    db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending" });
+    db.order.update.mockResolvedValue({ id: "o1", status: "confirmed" });
+
+    await service.updateStatus("staff-1", "o1", "confirmed", ["orders.update_status"]);
+
+    expect(ordersRealtime.emitOrderStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "o1", status: "confirmed" }),
+    );
   });
 });

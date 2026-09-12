@@ -122,6 +122,7 @@ Toàn bộ permission dưới đây được seed sẵn với `is_system = true`
 | 🌸 Domain | reviews     | `reviews.moderate`           | Duyệt/ẩn đánh giá                                                                                  |
 | 🌸 Domain | reports     | `reports.view`               | Xem thống kê doanh thu, báo cáo                                                                    |
 | 🌸 Domain | blog        | `blog.manage`                | Quản lý bài viết blog, banner                                                                      |
+| 🌸 Domain | site_content | `site_content.manage`       | Sửa banner Hero, hotline, Zalo, địa chỉ, giờ mở cửa hiển thị trên storefront — KHÁC `settings.manage` (cấp cho cả `admin`, không chỉ `super_admin`), xem [modules/domain-site-content.md](modules/domain-site-content.md) |
 | 🔧 Core   | users       | `users.manage` 🔒            | Block/unblock, reset password, đổi role user (**chỉ `super_admin`**, xem ràng buộc ở mục 2.1)      |
 | 🔧 Core   | settings    | `settings.manage` 🔒         | Cấu hình hệ thống, API key thanh toán/email, **bật/tắt phương thức đăng nhập** (chỉ `super_admin`) |
 | 🔧 Core   | roles       | `roles.manage` 🔒            | Tạo/sửa/xoá role tuỳ ý, gán permission cho role (chỉ `super_admin`)                                |
@@ -150,6 +151,7 @@ Toàn bộ permission dưới đây được seed sẵn với `is_system = true`
 | reviews.moderate              |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | reports.view                  |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | blog.manage                   |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
+| site_content.manage           |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | files.manage                  |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | contact.manage                |     ✅      |  ✅   |       –       |              –               |            –             |               –               |
 | users.manage                  |     ✅      |   –   |       –       |              –               |            –             |               –               |
@@ -257,8 +259,8 @@ Frontend có **3 lớp chặn**, nhưng chỉ lớp backend là bảo mật th�
 | ✅ `role_permissions` | role_id, permission_id                                                                                                                                                                                                  |                                                               |
 | ✅ `user_roles`       | user_id, role_id                                                                                                                                                                                                        |                                                               |
 | ✅ `audit_logs`       | id, actor_id (FK → users, nullable nếu hệ thống tự động), action (`user.block`, `role.create`, `permission.delete`...), entity_type, entity_id, before (JSONB), after (JSONB), ip_address, created_at                   | Ghi mọi thao tác nhạy cảm — xem [Bảo mật §2](07-bao-mat.md) |
-| ⬜ `addresses`        | id, user_id, recipient_name, phone, address_line, ward, district, city, is_default                                                                                                                                      | Sổ địa chỉ người nhận                                         |
-| ⬜ `special_dates`    | id, user_id, label, date, remind_days_before                                                                                                                                                                            | Nhắc lịch sinh nhật/kỷ niệm                                   |
+| ✅ `addresses`        | id, user_id, recipient_name, recipient_phone, address_line, ward, district, city, is_default                                                                                                                            | Sổ địa chỉ người nhận — thuần dữ liệu cá nhân, KHÔNG permission riêng (chỉ cần đăng nhập, giống `/account/profile`) — xem [docs/modules/domain-addresses.md](docs/modules/domain-addresses.md) |
+| ✅ `special_dates`    | id, user_id, label, date, remind_days_before, last_reminded_year                                                                                                                                                        | Nhắc lịch sinh nhật/kỷ niệm — `date` chỉ THÁNG-NGÀY có ý nghĩa (lặp lại hằng năm), `last_reminded_year` chống gửi email nhắc trùng — job nền hằng ngày (`jobs/sendSpecialDateReminders.job.ts`), KHÔNG permission riêng (chỉ cần đăng nhập, giống `addresses`) — xem [docs/modules/domain-special-dates.md](docs/modules/domain-special-dates.md) |
 
 ### 3.2. Nhóm Xác thực & Phiên đăng nhập
 
@@ -297,32 +299,33 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 | Bảng                | Cột chính                                                                                   | Ghi chú                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | ✅ `categories`        | id, name, slug, description, image_file_id (FK → `files`), parent_id, sort_order, is_active | Danh mục con dạng cây; ảnh qua `image_file_id` (tái sử dụng module Files, không lưu URL thô) |
-| ⬜ `occasions`         | id, name (Sinh nhật, Valentine...)                                                          | Tag dịp lễ                                                                                   |
-| ✅ `products`          | id, name, slug, description, base_price (Int, VND không có đơn vị lẻ), category_id, is_active, deleted_at | **Không có tồn kho** — hoa tươi làm theo đơn/theo mẫu, không phải hàng lưu kho theo SKU cố định (chưa có `product_variants`, xem dòng dưới) — soft delete (`deleted_at`, khác `categories` hard delete) vì `order_items` sẽ tham chiếu sau này |
+| ✅ `occasions`         | id, name, slug, sort_order, is_active                                                       | Tag dịp lễ (Sinh nhật, Valentine...) — phẳng (không cây như `categories`), n-n với `products` qua `product_occasions`, dùng LẠI permission `categories.manage` — xem [docs/modules/domain-occasions.md](docs/modules/domain-occasions.md) |
+| ✅ `products`          | id, name, slug, description, base_price (Int, VND không có đơn vị lẻ), category_id, is_active, deleted_at | **Không có tồn kho** — hoa tươi làm theo đơn/theo mẫu, không phải hàng lưu kho theo SKU cố định — soft delete (`deleted_at`, khác `categories` hard delete) vì `order_items` sẽ tham chiếu sau này |
 | ✅ `product_images`    | id, product_id, file_id (FK → `files`), sort_order                                          | Thư viện nhiều ảnh/sản phẩm (khác `categories` chỉ 1 ảnh đại diện) — ảnh qua `file_id`, không lưu URL thô, giống `categories.image_file_id` |
-| ⬜ `product_variants`  | id, product_id, name (Nhỏ/Vừa/Lớn), price                                                   | Chưa làm — nếu làm, KHÔNG kèm tồn kho theo variant (lý do như `products` ở trên)             |
-| ⬜ `product_occasions` | product_id, occasion_id                                                                     | n-n                                                                                          |
-| ⬜ `reviews`           | id, product_id, user_id, rating, comment, images, is_approved, created_at                   |                                                                                              |
-| ⬜ `wishlists`         | user_id, product_id                                                                         |                                                                                              |
+| ✅ `product_variants`  | id, product_id, name (Nhỏ/Vừa/Lớn), price, sort_order                                       | Mốc giá riêng theo size — KHÔNG kèm tồn kho theo variant (lý do như `products` ở trên). Đồng bộ kiểu thay thế toàn bộ danh sách nhưng GIỮ NGUYÊN `id` của biến thể đang sửa (khớp id → update, id lạ/không có → tạo mới, id vắng mặt → xoá) để không vỡ `order_items.variant_id` của đơn cũ — xem [docs/modules/domain-products.md §8](docs/modules/domain-products.md) |
+| ✅ `product_occasions` | product_id, occasion_id (composite PK)                                                      | Bảng nối n-n thuần — khuôn mẫu giống `role_permissions`/`user_roles` (composite PK tường minh, KHÔNG dùng implicit many-to-many của Prisma); `onDelete: Cascade` cả 2 chiều, xoá occasion chỉ gỡ tag, KHÔNG chặn như `categories` |
+| ✅ `reviews`           | id, product_id, user_id, rating, comment, is_approved, created_at, updated_at                | Mặc định `is_approved: false` (chờ duyệt); CHƯA có `images` (đơn giản hoá MVP) — permission `reviews.moderate` — xem [docs/modules/domain-reviews.md](docs/modules/domain-reviews.md) |
+| ✅ `wishlists`         | user_id, product_id (composite PK)                                                          | Bảng nối n-n thuần, cùng khuôn mẫu `product_occasions` — idempotent thêm/xoá — xem [docs/modules/domain-wishlist.md](docs/modules/domain-wishlist.md) |
 
 ### 3.5. Nhóm Giỏ hàng & Đơn hàng
 
 | Bảng                   | Cột chính                                                                                                            | Ghi chú                                        |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | — `carts`/`cart_items`   | (không làm)                                                                                                           | Giỏ hàng lưu Ở CLIENT (Zustand + localStorage), không có bảng — xem [modules/domain-orders.md §1](modules/domain-orders.md#1-quyết-định-kiến-trúc-giỏ-hàng-ở-client-không-phải-bảng-carts) |
-| ✅ `orders`               | id, user_id (nullable), order_code, status, subtotal, total, payment_method, recipient_name, recipient_phone, delivery_address, delivery_date, delivery_time_slot, note | **Giai đoạn cơ bản** — nhúng thẳng field giao hàng (không tách `order_deliveries`), chưa có `discount`/`shipping_fee`/`payment_status` (chưa coupon/ship/thanh toán online). `id` (UUID) đóng vai trò token tra cứu công khai, `order_code` chỉ để hiển thị — xem [modules/domain-orders.md §2](modules/domain-orders.md#2-schema--rút-gọn-so-với-bản-phác-thảo-đầy-đủ) |
+| ✅ `orders`               | id, user_id (nullable), order_code, status, subtotal, coupon_code, discount_amount, total, payment_method, recipient_name, recipient_phone, delivery_address, delivery_date, delivery_time_slot, note | **Giai đoạn cơ bản** — nhúng thẳng field giao hàng (không tách `order_deliveries`), chưa có `shipping_fee`/`payment_status` (chưa ship/thanh toán online). CÓ `coupon_code`/`discount_amount` (snapshot mã giảm giá — xem [docs/modules/domain-coupons.md](docs/modules/domain-coupons.md)). `id` (UUID) đóng vai trò token tra cứu công khai, `order_code` chỉ để hiển thị — xem [modules/domain-orders.md §2](modules/domain-orders.md#2-schema--rút-gọn-so-với-bản-phác-thảo-đầy-đủ) |
 | ✅ `order_items`          | id, order_id, product_id (nullable), product_name, unit_price, quantity, subtotal                                    | Snapshot tên/giá tại thời điểm đặt. Chưa có `variant_id`/`card_message` riêng (dùng chung `orders.note`) |
 | ⬜ `order_deliveries`     | order_id, recipient_name, recipient_phone, address, delivery_date, delivery_time_slot, shipper_id                    | Tách ra khi có màn phân công shipper thật — hiện field này nằm thẳng trên `orders` |
 | — `order_status_history` | (không làm)                                                                                                           | Dùng lại `AuditLog` chung (`action: 'order.update_status'`), không xây bảng lịch sử riêng |
 | ⬜ `payments`             | id, order_id, provider, transaction_id, amount, status, paid_at                                                      | Chưa có — hiện chỉ COD (`orders.payment_method = 'cod'` cố định)                             |
-| ⬜ `coupons`              | id, code, type, value, min_order_value, start_date, end_date, usage_limit                                            |                                                |
-| ⬜ `coupon_usages`        | coupon_id, order_id, user_id                                                                                         |                                                |
+| ✅ `coupons`              | id, code, type, value, min_order_value, start_date, end_date, usage_limit, used_count, is_active                     | `used_count` đếm sẵn (denormalized), tăng ATOMIC trong transaction tạo đơn để chống race condition — permission `promotions.manage` — xem [docs/modules/domain-coupons.md](docs/modules/domain-coupons.md) |
+| ✅ `coupon_usages`        | id, coupon_id, order_id (unique — 1 đơn tối đa 1 mã), user_id (nullable), discount_amount, created_at                | Bản ghi LỊCH SỬ dùng mã (snapshot `discount_amount`), không phải nơi tính lại số dư lượt dùng |
 
 ### 3.6. Nhóm Nội dung & Thông báo
 
 | Bảng            | Cột chính                                                                                                                            | Ghi chú                    |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------- |
-| ⬜ `blog_posts`    | id, author_id, title, slug, content, thumbnail_file_id, published_at                                                                 |                            |
+| ✅ `blog_posts`    | id, author_id (nullable), title, slug, excerpt, content, thumbnail_file_id, published_at, deleted_at | `published_at` null = draft, có giá trị = đã/sẽ xuất bản (`<= now()` mới hiện công khai — cho phép LÊN LỊCH) — permission `blog.manage` — xem [docs/modules/domain-blog.md](docs/modules/domain-blog.md) |
+| ✅ `newsletter_subscribers` | id, email (unique), is_active, subscribed_at, unsubscribed_at | Giai đoạn THU THẬP email — chưa có gửi campaign hàng loạt — dùng LẠI permission `blog.manage` cho màn xem quản trị — xem [docs/modules/domain-blog.md §3](docs/modules/domain-blog.md) |
 | ⬜ `notifications` | id, user_id, type, message, is_read, created_at                                                                                      |                            |
 | ✅ `email_logs`    | id, to_email, type (`welcome`, `magic_link`, `password_reset`, `order_confirmation`...), status, provider_message_id, error, sent_at | Audit email gửi qua Resend |
 | ✅ `contact_messages` | id, name, phone, email (nullable), message, is_handled, created_at | Khách gửi qua form Liên hệ công khai (`POST /api/v1/contact`, có rate limit theo IP) — xem [modules/core-contact.md](modules/core-contact.md) |
@@ -363,8 +366,13 @@ flowchart TB
         CA["categories ✅"]
         PRD["products ✅"]
         ORD["orders ✅ (cơ bản)"]
-        REV["reviews ⬜"]
-        BLOG["blog_posts ⬜"]
+        ADDR["addresses ✅"]
+        WL["wishlists ✅"]
+        REV["reviews ✅"]
+        CPN["coupons ✅"]
+        BLOG["blog_posts ✅"]
+        NEWS["newsletter_subscribers ✅"]
+        SPD["special_dates ✅"]
     end
 
     U --> UR --> RO --> RP --> PE
@@ -379,6 +387,10 @@ flowchart TB
     PRD --> REV
     U --> REV
     CA --> PRD
+    CPN -.->|coupon_code snapshot| ORD
+    U -.->|author_id, nullable| BLOG
+    BLOG -->|thumbnail_file_id| FI
+    U --> SPD
 
     style CORE fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
     style DOMAIN fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
@@ -465,13 +477,15 @@ erDiagram
 ```
 
 #### Chi tiết — nhóm Domain (⬜ thiết kế, chưa tạo bảng trừ `categories`, `products`, `product_images`,
-`orders`, `order_items`)
+`product_variants`, `occasions`, `product_occasions`, `orders`, `order_items`, `addresses`, `wishlists`,
+`reviews`, `coupons`, `coupon_usages`)
 
 > `orders`/`order_items` **đã tạo** nhưng ở bản RÚT GỌN hơn sơ đồ đầy đủ dưới đây (chưa `order_deliveries`
-> riêng, chưa `payments`/`coupons`, kiểu tiền dùng `Int` như `products.base_price` chứ không phải
-> `decimal`) — xem đúng schema đã build ở [§3.5](#35-nhóm-giỏ-hàng--đơn-hàng) và
-> [modules/domain-orders.md](modules/domain-orders.md). Sơ đồ dưới vẫn giữ nguyên làm bản thiết kế đầy
-> đủ cho các giai đoạn sau (thanh toán online, phân công shipper, coupon...).
+> riêng, chưa `payments`, kiểu tiền dùng `Int` như `products.base_price` chứ không phải `decimal`) —
+> xem đúng schema đã build ở [§3.5](#35-nhóm-giỏ-hàng--đơn-hàng) và
+> [modules/domain-orders.md](modules/domain-orders.md). `coupons`/`coupon_usages` **đã tạo** đúng như
+> sơ đồ dưới — xem [modules/domain-coupons.md](modules/domain-coupons.md). Sơ đồ dưới vẫn giữ nguyên
+> làm bản thiết kế đầy đủ cho các giai đoạn sau (thanh toán online, phân công shipper...).
 
 ```mermaid
 erDiagram
@@ -551,7 +565,7 @@ Khi khởi tạo DB, cần seed sẵn (chia 2 file theo [Kiến trúc §2.1](02-
 4. `login_method_settings`: cả 3 phương thức (`google_oauth`, `email_password`, `magic_link`) mặc định `is_enabled = true`.
 5. `system_settings`: `site_name = "Hoa Xinh"`, `site_logo = null`, `timezone = "Asia/Ho_Chi_Minh"`, `registration_enabled = true`.
 
-**`domain.seed.ts`** (shop hoa) 5. Role `sales_staff`, `florist`, `shipper`. 6. Permission 🌸 Domain ở mục 2.3 (`products.*`, `orders.*`, `categories.manage`...). 7. Ma trận `role_permissions` theo mục 2.4 (gộp cả permission core lẫn domain). 8. Danh mục/dịp lễ mẫu (`categories`, `occasions`) nếu muốn có sẵn dữ liệu demo.
+**`domain.seed.ts`** (shop hoa) 5. Role `sales_staff`, `florist`, `shipper`. 6. Permission 🌸 Domain ở mục 2.3 (`products.*`, `orders.*`, `categories.manage`, `site_content.manage`...). 7. Ma trận `role_permissions` theo mục 2.4 (gộp cả permission core lẫn domain). 8. Danh mục/dịp lễ mẫu (`categories`, `occasions`) nếu muốn có sẵn dữ liệu demo. 9. `system_settings` (namespace site content, khác dòng 5 ở trên): `hero_banner = null`, `hotline`, `zalo_link`, `address`, `open_hours` — giá trị mẫu, admin sửa qua `/admin/site-content`.
 
 > ⚠️ **Cả 2 file PHẢI gán `role_permissions` kiểu THÊM (`createMany` + `skipDuplicates`), KHÔNG BAO
 > GIỜ `deleteMany` trước khi gán lại** cho `admin`/`super_admin` — 2 role này bị **cả 2 file cùng

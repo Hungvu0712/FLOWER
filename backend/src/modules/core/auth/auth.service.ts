@@ -181,15 +181,23 @@ export async function requestMagicLink(input: { email: string }): Promise<void> 
   await assertMethodEnabled("magic_link", "Đăng nhập bằng magic link");
 
   const user = await repo.findUserByEmail(input.email);
-  // Không tiết lộ email có tồn tại hay không qua response — luôn trả về thành công.
-  if (user && user.status !== "blocked" && !user.deletedAt) {
+  // docs/12 BE-20: email CHƯA có tài khoản cũng được gửi link — magic link kiêm vai trò "đăng ký
+  // nhanh" (verifyMagicLink() tự tạo tài khoản khi xác nhận, xem hàm đó bên dưới). Chỉ chặn khi email
+  // đã có tài khoản nhưng đang bị khoá/xoá mềm (không cho họ "lách" qua magic link để vào lại) HOẶC
+  // registration_enabled đang tắt (không tạo tài khoản mới). Không tiết lộ email có tồn tại/bị khoá
+  // hay không qua response — luôn trả về thành công (chống dò tài khoản, xem docs/07 §1).
+  const blocked = user ? user.status === "blocked" || Boolean(user.deletedAt) : false;
+  const registrationBlocked =
+    !user && (await systemSettings.getValue("registration_enabled")) === false;
+
+  if (!blocked && !registrationBlocked) {
     const token = generateRandomToken();
     const tokenHash = sha256(token);
     const expiresAt = new Date(Date.now() + env.magicLink.ttlMinutes * 60 * 1000);
 
     await repo.createMagicLinkToken({
       email: input.email,
-      userId: user.id,
+      userId: user?.id,
       tokenHash,
       expiresAt,
     });
@@ -223,10 +231,11 @@ export async function verifyMagicLink(token: string): Promise<User> {
     ? await repo.findUserById(record.userId)
     : await repo.findUserByEmail(record.email);
   if (!user) {
-    // Email chưa từng có tài khoản — magic link đóng luôn vai trò "đăng ký nhanh". LƯU Ý: nhánh này
-    // hiện KHÔNG reachable qua luồng thật — requestMagicLink() chỉ tạo token khi email đã có tài
-    // khoản (xem hàm đó phía trên), nên record.userId luôn có giá trị thật. Giữ nguyên nhánh phòng hờ
-    // (và để assertRegistrationEnabled ở đây nếu sau này được nối lại) — xem docs/12 BE-20.
+    // Email chưa từng có tài khoản — magic link đóng luôn vai trò "đăng ký nhanh" (docs/12 BE-20,
+    // nối lại 11/09/2026 — requestMagicLink() giờ cũng gửi link cho email lạ, xem hàm đó phía trên).
+    // assertRegistrationEnabled() ở đây là phòng hờ race hiếm: registration_enabled bị tắt ĐÚNG lúc
+    // giữa khi gửi link và khi xác nhận link (requestMagicLink() đã kiểm tra rồi, nhưng giá trị có
+    // thể đổi trong khoảng TTL 15 phút của link).
     await assertRegistrationEnabled();
     user = await repo.createUserWithMemberRole({
       fullName: record.email.split("@")[0] ?? record.email,

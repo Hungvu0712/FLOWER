@@ -12,7 +12,8 @@ const { categoriesService } = await import('@/features/domain/categories/categor
 const { adminUsersService } = await import('@/features/core/admin-users/adminUsers.service');
 const { foldersService } = await import('@/features/core/files/folders.service');
 const { filesService } = await import('@/features/core/files/files.service');
-const { systemSettingsService } = await import('@/features/core/admin-settings/systemSettings.service');
+const { systemSettingsService } =
+  await import('@/features/core/admin-settings/systemSettings.service');
 
 // `api.get/post/...` là hàm generic có nhiều overload nên `vi.mocked()` không suy ra được kiểu mock —
 // ép kiểu tường minh sang Mock để dùng `.mockReturnValue()` / `.mock.calls`.
@@ -119,10 +120,14 @@ describe('foldersService', () => {
   it('list gọi GET /api/v1/folders kèm parentId (bỏ trống = cấp gốc)', async () => {
     mocked.get.mockReturnValue(envelope([]) as never);
     await foldersService.list('folder-1');
-    expect(mocked.get).toHaveBeenCalledWith('/api/v1/folders', { params: { parentId: 'folder-1' } });
+    expect(mocked.get).toHaveBeenCalledWith('/api/v1/folders', {
+      params: { parentId: 'folder-1' },
+    });
 
     await foldersService.list();
-    expect(mocked.get).toHaveBeenLastCalledWith('/api/v1/folders', { params: { parentId: undefined } });
+    expect(mocked.get).toHaveBeenLastCalledWith('/api/v1/folders', {
+      params: { parentId: undefined },
+    });
   });
 
   it('create/update/remove gọi đúng method và path', async () => {

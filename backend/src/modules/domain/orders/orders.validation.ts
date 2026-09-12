@@ -4,6 +4,9 @@ import { z } from "zod";
 // mặt spam/abuse (còn có rate limit theo IP ở orders.routes.ts).
 const orderItemSchema = z.object({
   productId: z.string().uuid(),
+  // Bỏ trống = sản phẩm không có biến thể, dùng thẳng basePrice. Có giá trị = phải khớp ĐÚNG 1 biến
+  // thể thuộc CHÍNH productId này (kiểm tra thật ở orders.service.ts, không chỉ tin id gửi lên).
+  variantId: z.string().uuid().optional(),
   // Tối đa 50/dòng — hoa tươi làm theo đơn thủ công, số lượng lớn bất thường nhiều khả năng là input
   // rác hơn là nhu cầu thật; đơn thật sự lớn thì khách gọi trực tiếp thay vì qua form.
   quantity: z.number().int().min(1).max(50),
@@ -33,6 +36,9 @@ export const createOrderSchema = z.object({
     }, "Ngày giao phải từ hôm nay trở đi"),
   deliveryTimeSlot: z.enum(ORDER_TIME_SLOTS),
   note: z.string().trim().max(500).optional(),
+  // Tuỳ chọn — mã được validate lại THẬT (không tin kết quả /coupons/validate trước đó) trong cùng
+  // transaction tạo đơn ở orders.service.ts, xem coupons.service.ts#checkCoupon().
+  couponCode: z.string().trim().min(1).max(30).optional(),
   // Honeypot chống bot — field ẩn bằng CSS (không phải type="hidden") ở form thật, người dùng thật
   // không bao giờ thấy/điền được (aria-hidden + tabIndex -1 + đưa ra khỏi màn hình), bot điền form tự
   // động (không render CSS) thường điền vào MỌI field nhìn thấy trong DOM. KHÔNG validate strict ở
@@ -70,3 +76,11 @@ export const listOwnOrdersQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(24),
 });
 export type ListOwnOrdersQuery = z.infer<typeof listOwnOrdersQuerySchema>;
+
+// Lịch giao hoa theo ngày (dashboard florist) — permission RIÊNG `orders.view_delivery_queue`, hẹp
+// hơn `orders.view_all` (chỉ xem đơn của 1 NGÀY, không phải toàn bộ hệ thống). `date` bắt buộc — view
+// theo NGÀY, không phải danh sách không giới hạn thời gian. Xem docs/modules/domain-orders.md §9.
+export const listDeliveryQueueQuerySchema = z.object({
+  date: z.string().regex(isoDatePattern, "Ngày không hợp lệ (định dạng YYYY-MM-DD)"),
+});
+export type ListDeliveryQueueQuery = z.infer<typeof listDeliveryQueueQuerySchema>;

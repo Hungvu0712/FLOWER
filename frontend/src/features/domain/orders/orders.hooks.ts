@@ -27,8 +27,16 @@ export function useUpdateOrderStatus() {
       ordersService.updateStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'delivery-queue'] });
       push('Đã cập nhật trạng thái đơn');
     },
     onError: (error) => push(getErrorMessage(error, 'Không cập nhật được trạng thái'), 'error'),
+  });
+}
+
+export function useDeliveryQueue(date: string) {
+  return useQuery({
+    queryKey: ['admin', 'delivery-queue', date],
+    queryFn: () => ordersService.listDeliveryQueue(date),
   });
 }

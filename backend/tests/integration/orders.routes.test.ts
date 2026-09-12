@@ -152,6 +152,41 @@ describe("GET /api/v1/account/orders — row-level check cho module domain (docs
   });
 });
 
+describe("GET /api/v1/admin/orders/delivery-queue — lịch giao hoa theo ngày (dashboard florist)", () => {
+  it("florist có orders.view_delivery_queue nhưng KHÔNG có orders.view_all vẫn gọi được", async () => {
+    const cookie = loginAs("florist-1", ["florist"], ["orders.view_delivery_queue"]);
+    db.order.findMany.mockResolvedValue([]);
+    const res = await request(app)
+      .get("/api/v1/admin/orders/delivery-queue?date=2026-12-25")
+      .set("Cookie", cookie);
+    expect(res.status).toBe(200);
+  });
+
+  it("403 khi thiếu orders.view_delivery_queue (kể cả có orders.view_all)", async () => {
+    const cookie = loginAs("staff-1", ["sales_staff"], ["orders.view_all"]);
+    const res = await request(app)
+      .get("/api/v1/admin/orders/delivery-queue?date=2026-12-25")
+      .set("Cookie", cookie);
+    expect(res.status).toBe(403);
+  });
+
+  it("422 khi thiếu query date", async () => {
+    const cookie = loginAs("florist-1", ["florist"], ["orders.view_delivery_queue"]);
+    const res = await request(app).get("/api/v1/admin/orders/delivery-queue").set("Cookie", cookie);
+    expect(res.status).toBe(422);
+  });
+
+  it("KHÔNG bị nuốt bởi route '/:id' — trả danh sách, không phải lỗi validate UUID", async () => {
+    const cookie = loginAs("florist-1", ["florist"], ["orders.view_delivery_queue"]);
+    db.order.findMany.mockResolvedValue([]);
+    const res = await request(app)
+      .get("/api/v1/admin/orders/delivery-queue?date=2026-12-25")
+      .set("Cookie", cookie);
+    expect(res.status).not.toBe(422);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+});
+
 describe("GET /api/v1/admin/orders", () => {
   it("liệt kê đơn cho staff có orders.view_all", async () => {
     const cookie = loginAs("staff-1", ["sales_staff"], ["orders.view_all"]);

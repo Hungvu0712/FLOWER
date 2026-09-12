@@ -6,6 +6,17 @@ export type ProductImage = {
   file: { id: string; url: string };
 };
 
+// Mảng rỗng = sản phẩm không có biến thể, dùng thẳng basePrice — xem docs/05 §3.4.
+export type ProductVariant = {
+  id: string;
+  name: string;
+  price: number;
+  sortOrder: number;
+};
+
+// Tag dịp lễ (Sinh nhật, Valentine...) — 1 sản phẩm gắn được NHIỀU dịp lễ (n-n), khác category (1-n).
+export type ProductOccasion = { id: string; name: string; slug: string };
+
 export type Product = {
   id: string;
   name: string;
@@ -18,7 +29,13 @@ export type Product = {
   updatedAt: string;
   category: { id: string; name: string; slug: string } | null;
   images: ProductImage[];
+  variants: ProductVariant[];
+  occasions: ProductOccasion[];
 };
+
+// `id` chỉ có khi SỬA 1 biến thể đã tồn tại — bỏ trống = tạo mới. Gửi lại TOÀN BỘ danh sách là thay
+// thế hoàn toàn bộ biến thể cũ, giống ngữ nghĩa imageFileIds — xem backend products.service.ts.
+export type ProductVariantInput = { id?: string; name: string; price: number };
 
 export type CreateProductInput = {
   name: string;
@@ -28,6 +45,8 @@ export type CreateProductInput = {
   categoryId?: string | null;
   isActive?: boolean;
   imageFileIds?: string[];
+  variants?: ProductVariantInput[];
+  occasionIds?: string[];
 };
 export type UpdateProductInput = Partial<CreateProductInput>;
 

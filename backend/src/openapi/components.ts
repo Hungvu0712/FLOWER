@@ -15,7 +15,8 @@ registry.registerComponent("securitySchemes", "bearerAuth", {
   type: "http",
   scheme: "bearer",
   bearerFormat: "JWT",
-  description: "Dùng cho client không phải trình duyệt: header `Authorization: Bearer <access_token>`.",
+  description:
+    "Dùng cho client không phải trình duyệt: header `Authorization: Bearer <access_token>`.",
 });
 // [{cookieAuth: []}, {bearerAuth: []}] khớp shape SecurityRequirementObject[] của openapi3-ts (không
 // import trực tiếp package đó — dependency GIÁN TIẾP qua zod-to-openapi, không khai trong package.json
@@ -158,7 +159,9 @@ export function registerRoute(config: RegisterRouteConfig): void {
   if (config.request?.params) request.params = config.request.params;
 
   const permissionNote =
-    config.auth && config.auth.permission ? `Yêu cầu quyền \`${config.auth.permission}\`.` : undefined;
+    config.auth && config.auth.permission
+      ? `Yêu cầu quyền \`${config.auth.permission}\`.`
+      : undefined;
 
   registry.registerPath({
     method: config.method,

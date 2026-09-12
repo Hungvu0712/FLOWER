@@ -15,6 +15,14 @@ import type {
 // phẩm). Xem filesService.syncEntityFiles và bảng file_usages ở docs/05 §3.3.
 const PRODUCT_IMAGE_ENTITY_TYPE = "product_image";
 
+// Chọn qua bảng nối product_occasions rồi tự làm phẳng ở mapOccasions() bên dưới — Prisma không tự
+// "unwrap" quan hệ n-n kiểu role_permissions (bảng nối tường minh, không phải implicit m-n), nên kết
+// quả thô là { occasion: {...} }[], cần map lại thành { id, name, slug }[] cho gọn giống images/variants.
+const OCCASIONS_SELECT = {
+  orderBy: { occasion: { sortOrder: "asc" } },
+  select: { occasion: { select: { id: true, name: true, slug: true } } },
+} as const;
+
 const PRODUCT_SELECT = {
   id: true,
   name: true,
@@ -30,6 +38,11 @@ const PRODUCT_SELECT = {
     orderBy: { sortOrder: "asc" },
     select: { id: true, sortOrder: true, file: { select: { id: true, url: true } } },
   },
+  variants: {
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true, price: true, sortOrder: true },
+  },
+  occasions: OCCASIONS_SELECT,
 } as const;
 
 // Dùng cho storefront (public) — KHÔNG lộ isActive/createdAt/updatedAt/categoryId (nội bộ, và
@@ -46,7 +59,22 @@ const PRODUCT_PUBLIC_SELECT = {
     orderBy: { sortOrder: "asc" },
     select: { id: true, sortOrder: true, file: { select: { id: true, url: true } } },
   },
+  variants: {
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true, price: true },
+  },
+  occasions: OCCASIONS_SELECT,
 } as const;
+
+type OccasionJoinRow = { occasion: { id: string; name: string; slug: string } };
+
+// Làm phẳng { occasions: { occasion: {...} }[] } → { occasions: {...}[] } — áp dụng cho MỌI kết quả
+// trả ra ngoài (list/listPublic/getPublicBySlug/create/update), giữ shape nhất quán với images/variants.
+function mapOccasions<T extends { occasions: OccasionJoinRow[] }>(
+  product: T,
+): Omit<T, "occasions"> & { occasions: { id: string; name: string; slug: string }[] } {
+  return { ...product, occasions: product.occasions.map((po) => po.occasion) };
+}
 
 // Tự thêm hậu tố -2, -3... nếu slug đã tồn tại — giống categories.service.ts (mỗi module domain tự
 // giữ bản riêng, không tách chung — xem README.md về triết lý core vs domain của source base này).
@@ -79,11 +107,83 @@ async function replaceImages(productId: string, imageFileIds: string[] | undefin
   });
 }
 
-export async function list({ includeInactive, categoryId, page, limit }: ListProductsQuery) {
+// Thay thế TOÀN BỘ bộ biến thể — giống replaceImages() nhưng mỗi phần tử có trường ĐANG SỬA được
+// (name/price), không chỉ 1 danh sách fileId đơn thuần, nên không thể xoá-hết-rồi-tạo-lại vô điều
+// kiện (sẽ đổi `id` của mọi biến thể mỗi lần lưu, phá liên kết order_items.variant_id của các đơn ĐÃ
+// đặt trước đó dùng variant đó). Thay vào đó: cập nhật theo `id` nếu có VÀ id đó thật sự thuộc sản
+// phẩm này, còn lại (không có `id`, hoặc `id` lạ/của sản phẩm khác) coi như tạo mới; biến thể cũ
+// không còn trong danh sách mới gửi lên thì xoá (order_items cũ vẫn hiển thị đúng nhờ đã snapshot
+// variantName/unitPrice, variantId chỉ SetNull — xem schema.prisma).
+async function replaceVariants(
+  productId: string,
+  variants: { id?: string; name: string; price: number }[] | undefined,
+): Promise<void> {
+  if (variants === undefined) return;
+
+  const current = await prisma.productVariant.findMany({
+    where: { productId },
+    select: { id: true },
+  });
+  const currentIds = new Set(current.map((v) => v.id));
+  const keepIds = variants
+    .filter((v): v is { id: string; name: string; price: number } => !!v.id && currentIds.has(v.id))
+    .map((v) => v.id);
+
+  await prisma.productVariant.deleteMany({ where: { productId, id: { notIn: keepIds } } });
+
+  for (const [index, v] of variants.entries()) {
+    if (v.id && currentIds.has(v.id)) {
+      await prisma.productVariant.update({
+        where: { id: v.id },
+        data: { name: v.name, price: v.price, sortOrder: index },
+      });
+    } else {
+      await prisma.productVariant.create({
+        data: { productId, name: v.name, price: v.price, sortOrder: index },
+      });
+    }
+  }
+}
+
+// Thay thế TOÀN BỘ danh sách occasion đang gắn — khác replaceVariants() (không cần giữ `id` qua các
+// lần lưu vì product_occasions không có gì tham chiếu ngược, giống hệt replaceImages()). Validate
+// TRƯỚC khi xoá dữ liệu cũ — occasionId lạ sẽ 404 mà KHÔNG làm mất các tag đã gắn trước đó.
+async function replaceOccasions(
+  productId: string,
+  occasionIds: string[] | undefined,
+): Promise<void> {
+  if (occasionIds === undefined) return;
+
+  if (occasionIds.length > 0) {
+    const found = await prisma.occasion.findMany({
+      where: { id: { in: occasionIds } },
+      select: { id: true },
+    });
+    if (found.length !== occasionIds.length) {
+      throw new AppError("Một hoặc nhiều dịp lễ không tồn tại", 404, "OCCASION_NOT_FOUND");
+    }
+  }
+
+  await prisma.productOccasion.deleteMany({ where: { productId } });
+  if (occasionIds.length > 0) {
+    await prisma.productOccasion.createMany({
+      data: occasionIds.map((occasionId) => ({ productId, occasionId })),
+    });
+  }
+}
+
+export async function list({
+  includeInactive,
+  categoryId,
+  occasionId,
+  page,
+  limit,
+}: ListProductsQuery) {
   const where = {
     deletedAt: null,
     ...(includeInactive ? {} : { isActive: true }),
     ...(categoryId && { categoryId }),
+    ...(occasionId && { occasions: { some: { occasionId } } }),
   };
   const [items, total] = await Promise.all([
     prisma.product.findMany({
@@ -95,12 +195,17 @@ export async function list({ includeInactive, categoryId, page, limit }: ListPro
     }),
     prisma.product.count({ where }),
   ]);
-  return { items, meta: buildPaginationMeta(page, limit, total) };
+  return { items: items.map(mapOccasions), meta: buildPaginationMeta(page, limit, total) };
 }
 
 // Dùng cho storefront (public) — luôn isActive + chưa xoá, không có includeInactive.
-export async function listPublic({ categoryId, page, limit }: ListProductsQuery) {
-  const where = { deletedAt: null, isActive: true, ...(categoryId && { categoryId }) };
+export async function listPublic({ categoryId, occasionId, page, limit }: ListProductsQuery) {
+  const where = {
+    deletedAt: null,
+    isActive: true,
+    ...(categoryId && { categoryId }),
+    ...(occasionId && { occasions: { some: { occasionId } } }),
+  };
   const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
@@ -111,7 +216,7 @@ export async function listPublic({ categoryId, page, limit }: ListProductsQuery)
     }),
     prisma.product.count({ where }),
   ]);
-  return { items, meta: buildPaginationMeta(page, limit, total) };
+  return { items: items.map(mapOccasions), meta: buildPaginationMeta(page, limit, total) };
 }
 
 // Dùng cho trang chi tiết sản phẩm (storefront) — luôn isActive + chưa xoá, giống listPublic(). Cần
@@ -123,7 +228,7 @@ export async function getPublicBySlug(slug: string) {
     select: PRODUCT_PUBLIC_SELECT,
   });
   if (!product) throw new AppError("Sản phẩm không tồn tại", 404, "NOT_FOUND");
-  return product;
+  return mapOccasions(product);
 }
 
 export async function create(actorId: string, input: CreateProductInput, ipAddress?: string) {
@@ -147,11 +252,15 @@ export async function create(actorId: string, input: CreateProductInput, ipAddre
   });
 
   await replaceImages(product.id, input.imageFileIds);
+  await replaceVariants(product.id, input.variants);
+  await replaceOccasions(product.id, input.occasionIds);
 
-  const full = await prisma.product.findUniqueOrThrow({
-    where: { id: product.id },
-    select: PRODUCT_SELECT,
-  });
+  const full = mapOccasions(
+    await prisma.product.findUniqueOrThrow({
+      where: { id: product.id },
+      select: PRODUCT_SELECT,
+    }),
+  );
 
   await auditLog.record({
     actorId,
@@ -197,8 +306,12 @@ export async function update(
   });
 
   await replaceImages(id, input.imageFileIds);
+  await replaceVariants(id, input.variants);
+  await replaceOccasions(id, input.occasionIds);
 
-  const full = await prisma.product.findUniqueOrThrow({ where: { id }, select: PRODUCT_SELECT });
+  const full = mapOccasions(
+    await prisma.product.findUniqueOrThrow({ where: { id }, select: PRODUCT_SELECT }),
+  );
 
   await auditLog.record({
     actorId,

@@ -14,7 +14,10 @@ export type SettingKey = (typeof SETTING_KEYS)[number];
 // :key là gì để chọn đúng schema tương ứng.
 export const SETTING_VALUE_SCHEMAS = {
   site_name: z.string().trim().min(1, "Vui lòng nhập tên website").max(100),
-  site_logo: z.string().uuid("site_logo phải là id file hợp lệ (tải lên qua /api/v1/files)").nullable(),
+  site_logo: z
+    .string()
+    .uuid("site_logo phải là id file hợp lệ (tải lên qua /api/v1/files)")
+    .nullable(),
   timezone: z.string().trim().min(1).max(50),
   registration_enabled: z.boolean(),
 } satisfies Record<SettingKey, z.ZodTypeAny>;

@@ -11,6 +11,7 @@ import { UserMenu } from './UserMenu';
 type NavCategory = { id: string; name: string; slug: string };
 
 const NAV_LINKS = [
+  { href: '/blog', label: 'Blog' },
   { href: '/ve-chung-toi', label: 'Về chúng tôi' },
   { href: '/lien-he', label: 'Liên hệ' },
 ];

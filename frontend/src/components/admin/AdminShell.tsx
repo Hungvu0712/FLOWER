@@ -13,16 +13,29 @@ import {
   IconShield,
   IconKey,
   IconTag,
+  IconCalendar,
+  IconStar,
+  IconTicket,
+  IconNewspaper,
+  IconEnvelopeOpen,
   IconMail,
   IconHistory,
   IconFolder,
   IconSettings,
+  IconStore,
 } from './icons';
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
   admin: 'Admin',
+  florist: 'Nhân viên cắm hoa',
 };
+
+// florist có permission `orders.view_delivery_queue` (docs/05 §2.4) nhưng KHÔNG có `orders.view_all`
+// hay bất kỳ permission quản trị nào khác — chỉ mở NGOẠI LỆ đúng 1 route trong /admin/* cho role này,
+// KHÔNG mở toàn bộ /admin/* (khác admin/super_admin). Đây vẫn chỉ là lớp UX (ẩn/hiện, redirect sớm) —
+// backend tự kiểm tra permission độc lập ở mọi endpoint, xem docs/modules/domain-orders.md §9.
+const FLORIST_ALLOWED_PATH = '/admin/orders/delivery-queue';
 
 // Shell riêng cho /admin, /superadmin ("Quản trị") — cố ý khác diện mạo với trang tài khoản khách hàng
 // /account (sidebar dashboard thay vì Nav/tabs storefront, xem app/account/layout.tsx), theo yêu cầu
@@ -45,7 +58,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const roles = me?.roles ?? [];
   const isSuperAdmin = roles.includes('super_admin');
   const isAdmin = isSuperAdmin || roles.includes('admin');
-  const primaryRoleCode = isSuperAdmin ? 'super_admin' : 'admin';
+  // "florist THUẦN" — có role florist nhưng KHÔNG kiêm admin/super_admin (1 nhân viên có thể có nhiều
+  // role, xem docs/05 §3.1) — chỉ nhóm này mới cần sidebar rút gọn riêng, florist kiêm admin vẫn thấy
+  // sidebar đầy đủ như admin bình thường.
+  const isFloristOnly = roles.includes('florist') && !isAdmin;
+  const primaryRoleCode = isSuperAdmin ? 'super_admin' : isAdmin ? 'admin' : 'florist';
 
   // `authorized` (gate nội dung trang thật) PHẢI dựa trên 1 lần gọi /account/me MỚI THẬT SỰ mỗi khi
   // đổi route trong khu quản trị — KHÔNG tin dữ liệu cache còn "tươi" theo staleTime, vì cache đó có
@@ -75,7 +92,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       : needsSuperAdmin
         ? verifiedRoles.includes('super_admin')
         : needsAdmin
-          ? verifiedRoles.includes('admin') || verifiedRoles.includes('super_admin')
+          ? verifiedRoles.includes('admin') ||
+            verifiedRoles.includes('super_admin') ||
+            (verifiedRoles.includes('florist') && pathname === FLORIST_ALLOWED_PATH)
           : true;
 
   useEffect(() => {
@@ -84,19 +103,35 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     if (authorized === false) router.replace('/403');
   }, [authorized, router]);
 
-  const sections: ShellNavSection[] = [
-    {
-      title: 'Vận hành',
-      items: [
-        { href: '/admin', label: 'Tổng quan', icon: IconDashboard },
-        { href: '/admin/categories', label: 'Danh mục', icon: IconTag },
-        { href: '/admin/products', label: 'Sản phẩm', icon: IconPackage },
-        { href: '/admin/orders', label: 'Đơn hàng', icon: IconReceipt },
-        { href: '/admin/resources', label: 'Tài nguyên', icon: IconFolder },
-        { href: '/admin/contact', label: 'Liên hệ', icon: IconMail },
-      ],
-    },
-  ];
+  // florist THUẦN chỉ cần đúng 1 link — sidebar đầy đủ (Danh mục/Sản phẩm/...) sẽ toàn dẫn tới trang
+  // 403 vì florist không có permission nào khác, chỉ gây rối chứ không hữu ích.
+  const sections: ShellNavSection[] = isFloristOnly
+    ? [
+        {
+          title: 'Vận hành',
+          items: [{ href: FLORIST_ALLOWED_PATH, label: 'Lịch giao hoa', icon: IconCalendar }],
+        },
+      ]
+    : [
+        {
+          title: 'Vận hành',
+          items: [
+            { href: '/admin', label: 'Tổng quan', icon: IconDashboard },
+            { href: '/admin/categories', label: 'Danh mục', icon: IconTag },
+            { href: '/admin/occasions', label: 'Dịp lễ', icon: IconCalendar },
+            { href: '/admin/products', label: 'Sản phẩm', icon: IconPackage },
+            { href: '/admin/orders', label: 'Đơn hàng', icon: IconReceipt },
+            { href: FLORIST_ALLOWED_PATH, label: 'Lịch giao hoa', icon: IconCalendar },
+            { href: '/admin/reviews', label: 'Đánh giá', icon: IconStar },
+            { href: '/admin/coupons', label: 'Mã giảm giá', icon: IconTicket },
+            { href: '/admin/blog', label: 'Blog', icon: IconNewspaper },
+            { href: '/admin/newsletter', label: 'Newsletter', icon: IconEnvelopeOpen },
+            { href: '/admin/resources', label: 'Tài nguyên', icon: IconFolder },
+            { href: '/admin/contact', label: 'Liên hệ', icon: IconMail },
+            { href: '/admin/site-content', label: 'Nội dung trang', icon: IconStore },
+          ],
+        },
+      ];
 
   if (isSuperAdmin) {
     sections.push({
@@ -116,7 +151,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <DashboardShell
       brandSubtitle="Quản trị"
       sections={sections}
-      footerLine={isAdmin ? (ROLE_LABELS[primaryRoleCode] ?? primaryRoleCode) : (me?.email ?? '')}
+      footerLine={
+        isAdmin || isFloristOnly
+          ? (ROLE_LABELS[primaryRoleCode] ?? primaryRoleCode)
+          : (me?.email ?? '')
+      }
     >
       {authorized ? (
         children

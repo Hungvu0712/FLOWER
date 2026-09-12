@@ -135,7 +135,12 @@ export default function ResourcesPage() {
     if (!newFolderName.trim()) return;
     createFolder.mutate(
       { name: newFolderName.trim(), parentId: selectedFolderId },
-      { onSuccess: () => { setCreatingFolder(false); setNewFolderName(''); } },
+      {
+        onSuccess: () => {
+          setCreatingFolder(false);
+          setNewFolderName('');
+        },
+      },
     );
   }
 
@@ -143,7 +148,12 @@ export default function ResourcesPage() {
     if (!selectedFolder || !renameValue.trim()) return;
     updateFolder.mutate(
       { id: selectedFolder.id, input: { name: renameValue.trim() } },
-      { onSuccess: (updated) => { setSelectedFolder(updated); setRenaming(false); } },
+      {
+        onSuccess: (updated) => {
+          setSelectedFolder(updated);
+          setRenaming(false);
+        },
+      },
     );
   }
 
@@ -253,7 +263,10 @@ export default function ResourcesPage() {
                     <>
                       <button
                         type="button"
-                        onClick={() => { setRenameValue(selectedFolder.name); setRenaming(true); }}
+                        onClick={() => {
+                          setRenameValue(selectedFolder.name);
+                          setRenaming(true);
+                        }}
                         className="text-xs font-medium text-ink-muted hover:text-ink"
                       >
                         Đổi tên
@@ -337,7 +350,10 @@ export default function ResourcesPage() {
                   >
                     Xoá
                   </button>
-                  <p className="truncate px-2 py-1.5 text-[11px] text-ink-muted" title={file.originalName}>
+                  <p
+                    className="truncate px-2 py-1.5 text-[11px] text-ink-muted"
+                    title={file.originalName}
+                  >
                     {file.originalName}
                   </p>
                 </div>

@@ -72,18 +72,29 @@ flowchart LR
     ROOT --> FILES["/files<br/>🔑 + files.manage cho ghi/xoá"]
     ROOT --> FOLDERS["/folders<br/>🔑 files.manage"]
     ROOT --> CAT["/categories<br/>— công khai, storefront"]
+    ROOT --> OCC["/occasions<br/>— công khai, storefront"]
     ROOT --> PROD["/products<br/>— công khai, storefront"]
     ROOT --> ORD["/orders<br/>— công khai, guest checkout, rate limit 10/15p"]
+    ROOT --> REV["/reviews<br/>— công khai, chỉ đánh giá đã duyệt"]
+    ROOT --> CPN["/coupons<br/>— công khai, validate mã giảm giá"]
+    ROOT --> BLOGP["/blog<br/>— công khai, bài đã xuất bản"]
+    ROOT --> NEWS["/newsletter<br/>— công khai, subscribe/unsubscribe"]
+    ROOT --> SITECON["/site-content<br/>— công khai, banner Hero/hotline/Zalo/địa chỉ/giờ mở cửa"]
     ROOT --> CONTACT["/contact<br/>— công khai, rate limit 5/15p"]
     ROOT --> ADM["/admin/*<br/>🔑 nghiệp vụ domain"]
     ROOT --> SA["/superadmin/*<br/>🔑 quản trị hệ thống"]
 
     AUTH --> A1["register · login · logout · refresh<br/>magic-link/request · magic-link/verify<br/>google · forgot-password · reset-password<br/>login-methods"]
-    ACC --> C1["me · profile · change-password<br/>sessions (list · revoke 1 · revoke khác)<br/>orders → orders.view_own (lịch sử đơn chính mình)"]
+    ACC --> C1["me · profile · change-password<br/>sessions (list · revoke 1 · revoke khác)<br/>orders → orders.view_own (lịch sử đơn chính mình)<br/>addresses/wishlist/reviews/special-dates → 🔑 KHÔNG permission riêng"]
     ADM --> AD1["/admin/categories<br/>categories.manage"]
+    ADM --> AD1b["/admin/occasions<br/>categories.manage"]
     ADM --> AD2["/admin/products<br/>products.manage"]
     ADM --> AD3["/admin/contact-messages<br/>contact.manage"]
-    ADM --> AD4["/admin/orders<br/>orders.view_all · update_status · cancel"]
+    ADM --> AD4["/admin/orders<br/>orders.view_all · update_status · cancel<br/>delivery-queue → orders.view_delivery_queue"]
+    ADM --> AD5["/admin/reviews<br/>reviews.moderate"]
+    ADM --> AD6["/admin/coupons<br/>promotions.manage"]
+    ADM --> AD7["/admin/blog · /admin/newsletter<br/>blog.manage"]
+    ADM --> AD8["/admin/site-content<br/>site_content.manage (KHÁC settings.manage 🔒)"]
     SA --> S1["/users → users.manage 🔒"]
     SA --> S2["/roles → roles.manage 🔒"]
     SA --> S3["/permissions → permissions.manage 🔒"]
@@ -175,7 +186,9 @@ Lỗi: `401 INVALID_CREDENTIALS` · `403 ACCOUNT_BLOCKED` · `403 LOGIN_METHOD_D
 ```
 
 Token **dùng 1 lần**, TTL mặc định 15 phút. Email chưa có tài khoản → tự tạo tài khoản
-(magic link kiêm luôn vai trò "đăng ký nhanh"). Lỗi: `401 INVALID_MAGIC_LINK`.
+(magic link kiêm luôn vai trò "đăng ký nhanh" — docs/12 BE-20, xác nhận hoạt động thật 11/09/2026).
+Lỗi: `401 INVALID_MAGIC_LINK` · `403 REGISTRATION_DISABLED` (email mới nhưng `registration_enabled`
+đang tắt — xem [modules/core-settings.md §6](modules/core-settings.md)).
 
 ### `POST /api/v1/auth/google`
 
@@ -257,6 +270,59 @@ không cần `currentPassword` khớp. Lỗi: `401 INVALID_CURRENT_PASSWORD`.
     "lastActiveAt": "2026-09-09T02:00:00.000Z", "createdAt": "...", "isCurrent": true }
 ] }
 ```
+
+---
+
+## 5b. Addresses — `/api/v1/account/addresses` 🌸 🔑
+
+Sổ địa chỉ người nhận — thuần dữ liệu cá nhân, **KHÔNG có permission riêng** (chỉ cần đăng nhập, giống
+`/account/profile` ở trên) — xem [modules/domain-addresses.md](modules/domain-addresses.md).
+
+| Method | Path | Mô tả |
+|---|---|---|
+| `GET` | `/` | Sổ địa chỉ của chính mình — mặc định trước, cũ nhất trước |
+| `POST` | `/` | Thêm địa chỉ mới |
+| `PATCH` | `/:id` | Sửa địa chỉ (chỉ địa chỉ của CHÍNH MÌNH — `404` nếu không phải) |
+| `DELETE` | `/:id` | Xoá địa chỉ (chỉ địa chỉ của CHÍNH MÌNH) |
+
+```jsonc
+POST /api/v1/account/addresses
+{ "recipientName": "Trần Thị B", "recipientPhone": "0900000000",
+  "addressLine": "123 Đường Hoa", "ward": "Phường 1", "district": "Quận 1", "city": "TP.HCM" }
+```
+
+- Địa chỉ **ĐẦU TIÊN** của user tự động là mặc định (`isDefault: true`) dù không truyền `isDefault`.
+- Đặt `isDefault: true` cho 1 địa chỉ sẽ tự **unset** địa chỉ mặc định cũ (chỉ 1 địa chỉ mặc định/user).
+- `PATCH`/`DELETE` theo `:id` **luôn** kiểm tra địa chỉ đó thuộc đúng user đang đăng nhập
+  (`where: { id, userId }`) — `404 NOT_FOUND` nếu `id` tồn tại nhưng thuộc user khác (chống IDOR,
+  không phân biệt "không tồn tại" và "không phải của mình" để tránh lộ thông tin id nào tồn tại).
+- Xoá địa chỉ mặc định **không** tự đôn địa chỉ khác lên — khách tự chọn lại nếu cần.
+
+---
+
+## 5c. Special Dates — `/api/v1/account/special-dates` 🌸 🔑
+
+Nhắc lịch sinh nhật/kỷ niệm — thuần dữ liệu cá nhân, **KHÔNG có permission riêng**, xem
+[modules/domain-special-dates.md](modules/domain-special-dates.md).
+
+| Method | Path | Mô tả |
+|---|---|---|
+| `GET` | `/` | Danh sách ngày đặc biệt của chính mình |
+| `POST` | `/` | Thêm ngày mới |
+| `PATCH` | `/:id` | Sửa (chỉ ngày của CHÍNH MÌNH — `404` nếu không phải) |
+| `DELETE` | `/:id` | Xoá (chỉ ngày của CHÍNH MÌNH) |
+
+```jsonc
+POST /api/v1/account/special-dates
+{ "label": "Sinh nhật mẹ", "date": "2000-05-15", "remindDaysBefore": 5 }
+```
+
+- `date` chỉ **THÁNG-NGÀY** có ý nghĩa (lặp lại hằng năm) — năm nhập vào không ảnh hưởng gì.
+- Bỏ trống `remindDaysBefore` → mặc định nhắc trước **3 ngày**.
+- Job nền hằng ngày (`jobs/sendSpecialDateReminders.job.ts`) gửi email nhắc đúng vào ngày
+  (ngày dịp lễ sắp tới − `remindDaysBefore`) trùng hôm nay — xem
+  [modules/domain-special-dates.md §2](modules/domain-special-dates.md).
+- `PATCH`/`DELETE` theo `:id` chống IDOR giống `addresses` — `404 NOT_FOUND` nếu `id` thuộc user khác.
 
 ---
 
@@ -402,7 +468,9 @@ dư thừa vì đã có object `category`), khác `GET /api/v1/admin/products` t
   { "id": "uuid", "name": "Bó hoa hồng đỏ", "slug": "bo-hoa-hong-do",
     "description": null, "basePrice": 350000,
     "category": { "id": "uuid", "name": "Hoa bó", "slug": "hoa-bo" },
-    "images": [{ "id": "uuid", "sortOrder": 0, "file": { "id": "uuid", "url": "https://res.cloudinary.com/..." } }] }
+    "images": [{ "id": "uuid", "sortOrder": 0, "file": { "id": "uuid", "url": "https://res.cloudinary.com/..." } }],
+    "variants": [{ "id": "uuid", "name": "Nhỏ", "price": 350000, "sortOrder": 0 },
+                 { "id": "uuid", "name": "Lớn", "price": 550000, "sortOrder": 1 }] }
 ], "meta": { "page": 1, "limit": 24, "total": 1, "totalPages": 1 } }
 ```
 
@@ -410,7 +478,9 @@ dư thừa vì đã có object `category`), khác `GET /api/v1/admin/products` t
 [modules/domain-products.md](modules/domain-products.md). `description` là **HTML đã sanitize** (rich
 text — xem [modules/domain-products.md §9](modules/domain-products.md#9-mô-tả-dạng-rich-text)), không
 phải văn bản thuần — client tự chịu trách nhiệm render đúng (hoặc dùng
-`stripHtml()` để lấy bản tóm tắt văn bản thuần nếu chỉ cần preview).
+`stripHtml()` để lấy bản tóm tắt văn bản thuần nếu chỉ cần preview). `variants` mảng RỖNG = sản phẩm
+không có biến thể, dùng thẳng `basePrice` — có biến thể thì mỗi biến thể là 1 mốc giá riêng (KHÔNG có
+tồn kho theo biến thể), xem [modules/domain-products.md §2.5](modules/domain-products.md#25-biến-thể-sizegiá-riêng--product_variants).
 
 ### `GET /api/v1/products/:slug` (công khai)
 
@@ -424,7 +494,8 @@ hay đã xoá mềm — storefront không phân biệt 2 trường hợp này v�
 { "name": "Bó hoa hồng đỏ", "slug": "bo-hoa-hong-do",
   "description": "<p>Bó hoa gồm <strong>10 bông hồng đỏ</strong> tươi.</p>",
   "basePrice": 350000, "categoryId": "uuid", "isActive": true,
-  "imageFileIds": ["uuid-1", "uuid-2"] }
+  "imageFileIds": ["uuid-1", "uuid-2"],
+  "variants": [{ "name": "Nhỏ", "price": 350000 }, { "name": "Lớn", "price": 550000 }] }
 ```
 
 - `description`: server **sanitize lại** bằng allowlist thẻ trước khi lưu (bỏ mọi thẻ/attribute
@@ -436,15 +507,71 @@ hay đã xoá mềm — storefront không phân biệt 2 trường hợp này v�
 - `imageFileIds`: **toàn bộ** bộ ảnh hiện tại, ĐÚNG thứ tự hiển thị — gửi lại ở `PATCH` là **thay thế**
   hoàn toàn bộ ảnh cũ, không phải thêm vào. Bỏ trống field này (không gửi) ở `PATCH` thì không đụng gì
   tới bộ ảnh hiện có; gửi mảng rỗng `[]` thì xoá hết ảnh.
+- `variants`: **toàn bộ** danh sách biến thể mong muốn — gửi kèm `id` (của 1 biến thể ĐANG THUỘC sản
+  phẩm này) để SỬA giữ nguyên `id` đó, bỏ `id` (hoặc `id` không thuộc sản phẩm này) để TẠO MỚI; biến
+  thể hiện có nhưng vắng mặt trong danh sách gửi lên sẽ bị XOÁ. Bỏ trống field này (không gửi) ở
+  `PATCH` thì không đụng gì tới biến thể hiện có; gửi mảng rỗng `[]` thì xoá hết biến thể (sản phẩm
+  quay lại dùng thẳng `basePrice`). Xem chi tiết cơ chế đồng bộ ở
+  [modules/domain-products.md §2.5](modules/domain-products.md#25-biến-thể-sizegiá-riêng--product_variants).
 
-Lỗi: `404 CATEGORY_NOT_FOUND` (categoryId không tồn tại) · `404 NOT_FOUND` (PATCH/DELETE sản phẩm
-không tồn tại hoặc đã xoá mềm trước đó).
+Lỗi: `404 CATEGORY_NOT_FOUND` (categoryId không tồn tại) · `404 OCCASION_NOT_FOUND` (một hoặc nhiều
+`occasionId` không tồn tại) · `404 NOT_FOUND` (PATCH/DELETE sản phẩm không tồn tại hoặc đã xoá mềm
+trước đó).
 
 > Xoá là **soft delete** (`deletedAt`) — khác categories (hard delete) — vì sản phẩm được `order_items`
 > tham chiếu (xem §9 Orders); đơn hàng cũ vẫn hiển thị đúng tên/giá dù sản phẩm đã ngừng bán.
 
 > **Không có `stock`/tồn kho** — hoa tươi làm theo đơn/theo mẫu tại thời điểm đặt, không phải hàng lưu
 > kho theo SKU cố định. Ẩn tạm sản phẩm dùng `isActive`, không phải "hết hàng".
+
+---
+
+## 8b. Occasions 🌸
+
+Tag **dịp lễ** (Sinh nhật, Valentine, Khai trương...) — 1 sản phẩm gắn được **nhiều** dịp lễ cùng lúc
+(n-n, khác `categoryId` chỉ 1-n), xem [modules/domain-occasions.md](modules/domain-occasions.md).
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `GET` | `/api/v1/occasions` | — | Dịp lễ đang bật, cho storefront |
+| `GET` | `/api/v1/admin/occasions?includeInactive=` | `categories.manage` | Danh sách đầy đủ |
+| `POST` | `/api/v1/admin/occasions` | `categories.manage` | Tạo dịp lễ |
+| `PATCH` | `/api/v1/admin/occasions/:id` | `categories.manage` | Sửa dịp lễ |
+| `DELETE` | `/api/v1/admin/occasions/:id` | `categories.manage` | Xoá dịp lễ |
+
+> Dùng LẠI permission `categories.manage` — không tách `occasions.manage` riêng, xem
+> [modules/domain-occasions.md §2](modules/domain-occasions.md#2-vì-sao-dùng-lại-permission-categoriesmanage).
+
+### `GET /api/v1/occasions` (công khai)
+
+```jsonc
+{ "success": true, "data": [
+  { "id": "uuid", "name": "Sinh nhật", "slug": "sinh-nhat" }
+] }
+```
+
+Không có trường "nội bộ" nào cần giấu (không giá, không ảnh) — `list()` (admin) trả cùng shape này
+kèm thêm `sortOrder`, `isActive`, `createdAt`, `updatedAt`.
+
+### `POST /api/v1/admin/occasions`
+
+```jsonc
+{ "name": "Sinh nhật", "slug": "sinh-nhat", "sortOrder": 0, "isActive": true }
+```
+
+Bỏ trống `slug` → tự sinh từ `name` (bỏ dấu tiếng Việt), trùng thì tự thêm hậu tố `-2`, `-3`... Đổi
+`name` sau này KHÔNG tự đổi `slug`.
+
+### `DELETE /api/v1/admin/occasions/:id`
+
+**Hard delete** — KHÔNG chặn dù còn sản phẩm đang gắn dịp lễ này (khác Categories chặn xoá khi còn
+danh mục con): `product_occasions` xoá theo `onDelete: Cascade`, sản phẩm chỉ bị GỠ TAG, không ảnh
+hưởng gì khác.
+
+### Gắn dịp lễ cho sản phẩm
+
+Xem `occasionIds` trong `POST`/`PATCH /api/v1/admin/products` ở §8 — gửi TOÀN BỘ danh sách
+`occasionId` mong muốn, ngữ nghĩa THAY THẾ giống `imageFileIds`.
 
 ---
 
@@ -461,12 +588,13 @@ client, xem [modules/domain-orders.md](modules/domain-orders.md)).
 | `GET` | `/api/v1/account/orders?page=&limit=` | `orders.view_own` | Lịch sử đơn của khách **đã đăng nhập** — chỉ trả đơn của chính mình (row-level check, xem dưới) |
 | `GET` | `/api/v1/admin/orders?status=&page=&limit=` | `orders.view_all` | Danh sách đơn (phân trang) |
 | `GET` | `/api/v1/admin/orders/:id` | `orders.view_all` | Chi tiết 1 đơn |
+| `GET` | `/api/v1/admin/orders/delivery-queue?date=` | `orders.view_delivery_queue` | Lịch giao hoa theo ngày (dashboard florist) — xem dưới |
 | `PATCH` | `/api/v1/admin/orders/:id/status` | `orders.update_status` hoặc `orders.cancel` — xem dưới | Đổi trạng thái đơn |
 
 ### `POST /api/v1/orders` (công khai)
 
 ```jsonc
-{ "items": [{ "productId": "uuid", "quantity": 2 }],
+{ "items": [{ "productId": "uuid", "variantId": "uuid", "quantity": 2 }],
   "recipientName": "Trần Thị B", "recipientPhone": "0900000000",
   "deliveryAddress": "123 Đường Hoa, Q1", "deliveryDate": "2026-12-25",
   "deliveryTimeSlot": "chieu", "note": "Giao trước 17h" }
@@ -476,10 +604,14 @@ client, xem [modules/domain-orders.md](modules/domain-orders.md)).
   thoại cửa hàng gọi lại xác nhận, vì giai đoạn này chưa thu thập riêng thông tin người đặt/email.
 - `deliveryDate` dạng `YYYY-MM-DD`, phải từ hôm nay trở đi (422 nếu ở quá khứ).
 - `deliveryTimeSlot`: `sang` | `chieu` | `toi`.
-- Giá/tên sản phẩm được **chốt (snapshot)** vào đơn tại thời điểm đặt — sản phẩm sau đó đổi giá/tên/bị
-  ẩn không ảnh hưởng đơn đã tạo.
-- `409 PRODUCT_UNAVAILABLE` khi có sản phẩm trong giỏ không còn tồn tại/đã ẩn/đã xoá — giỏ hàng phía
-  client (localStorage) có thể đã cũ so với dữ liệu server.
+- `variantId` (tuỳ chọn): sản phẩm có biến thể thì gửi kèm để chốt đúng giá biến thể; bỏ trống thì
+  dùng `basePrice` của sản phẩm. Cùng `productId` nhưng khác `variantId` là **2 dòng đơn riêng**
+  (giá khác nhau), không gộp chung.
+- Giá/tên sản phẩm (và tên biến thể nếu có) được **chốt (snapshot)** vào đơn tại thời điểm đặt — sản
+  phẩm/biến thể sau đó đổi giá/tên/bị ẩn/xoá không ảnh hưởng đơn đã tạo.
+- `409 PRODUCT_UNAVAILABLE` khi có sản phẩm trong giỏ không còn tồn tại/đã ẩn/đã xoá, **hoặc** khi
+  `variantId` không tồn tại/không thuộc đúng `productId` gửi kèm (chống gửi `variantId` của sản phẩm
+  khác để mua giá rẻ hơn) — giỏ hàng phía client (localStorage) có thể đã cũ so với dữ liệu server.
 - Đã đăng nhập (cookie `access_token` hợp lệ) thì đơn tự gắn `userId`; không đăng nhập vẫn đặt được
   bình thường (`userId: null`).
 - `website` (tuỳ chọn): **honeypot chống bot** — field ẩn bằng CSS ở form thật, người dùng thật không
@@ -503,6 +635,22 @@ người khác; khác `/admin/orders` (permission `orders.view_all`, thấy mọ
 trang (`data` + `meta`), sắp xếp mới nhất trước. Đơn đặt lúc CHƯA đăng nhập (guest checkout,
 `userId: null`) không hiện ở đây — tra cứu qua `GET /api/v1/orders/:id` (link đã lưu).
 
+### `GET /api/v1/admin/orders/delivery-queue` (dashboard florist)
+
+Permission **RIÊNG** `orders.view_delivery_queue` — `florist` có quyền này nhưng **KHÔNG** có
+`orders.view_all` (không dùng được `/admin/orders` bình thường). Bắt buộc query `date` (dạng
+`YYYY-MM-DD`, `422` nếu thiếu/sai định dạng) — trả **toàn bộ** đơn của đúng 1 ngày đó, sắp theo khung
+giờ giao (sáng → chiều → tối), loại trừ đơn đã huỷ. Không phân trang (trả thẳng mảng trong `data`,
+không có `meta`) — 1 ngày hiếm khi có quá nhiều đơn cần soạn hoa.
+
+```jsonc
+GET /api/v1/admin/orders/delivery-queue?date=2026-12-25
+{ "success": true, "data": [ { "id": "uuid", "orderCode": "HX2612250001", "status": "confirmed",
+  "deliveryTimeSlot": "sang", "recipientName": "...", "items": [...], "...": "..." } ] }
+```
+
+Xem [modules/domain-orders.md §4b](modules/domain-orders.md#4b-lịch-giao-hoa-theo-ngày-dashboard-florist).
+
 ### `PATCH /api/v1/admin/orders/:id/status`
 
 ```jsonc
@@ -518,6 +666,132 @@ không phải 1 permission cố định cho cả route:
 Ràng buộc: `409 ORDER_STATUS_FINAL` khi đơn đã `completed`/`cancelled` (không đổi tiếp được) ·
 `409 ORDER_CANNOT_CANCEL` khi huỷ đơn đang `delivering` · `403 FORBIDDEN` khi thiếu đúng permission
 cho giá trị `status` đang gửi · `404 NOT_FOUND` khi đơn không tồn tại.
+
+### Realtime (Socket.io) — cùng cổng HTTP, không phải REST
+
+Trạng thái đơn cập nhật LIVE cho cả khách (`/don-hang/:id`) và quản trị (`/admin/orders`,
+`/admin/orders/delivery-queue`), xem [modules/domain-orders.md §10](modules/domain-orders.md#10-realtime-trạng-thái-đơn-socketio).
+
+| Client emit | Server yêu cầu | Server emit lại |
+|---|---|---|
+| `order:watch` (payload: `orderId` string) | Không cần đăng nhập — `orderId` là token | — |
+| `admin:watch` (không payload) | Cookie `access_token` hợp lệ + `orders.view_all` hoặc `orders.view_delivery_queue` | — |
+| — | — | `order:created` (tới room `admin:orders`) |
+| — | — | `order:status_changed` (tới room `admin:orders` VÀ `order:<id>`) |
+
+---
+
+## 9b. Wishlist — `/api/v1/account/wishlist` 🌸 🔑
+
+Danh sách yêu thích — bảng nối n-n thuần, **KHÔNG có permission riêng** (giống Addresses ở §5b) —
+xem [modules/domain-wishlist.md](modules/domain-wishlist.md).
+
+| Method | Path | Mô tả |
+|---|---|---|
+| `GET` | `/` | Danh sách sản phẩm yêu thích của chính mình |
+| `POST` | `/` | Thêm sản phẩm — body `{ "productId": "uuid" }` |
+| `DELETE` | `/:productId` | Gỡ sản phẩm |
+
+**Idempotent** — thêm sản phẩm đã có, hoặc gỡ sản phẩm chưa từng có, đều trả về bình thường (không
+báo lỗi). `404 PRODUCT_NOT_FOUND` khi `productId` không tồn tại/đã xoá mềm.
+
+---
+
+## 9c. Reviews 🌸
+
+Đánh giá sản phẩm — **cần duyệt** trước khi hiện công khai, xem
+[modules/domain-reviews.md](modules/domain-reviews.md).
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `GET` | `/api/v1/reviews?productId=&page=&limit=` | — | Đánh giá **ĐÃ DUYỆT** của 1 sản phẩm (công khai) |
+| `GET` | `/api/v1/account/reviews?page=&limit=` | 🔑 | Đánh giá của chính mình (mọi trạng thái) |
+| `POST` | `/api/v1/account/reviews` | 🔑 | Viết đánh giá |
+| `GET` | `/api/v1/admin/reviews?isApproved=&productId=` | `reviews.moderate` | Hàng đợi duyệt |
+| `PATCH` | `/api/v1/admin/reviews/:id` | `reviews.moderate` | Duyệt/ẩn — body `{ "isApproved": true }` |
+| `DELETE` | `/api/v1/admin/reviews/:id` | `reviews.moderate` | Xoá đánh giá |
+
+```jsonc
+POST /api/v1/account/reviews
+{ "productId": "uuid", "rating": 5, "comment": "Hoa rất đẹp!" }
+```
+
+- Mặc định `isApproved: false` (chờ duyệt) — **chưa** hiện ở `GET /api/v1/reviews` tới khi admin duyệt.
+- Mỗi user chỉ đánh giá **1 lần/sản phẩm** — `409 REVIEW_ALREADY_EXISTS` nếu gửi lần 2.
+- `404 PRODUCT_NOT_FOUND` khi `productId` không tồn tại/đã xoá mềm.
+- `GET /api/v1/reviews` (công khai) **bắt buộc** `productId` — không có "xem tất cả đánh giá toàn shop".
+
+---
+
+## 9d. Coupons — Mã giảm giá 🌸
+
+Mã giảm giá áp dụng ở thanh toán — **1 đơn tối đa 1 mã**, xem
+[modules/domain-coupons.md](modules/domain-coupons.md).
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `POST` | `/api/v1/coupons/validate` | — | Xem trước số tiền được giảm (công khai, guest checkout dùng được) |
+| `GET` | `/api/v1/admin/coupons?includeInactive=&page=&limit=` | `promotions.manage` | Danh sách mã |
+| `GET` | `/api/v1/admin/coupons/:id` | `promotions.manage` | Chi tiết 1 mã |
+| `POST` | `/api/v1/admin/coupons` | `promotions.manage` | Tạo mã |
+| `PATCH` | `/api/v1/admin/coupons/:id` | `promotions.manage` | Sửa mã |
+| `DELETE` | `/api/v1/admin/coupons/:id` | `promotions.manage` | Xoá mã — `409 COUPON_IN_USE` nếu `usedCount > 0` |
+
+```jsonc
+POST /api/v1/coupons/validate
+{ "code": "SALE10", "subtotal": 500000 }
+// → { "code": "SALE10", "type": "percent", "value": 10, "discountAmount": 50000 }
+```
+
+- `POST /orders` nhận thêm `couponCode` tuỳ chọn — backend **re-validate lại TOÀN BỘ** trong cùng
+  transaction tạo đơn (không tin kết quả `/coupons/validate` gọi trước đó), xem
+  [modules/domain-coupons.md §2](modules/domain-coupons.md).
+- Mã lỗi validate: `404 COUPON_NOT_FOUND` · `409 COUPON_INACTIVE` / `COUPON_NOT_STARTED` /
+  `COUPON_EXPIRED` / `COUPON_USAGE_LIMIT_REACHED` / `COUPON_MIN_ORDER_NOT_MET`.
+- `Order` trả thêm `couponCode` (snapshot, `null` nếu không dùng mã) và `discountAmount`.
+
+---
+
+## 9e. Blog 🌸
+
+Bài viết blog — `publishedAt` null = draft, xem [modules/domain-blog.md](modules/domain-blog.md).
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `GET` | `/api/v1/blog?page=&limit=` | — | Bài **ĐÃ XUẤT BẢN** (`publishedAt <= now()`, công khai) |
+| `GET` | `/api/v1/blog/:slug` | — | Chi tiết 1 bài đã xuất bản |
+| `GET` | `/api/v1/admin/blog?page=&limit=` | `blog.manage` | Danh sách — lấy CẢ draft |
+| `POST` | `/api/v1/admin/blog` | `blog.manage` | Tạo bài |
+| `PATCH` | `/api/v1/admin/blog/:id` | `blog.manage` | Sửa bài |
+| `DELETE` | `/api/v1/admin/blog/:id` | `blog.manage` | Xoá (soft delete) |
+
+## 9f. Newsletter 🌸
+
+Đăng ký nhận email — chỉ giai đoạn THU THẬP, chưa gửi campaign, xem
+[modules/domain-blog.md §3](modules/domain-blog.md).
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `POST` | `/api/v1/newsletter/subscribe` | — | Đăng ký (công khai, idempotent) |
+| `POST` | `/api/v1/newsletter/unsubscribe` | — | Hủy đăng ký (công khai, luôn trả thành công) |
+| `GET` | `/api/v1/admin/newsletter?isActive=&page=&limit=` | `blog.manage` | Danh sách người đăng ký |
+| `DELETE` | `/api/v1/admin/newsletter/:id` | `blog.manage` | Xoá THẬT (khác unsubscribe) |
+
+## 9g. Site Content 🌸
+
+Banner Hero, hotline, Zalo, địa chỉ, giờ mở cửa — nội dung storefront admin/super_admin tự sửa (KHÁC
+`settings.manage` của `/superadmin/settings`, chỉ super_admin), xem
+[modules/domain-site-content.md](modules/domain-site-content.md).
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `GET` | `/api/v1/site-content` | — | Toàn bộ 5 giá trị hiện tại (công khai) |
+| `PATCH` | `/api/v1/admin/site-content/:key` | `site_content.manage` | Sửa 1 giá trị — `key` ∈ `hero_banner`, `hotline`, `zalo_link`, `address`, `open_hours` |
+
+- Key-value chung bảng `system_settings` với module core/settings, chỉ khác namespace key — không có
+  migration riêng.
+- `hero_banner` lưu dạng `fileId` (tham chiếu `files.id`), response trả kèm `{ fileId, url }` — đúng
+  pattern `site_logo` ở `/superadmin/settings`. `null` → storefront tự fallback ảnh tĩnh có sẵn.
 
 ---
 
@@ -738,21 +1012,24 @@ Danh sách `action` đang ghi: [modules/core-audit-log.md](modules/core-audit-lo
 
 ## 16. Endpoint dự kiến (🌸 Domain — chưa triển khai)
 
-`GET /api/v1/products` (§8) đã triển khai nhưng **đơn giản hơn** bản phác thảo cũ — chỉ có
-`categoryId`/`page`/`limit`, CHƯA có `search`/`minPrice`/`maxPrice`/`occasion` (occasions chưa có bảng,
-xem [05 §3.4](05-database-va-rbac.md#34-nhóm-sản-phẩm)). `GET /api/v1/products/:slug` đã triển khai
-(§8). Orders (§9) đã triển khai **giai đoạn cơ bản** — guest checkout, COD, đổi trạng thái đơn. Còn
-thiếu (giai đoạn thanh toán online):
+`GET /api/v1/products` (§8) đã triển khai nhưng **đơn giản hơn** bản phác thảo cũ — có
+`categoryId`/`occasionId`/`page`/`limit`, CHƯA có `search`/`minPrice`/`maxPrice`. `GET
+/api/v1/products/:slug` đã triển khai (§8). Occasions (§8b) đã triển khai đầy đủ CRUD + gắn tag n-n
+với sản phẩm. Orders (§9) đã triển khai **giai đoạn cơ bản** — guest checkout, COD, đổi trạng thái
+đơn. Còn thiếu (giai đoạn thanh toán online):
 
 ```
 POST   /api/v1/payments/webhook/:provider  # verify chữ ký HMAC + idempotency
 PATCH  /api/v1/admin/orders/:id/assign-shipper  # orders.assign_shipper — chưa có màn phân công
-GET    /api/v1/admin/orders/delivery-queue      # orders.view_delivery_queue (florist)
 GET    /api/v1/admin/orders/shipping-queue      # orders.view_shipping_queue (shipper)
 ```
 
 > ✅ **Cập nhật 11/09/2026**: `GET /api/v1/account/orders` (khách xem đơn của chính mình, đã triển
 > khai — xem §9).
+>
+> ✅ **Cập nhật 12/09/2026**: `GET /api/v1/admin/orders/delivery-queue` (lịch giao hoa theo ngày,
+> dashboard florist) đã triển khai — xem §9. Addresses (§5b), Wishlist (§9b), Reviews (§9c) cũng đã
+> triển khai đầy đủ.
 
 Khi triển khai, tuân theo checklist ở [03 · Backend §10](03-backend.md#10-checklist-tạo-module-backend-mới)
 và cập nhật lại tài liệu này.

@@ -4,10 +4,15 @@ import { notFound } from 'next/navigation';
 import { ProductCard } from '@/components/storefront/ProductCard';
 import { ProductGallery } from '@/components/storefront/ProductGallery';
 import { AddToCartControls } from '@/components/storefront/AddToCartControls';
+import { WishlistButton } from '@/components/storefront/WishlistButton';
+import { ProductReviews } from '@/components/storefront/ProductReviews';
 import { formatVnd } from '@/lib/currency';
 import { stripHtml } from '@/lib/html';
-import { HOTLINE, ZALO_LINK } from '@/lib/contact-info';
-import { getStorefrontProductBySlug, getStorefrontProducts } from '@/lib/storefront-api';
+import {
+  getStorefrontProductBySlug,
+  getStorefrontProducts,
+  getStorefrontSiteContent,
+} from '@/lib/storefront-api';
 
 // docs/12 FE-06: mỗi sản phẩm cần title/description RIÊNG cho SEO + khi chia sẻ link (Zalo/Facebook
 // đọc og:title/og:description/og:image) — trước đây mọi trang dùng chung metadata tĩnh ở layout gốc.
@@ -42,7 +47,10 @@ export async function generateMetadata({
 // Next.js 16: `params` là Promise trong Server Component route động — phải `await` trước khi dùng.
 export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const product = await getStorefrontProductBySlug(slug);
+  const [product, siteContent] = await Promise.all([
+    getStorefrontProductBySlug(slug),
+    getStorefrontSiteContent(),
+  ]);
   if (!product) notFound();
 
   // Sản phẩm liên quan — cùng danh mục, loại trừ chính nó. Không có danh mục thì bỏ qua khối này
@@ -86,8 +94,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               {product.category.name}
             </Link>
           )}
-          <h1 className="mt-3 font-display text-4xl font-semibold text-ink">{product.name}</h1>
-          <p className="mt-4 text-3xl font-semibold text-rose">{formatVnd(product.basePrice)}</p>
+          <div className="mt-3 flex items-start justify-between gap-3">
+            <h1 className="font-display text-4xl font-semibold text-ink">{product.name}</h1>
+            <WishlistButton
+              productId={product.id}
+              className="mt-1.5 h-10 w-10 shrink-0 rounded-full border border-border-soft text-ink-soft hover:border-rose"
+            />
+          </div>
 
           {product.description && (
             // Mô tả đã được sanitize (allowlist thẻ, KHÔNG thuộc tính) ở thời điểm LƯU trên backend
@@ -105,12 +118,30 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               name={product.name}
               slug={product.slug}
               basePrice={product.basePrice}
+              variants={product.variants}
               image={product.images[0]?.file.url ?? null}
             />
           </div>
 
+          {product.occasions.length > 0 && (
+            <div className="mt-5 flex flex-wrap gap-2">
+              {product.occasions.map((occasion) => (
+                <Link
+                  key={occasion.id}
+                  href={`/dip-le/${occasion.slug}`}
+                  className="rounded-full border border-border-soft bg-ivory-50 px-3.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-rose hover:text-rose"
+                >
+                  {occasion.name}
+                </Link>
+              ))}
+            </div>
+          )}
+
           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-muted">
-            <a href={`tel:${HOTLINE}`} className="inline-flex items-center gap-1.5 hover:text-rose">
+            <a
+              href={`tel:${siteContent.hotlineTel}`}
+              className="inline-flex items-center gap-1.5 hover:text-rose"
+            >
               <svg
                 className="h-3.5 w-3.5"
                 viewBox="0 0 24 24"
@@ -123,7 +154,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               Hoặc gọi đặt nhanh
             </a>
             <a
-              href={ZALO_LINK}
+              href={siteContent.zaloLink}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 hover:text-rose"
@@ -168,6 +199,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
+      <ProductReviews productId={product.id} />
+
       {related.length > 0 && (
         <section className="mt-24 border-t border-border-soft pt-14">
           <p className="text-sm font-semibold tracking-widest text-rose uppercase">Cùng danh mục</p>
@@ -176,7 +209,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </h2>
           <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
             {related.slice(0, 4).map((p, i) => (
-              <ProductCard key={p.id} product={p} index={i} />
+              <ProductCard key={p.id} product={p} index={i} siteContent={siteContent} />
             ))}
           </div>
         </section>

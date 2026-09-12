@@ -30,7 +30,8 @@ const { accountService } = await import('@/features/core/account/account.service
 const { categoriesService } = await import('@/features/domain/categories/categories.service');
 const { foldersService } = await import('@/features/core/files/folders.service');
 const { filesService } = await import('@/features/core/files/files.service');
-const { systemSettingsService } = await import('@/features/core/admin-settings/systemSettings.service');
+const { systemSettingsService } =
+  await import('@/features/core/admin-settings/systemSettings.service');
 const { useMe, useUpdateProfile } = await import('@/features/core/account/account.hooks');
 const { useCategories, useDeleteCategory } =
   await import('@/features/domain/categories/categories.hooks');
@@ -215,7 +216,10 @@ describe('useCreateFolder / useDeleteFolder', () => {
 
 describe('useUploadFile / useDeleteFile', () => {
   it('tải lên thành công → invalidate cache files (danh sách tự cập nhật)', async () => {
-    vi.mocked(filesService.upload).mockResolvedValue({ id: 'file1', url: 'https://x/1.png' } as never);
+    vi.mocked(filesService.upload).mockResolvedValue({
+      id: 'file1',
+      url: 'https://x/1.png',
+    } as never);
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
     const { result } = renderHook(() => useUploadFile(), { wrapper });
@@ -271,7 +275,10 @@ describe('useSystemSettings / useUpdateSystemSetting (docs/12, Phase 4)', () => 
     const { AxiosError, AxiosHeaders } = await import('axios');
     const err = new AxiosError('failed');
     err.response = {
-      data: { message: 'Validation failed', errors: { value: 'Expected boolean, received string' } },
+      data: {
+        message: 'Validation failed',
+        errors: { value: 'Expected boolean, received string' },
+      },
       status: 422,
       statusText: '',
       headers: new AxiosHeaders(),

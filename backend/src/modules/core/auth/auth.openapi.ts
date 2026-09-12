@@ -77,7 +77,7 @@ registerRoute({
   summary: "Đăng nhập bằng token magic link",
   description:
     "Token dùng 1 lần, TTL mặc định 15 phút. Email chưa có tài khoản → tự tạo (magic link kiêm " +
-    "\"đăng ký nhanh\"). Set-Cookie khi thành công.",
+    '"đăng ký nhanh"). Set-Cookie khi thành công.',
   auth: false,
   request: { body: magicLinkVerifySchema },
   response: { schema: sessionResponseSchema },
@@ -124,7 +124,8 @@ registerRoute({
   path: "/api/v1/auth/forgot-password",
   tags: TAGS,
   summary: "Gửi email đặt lại mật khẩu",
-  description: "LUÔN trả 200 dù email không tồn tại (chống dò tài khoản). Rate limit theo IP và email.",
+  description:
+    "LUÔN trả 200 dù email không tồn tại (chống dò tài khoản). Rate limit theo IP và email.",
   auth: false,
   request: { body: forgotPasswordSchema },
   response: { schema: z.null() },

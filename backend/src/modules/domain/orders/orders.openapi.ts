@@ -13,6 +13,10 @@ const orderItemSchema = z.object({
     description: "Snapshot tại thời điểm đặt — vẫn giữ dù sản phẩm gốc bị xoá mềm sau đó.",
   }),
   productName: z.string(),
+  variantId: z.string().uuid().nullable().openapi({
+    description: "Biến thể (size) đã chọn lúc đặt, nếu có — cũng snapshot, xem variantName.",
+  }),
+  variantName: z.string().nullable(),
   unitPrice: z.number().int(),
   quantity: z.number().int(),
   subtotal: z.number().int(),
@@ -21,8 +25,14 @@ const orderItemSchema = z.object({
 // Dùng chung với orders.admin.openapi.ts (GET /admin/orders, .../:id) — cùng ORDER_SELECT ở
 // orders.service.ts, export ở đây vì orders.routes.ts (public) tạo đơn đầu tiên.
 export const orderSchema = z.object({
-  id: z.string().uuid().openapi({ description: "Cũng là token tra cứu công khai — xem GET /orders/{id}." }),
-  orderCode: z.string().openapi({ example: "HX2609100001", description: "Chỉ để hiển thị, KHÔNG dùng làm khoá tra cứu." }),
+  id: z
+    .string()
+    .uuid()
+    .openapi({ description: "Cũng là token tra cứu công khai — xem GET /orders/{id}." }),
+  orderCode: z.string().openapi({
+    example: "HX2609100001",
+    description: "Chỉ để hiển thị, KHÔNG dùng làm khoá tra cứu.",
+  }),
   userId: z.string().uuid().nullable().openapi({ description: "null = guest checkout" }),
   status: z.enum(ORDER_STATUSES),
   paymentMethod: z.literal("cod"),
@@ -45,8 +55,9 @@ registerRoute({
   tags: ["Orders"],
   summary: "Tạo đơn hàng (guest checkout)",
   description:
-    "Công khai — rate limit 10/15 phút theo IP. Giá/tên sản phẩm được CHỐT (snapshot) vào đơn tại " +
-    "thời điểm đặt. Đã đăng nhập (cookie access_token hợp lệ) thì đơn tự gắn userId.",
+    "Công khai — rate limit 10/15 phút theo IP. Giá/tên sản phẩm (và biến thể nếu có) được CHỐT " +
+    "(snapshot) vào đơn tại thời điểm đặt. `variantId` phải thuộc ĐÚNG `productId` gửi kèm — sai thì " +
+    "cũng trả 409 PRODUCT_UNAVAILABLE. Đã đăng nhập (cookie access_token hợp lệ) thì đơn tự gắn userId.",
   auth: false,
   request: { body: createOrderSchema },
   response: { status: 201, schema: orderSchema },

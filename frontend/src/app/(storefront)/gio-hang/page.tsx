@@ -50,7 +50,7 @@ export default function CartPage() {
         <div className="flex flex-col gap-4 lg:col-span-2">
           {items.map((item) => (
             <div
-              key={item.productId}
+              key={`${item.productId}::${item.variantId ?? ''}`}
               className="flex flex-wrap items-center gap-4 rounded-2xl border border-border-soft/70 bg-white p-4 shadow-sm"
             >
               <Link href={`/san-pham/${item.slug}`} className="shrink-0">
@@ -76,13 +76,16 @@ export default function CartPage() {
                 >
                   {item.name}
                 </Link>
-                <p className="mt-1 text-sm text-ink-muted">{formatVnd(item.basePrice)}</p>
+                {item.variantName && (
+                  <p className="mt-0.5 text-xs text-ink-muted">Kích cỡ: {item.variantName}</p>
+                )}
+                <p className="mt-1 text-sm text-ink-muted">{formatVnd(item.unitPrice)}</p>
               </div>
 
               <div className="flex items-center rounded-full border border-border">
                 <button
                   type="button"
-                  onClick={() => setQuantity(item.productId, item.quantity - 1)}
+                  onClick={() => setQuantity(item.productId, item.quantity - 1, item.variantId)}
                   aria-label={`Giảm số lượng ${item.name}`}
                   className="flex h-9 w-9 items-center justify-center text-ink-soft hover:text-rose"
                 >
@@ -93,7 +96,7 @@ export default function CartPage() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setQuantity(item.productId, item.quantity + 1)}
+                  onClick={() => setQuantity(item.productId, item.quantity + 1, item.variantId)}
                   aria-label={`Tăng số lượng ${item.name}`}
                   className="flex h-9 w-9 items-center justify-center text-ink-soft hover:text-rose"
                 >
@@ -102,12 +105,12 @@ export default function CartPage() {
               </div>
 
               <span className="w-28 shrink-0 text-right font-semibold text-rose">
-                {formatVnd(item.basePrice * item.quantity)}
+                {formatVnd(item.unitPrice * item.quantity)}
               </span>
 
               <button
                 type="button"
-                onClick={() => removeItem(item.productId)}
+                onClick={() => removeItem(item.productId, item.variantId)}
                 aria-label={`Xoá ${item.name} khỏi giỏ`}
                 className="text-ink-muted transition-colors hover:text-red-600"
               >

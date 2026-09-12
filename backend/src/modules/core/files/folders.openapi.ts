@@ -24,7 +24,8 @@ registerRoute({
   path: "/api/v1/folders",
   tags: TAGS,
   summary: "Danh sách thư mục con của parentId",
-  description: "Bỏ trống `parentId` = cấp gốc. Không phân trang — cây tải dần từng cấp (lazy-load).",
+  description:
+    "Bỏ trống `parentId` = cấp gốc. Không phân trang — cây tải dần từng cấp (lazy-load).",
   auth: { permission: PERMISSION },
   request: { query: listFoldersQuerySchema },
   response: { schema: z.array(folderSchema) },

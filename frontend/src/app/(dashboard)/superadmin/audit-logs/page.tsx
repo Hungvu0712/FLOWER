@@ -45,9 +45,7 @@ export default function AuditLogsPage() {
 
       <div className="mb-6 flex flex-wrap items-end gap-3 rounded-3xl border border-border-soft bg-white p-6">
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-ink-muted">
-            Loại đối tượng
-          </label>
+          <label className="mb-1.5 block text-xs font-medium text-ink-muted">Loại đối tượng</label>
           <input
             placeholder="vd: user, order, folder..."
             value={entityType}
@@ -136,10 +134,7 @@ export default function AuditLogsPage() {
                       </td>
                       <td className="px-6 py-3 text-ink-soft">
                         {log.entityType}
-                        <span
-                          className="ml-1 text-xs text-ink-muted"
-                          title={log.entityId}
-                        >
+                        <span className="ml-1 text-xs text-ink-muted" title={log.entityId}>
                           #{log.entityId.slice(0, 8)}
                         </span>
                       </td>
@@ -162,9 +157,7 @@ export default function AuditLogsPage() {
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             {log.before !== null && log.before !== undefined && (
                               <div>
-                                <p className="mb-1.5 text-xs font-semibold text-ink-muted">
-                                  Trước
-                                </p>
+                                <p className="mb-1.5 text-xs font-semibold text-ink-muted">Trước</p>
                                 <pre className="overflow-x-auto rounded-xl bg-white p-3 text-xs text-ink-soft">
                                   {JSON.stringify(log.before, null, 2)}
                                 </pre>

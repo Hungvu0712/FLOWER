@@ -339,8 +339,26 @@ describe("requestMagicLink", () => {
     expect(sha256(tokenInEmail)).toBe(stored.tokenHash);
   });
 
-  it("email không tồn tại → im lặng thành công, KHÔNG tạo token, KHÔNG gửi email", async () => {
+  it("email chưa từng có tài khoản → VẪN gửi link, token gắn userId rỗng (docs/12 BE-20 — magic link kiêm đăng ký nhanh)", async () => {
     db.user.findUnique.mockResolvedValue(null);
+    db.magicLinkToken.create.mockResolvedValue({});
+    db.systemSetting.findUnique.mockResolvedValue(null); // registration_enabled chưa seed → mặc định cho phép
+
+    await authService.requestMagicLink({ email: "khong-co@example.com" });
+
+    expect(db.magicLinkToken.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ email: "khong-co@example.com", userId: undefined }),
+    });
+    expect(emailService.sendEmail).toHaveBeenCalled();
+  });
+
+  it("email chưa có tài khoản + registration_enabled = false → im lặng thành công, KHÔNG tạo token/gửi email", async () => {
+    db.user.findUnique.mockResolvedValue(null);
+    db.systemSetting.findUnique.mockResolvedValue({
+      key: "registration_enabled",
+      value: JSON.stringify(false),
+    });
+
     await expect(
       authService.requestMagicLink({ email: "khong-co@example.com" }),
     ).resolves.toBeUndefined();
@@ -348,8 +366,26 @@ describe("requestMagicLink", () => {
     expect(emailService.sendEmail).not.toHaveBeenCalled();
   });
 
-  it("tài khoản bị khoá → không gửi magic link", async () => {
+  it("email ĐÃ có tài khoản thì registration_enabled = false KHÔNG chặn gửi link (không phải đăng ký mới)", async () => {
+    db.user.findUnique.mockResolvedValue(ACTIVE_USER);
+    db.magicLinkToken.create.mockResolvedValue({});
+    db.systemSetting.findUnique.mockResolvedValue({
+      key: "registration_enabled",
+      value: JSON.stringify(false),
+    });
+
+    await authService.requestMagicLink({ email: "a@example.com" });
+    expect(emailService.sendEmail).toHaveBeenCalled();
+  });
+
+  it("tài khoản bị khoá → không gửi magic link (không cho lách khoá qua đường đăng ký lại)", async () => {
     db.user.findUnique.mockResolvedValue({ ...ACTIVE_USER, status: "blocked" });
+    await authService.requestMagicLink({ email: "a@example.com" });
+    expect(emailService.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("tài khoản đã xoá mềm → không gửi magic link", async () => {
+    db.user.findUnique.mockResolvedValue({ ...ACTIVE_USER, deletedAt: new Date() });
     await authService.requestMagicLink({ email: "a@example.com" });
     expect(emailService.sendEmail).not.toHaveBeenCalled();
   });
@@ -453,6 +489,21 @@ describe("verifyMagicLink", () => {
       passwordHash: null,
       emailVerifiedAt: expect.any(Date),
     });
+  });
+
+  it("403 REGISTRATION_DISABLED khi email mới VÀ registration_enabled bị tắt đúng lúc giữa gửi link và xác nhận (docs/12 BE-20)", async () => {
+    mockConsumeSucceeds({ id: "ml-1", email: "moi@example.com", userId: null });
+    db.user.findUnique.mockResolvedValue(null);
+    db.systemSetting.findUnique.mockResolvedValue({
+      key: "registration_enabled",
+      value: JSON.stringify(false),
+    });
+
+    await expect(authService.verifyMagicLink(token)).rejects.toMatchObject({
+      statusCode: 403,
+      code: "REGISTRATION_DISABLED",
+    });
+    expect(db.user.create).not.toHaveBeenCalled();
   });
 });
 

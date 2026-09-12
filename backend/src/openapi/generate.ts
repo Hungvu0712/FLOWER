@@ -18,10 +18,26 @@ import "../modules/core/contact/contact.openapi";
 import "../modules/core/contact/contact.admin.openapi";
 import "../modules/domain/categories/categories.openapi";
 import "../modules/domain/categories/categories.admin.openapi";
+import "../modules/domain/occasions/occasions.openapi";
+import "../modules/domain/occasions/occasions.admin.openapi";
 import "../modules/domain/products/products.openapi";
 import "../modules/domain/products/products.admin.openapi";
 import "../modules/domain/orders/orders.openapi";
 import "../modules/domain/orders/orders.admin.openapi";
+import "../modules/domain/addresses/addresses.openapi";
+import "../modules/domain/wishlist/wishlist.openapi";
+import "../modules/domain/reviews/reviews.openapi";
+import "../modules/domain/reviews/reviews.account.openapi";
+import "../modules/domain/reviews/reviews.admin.openapi";
+import "../modules/domain/coupons/coupons.openapi";
+import "../modules/domain/coupons/coupons.admin.openapi";
+import "../modules/domain/blog/blog.openapi";
+import "../modules/domain/blog/blog.admin.openapi";
+import "../modules/domain/newsletter/newsletter.openapi";
+import "../modules/domain/newsletter/newsletter.admin.openapi";
+import "../modules/domain/specialDates/specialDates.openapi";
+import "../modules/domain/siteContent/siteContent.openapi";
+import "../modules/domain/siteContent/siteContent.admin.openapi";
 
 // Sinh lại document MỖI LẦN GỌI (không cache module-level) — rẻ (chạy < 100ms, đo lúc viết), và tránh
 // giữ 1 bản cũ trong bộ nhớ tiến trình chạy lâu dài; route mount ở app.ts tự cache theo response HTTP

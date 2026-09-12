@@ -57,7 +57,9 @@ export default function SystemSettingsPage() {
         <div className="flex flex-col gap-4">
           <div className="rounded-3xl border border-border-soft bg-white p-6">
             <p className="mb-1 text-sm font-semibold text-ink">Logo website</p>
-            <p className="mb-4 text-xs text-ink-muted">Hiển thị ở header storefront (khi được nối).</p>
+            <p className="mb-4 text-xs text-ink-muted">
+              Hiển thị ở header storefront (khi được nối).
+            </p>
             <div className="flex items-center gap-4">
               {siteLogo?.url ? (
                 <Image
@@ -159,7 +161,10 @@ export default function SystemSettingsPage() {
               checked={registrationEnabled ?? true}
               disabled={update.isPending}
               onChange={() =>
-                update.mutate({ key: 'registration_enabled', value: !(registrationEnabled ?? true) })
+                update.mutate({
+                  key: 'registration_enabled',
+                  value: !(registrationEnabled ?? true),
+                })
               }
               label="Cho phép đăng ký tài khoản mới"
             />

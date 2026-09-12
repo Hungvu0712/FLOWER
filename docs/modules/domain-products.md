@@ -11,7 +11,7 @@ nếu chưa quen mẫu chung.
 | **Loại** | 🌸 Domain — viết mới cho từng dự án |
 | **Backend** | `modules/domain/products/` |
 | **Frontend** | `features/domain/products/` · `app/(dashboard)/admin/products/` |
-| **Bảng DB** | `products` · `product_images` |
+| **Bảng DB** | `products` · `product_images` · `product_variants` |
 | **Endpoint** | `GET /api/v1/products` (công khai) · `/api/v1/admin/products` (cần `products.manage`) — xem [06 · API §8](../06-api-reference.md#8-products-) |
 
 ---
@@ -24,7 +24,7 @@ nếu chưa quen mẫu chung.
 | Xoá | **Hard delete**, chặn nếu còn danh mục con | **Soft delete** (`deletedAt`) — `order_items` sẽ tham chiếu sau này |
 | Cấu trúc | Cây tự tham chiếu (`parentId`) | Phẳng, chỉ 1 FK tới `categories` (không tự tham chiếu) |
 | Permission | 1 permission gộp (`categories.manage`) | 1 permission gộp (`products.manage`) — **giống nhau**, khác bản thiết kế đầu ở [05 §2.3](../05-database-va-rbac.md#23-danh-sách-permission-đề-xuất) từng định tách 4 permission `view/create/update/delete` |
-| Giá | — | `basePrice` (Int, VND) ngay trên sản phẩm, **không có tồn kho** — **chưa có** `product_variants` (size/giá riêng), xem [05 §3.4](../05-database-va-rbac.md#34-nhóm-sản-phẩm) |
+| Giá | — | `basePrice` (Int, VND) ngay trên sản phẩm, **không có tồn kho**; có thể thêm `product_variants` (size/giá riêng) — xem §2.5 và [05 §3.4](../05-database-va-rbac.md#34-nhóm-sản-phẩm) |
 
 ---
 
@@ -63,6 +63,57 @@ sequenceDiagram
 - `filesService.syncEntityFiles()` là hàm **mới thêm** khi làm module này (không có sẵn từ
   `categories`, vốn chỉ cần `setEntityFile()` cho 1 ảnh) — xem
   [modules/core-files.md](core-files.md).
+
+---
+
+## 2.5. Biến thể (size/giá riêng) — `product_variants`
+
+Một sản phẩm có thể có nhiều **mốc giá theo size** (vd Nhỏ/Vừa/Lớn) thay vì 1 `basePrice` cố định.
+Mảng `variants` rỗng (mặc định) = sản phẩm không có biến thể, dùng thẳng `basePrice` như trước —
+tính năng này **cộng thêm**, không thay thế cách cũ. Giống triết lý `products`/`product_images`:
+**KHÔNG có tồn kho theo variant** — 1 biến thể chỉ là 1 mốc giá, không phải 1 SKU riêng.
+
+```mermaid
+flowchart LR
+    P["products"] --> PV["product_variants<br/>id · product_id · name · price · sort_order"]
+    OI["order_items"] -.->|"variant_id (nullable)<br/>onDelete: SetNull"| PV
+    OI --> VN["variant_name<br/>(snapshot lúc đặt)"]
+
+    style PV fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
+    style VN fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+```
+
+`variants` trong request `create`/`update` là **TOÀN BỘ** danh sách mong muốn, giống ngữ nghĩa
+`imageFileIds` — nhưng khác cách đồng bộ: ảnh xoá hết rồi tạo lại (ảnh không bị tham chiếu ở đâu
+khác), còn biến thể phải **giữ nguyên `id`** khi vẫn còn bị sửa, vì `order_items.variant_id` của các
+đơn cũ trỏ tới `id` đó — xoá-tạo-lại sẽ đổi `id` và vỡ liên kết lịch sử.
+
+`replaceVariants()` (`products.service.ts`) diff theo `id`:
+
+```mermaid
+flowchart TD
+    A(["variants gửi lên"]) --> B{"Có id?"}
+    B -->|"Có, khớp variant hiện tại của SẢN PHẨM NÀY"| C["UPDATE giữ nguyên id"]
+    B -->|"Không có id, hoặc id lạ<br/>(sản phẩm khác/không tồn tại)"| D["CREATE — id lạ bị bỏ qua,<br/>coi như tạo mới"]
+    E(["variant hiện có trong DB<br/>nhưng KHÔNG có trong danh sách gửi lên"]) --> F["DELETE"]
+
+    style C fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
+    style D fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+    style F fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
+```
+
+Client gửi `id` không thuộc sản phẩm đang sửa (vd đoán/copy `id` của biến thể sản phẩm khác) được xử
+lý AN TOÀN như "tạo mới" (bỏ qua `id` lạ) — không cập nhật nhầm hay báo lỗi, tránh vừa là lỗ hổng vừa
+là trải nghiệm khó hiểu. `variants: []` (mảng rỗng, khác `undefined`) xoá hết biến thể — sản phẩm quay
+lại dùng thẳng `basePrice`.
+
+**Đơn hàng dùng biến thể** (`orders.service.ts#create`): khi `orderItems[].variantId` có giá trị,
+service kiểm tra biến thể đó **thật sự thuộc** `productId` gửi kèm (chống kiểu IDOR — gửi `variantId`
+rẻ của sản phẩm khác kèm `productId` đắt để mua giá rẻ) → sai thì `409 PRODUCT_UNAVAILABLE`, cùng mã
+lỗi dùng cho các trường hợp sản phẩm không khả dụng khác. Giá dòng đơn lấy từ `variant.price` thay vì
+`product.basePrice`, và `variant_name` được **snapshot** vào `order_items` (giống `product_name`) để
+đơn cũ vẫn hiển thị đúng dù biến thể sau này đổi tên/bị xoá. Gộp dòng trùng trong 1 đơn theo khoá kép
+`(productId, variantId)` — cùng sản phẩm nhưng khác biến thể là 2 dòng riêng (giá khác nhau).
 
 ---
 
@@ -115,6 +166,8 @@ không phân biệt để tránh dò xem sản phẩm nào từng tồn tại).
 | Danh mục (`categoryId`) phải tồn tại nếu có truyền | `404 CATEGORY_NOT_FOUND` | Giống `PARENT_NOT_FOUND` ở categories |
 | Sản phẩm phải tồn tại và chưa xoá mềm | `404 NOT_FOUND` | Áp dụng cho cả `update` lẫn `remove` |
 | Slug là duy nhất (trong các sản phẩm CHƯA xoá) | Tự thêm hậu tố `-2`, `-3`... | Sản phẩm đã xoá mềm không chặn slug mới trùng |
+| `variantId` gửi khi đặt hàng phải thuộc đúng `productId` | `409 PRODUCT_UNAVAILABLE` | Xem §2.5 — chống chọn giá biến thể của sản phẩm khác |
+| Mọi `occasionId` trong `occasionIds` phải tồn tại | `404 OCCASION_NOT_FOUND` | Xem [domain-occasions.md](domain-occasions.md) — validate TRƯỚC khi xoá tag cũ, không làm mất tag đang có nếu request sai |
 
 ---
 
@@ -124,11 +177,14 @@ không phân biệt để tránh dò xem sản phẩm nào từng tồn tại).
 |---|---|
 | `features/domain/products/products.service.ts` | Gọi `/api/v1/admin/products` |
 | `features/domain/products/products.hooks.ts` | `useProducts`, `useCreateProduct`, `useUpdateProduct`, `useDeleteProduct` |
-| `app/(dashboard)/admin/products/page.tsx` | Danh sách + form tạo/sửa, upload nhiều ảnh (`input[multiple]`, loop `useUploadFile` từng file) |
+| `app/(dashboard)/admin/products/page.tsx` | Danh sách + form tạo/sửa, upload nhiều ảnh (`input[multiple]`, loop `useUploadFile` từng file), sửa danh sách biến thể (thêm/đổi tên+giá/xoá dòng — gửi lại TOÀN BỘ `variants` khi lưu, xem §2.5), chọn NHIỀU dịp lễ bằng nút dạng pill — gửi lại TOÀN BỘ `occasionIds` khi lưu, xem [domain-occasions.md](domain-occasions.md) |
 | `lib/currency.ts` | `formatVnd()` — `Intl.NumberFormat('vi-VN')`, dùng chung cho mọi nơi hiển thị giá |
 | `lib/storefront-api.ts` → `getStorefrontProductBySlug()` | Gọi `GET /api/v1/products/:slug` bằng `fetch` gốc (không phải axios — xem comment đầu file) |
 | `app/(storefront)/san-pham/[slug]/page.tsx` | Trang chi tiết — breadcrumb, gallery, mô tả (render `dangerouslySetInnerHTML`, an toàn vì đã sanitize ở backend lúc lưu — xem §9), CTA gọi/Zalo, sản phẩm liên quan (cùng `categoryId`, loại trừ chính nó) |
 | `components/storefront/ProductGallery.tsx` | Client Component — đổi ảnh chính khi bấm thumbnail (`useState`), dữ liệu ảnh do trang cha (Server Component) fetch sẵn |
+| `components/storefront/AddToCartControls.tsx` | Client Component — chọn biến thể (nút dạng pill) + số lượng + giá hiển thị động theo biến thể đang chọn; không có biến thể thì chỉ hiện `basePrice` tĩnh |
+| `components/storefront/ProductCard.tsx` | Sản phẩm CÓ biến thể → bấm "thêm vào giỏ" điều hướng sang trang chi tiết thay vì tự thêm (chưa biết chọn size nào), giá hiển thị "Từ {basePrice}" |
+| `store/useCartStore.ts` | 1 dòng giỏ hàng = cặp `(productId, variantId)` — cùng sản phẩm khác biến thể là 2 dòng riêng, khớp cách gộp dòng ở `orders.service.ts` (xem §2.5) |
 | `lib/contact-info.ts` | `HOTLINE`/`ZALO_LINK` dùng chung giữa `ProductCard` (overlay hover) và trang chi tiết (CTA chính) — giá trị mẫu, xem TODO trong file |
 
 `ProductForm`/`ImageGallery` là component **tách riêng ở module-scope** (không định nghĩa lồng trong
@@ -141,7 +197,7 @@ mỗi lần render cha, bị `eslint-plugin-react-hooks` (`react-hooks/static-co
 
 | Tầng | File | Số test |
 |---|---|---|
-| Unit | `backend/tests/unit/modules/products.service.test.ts` | 24 — slug, soft delete, đồng bộ bộ ảnh, ràng buộc danh mục, sanitize mô tả HTML, `getPublicBySlug` |
+| Unit | `backend/tests/unit/modules/products.service.test.ts` | 38 — slug, soft delete, đồng bộ bộ ảnh, đồng bộ biến thể (`replaceVariants`: giữ `id` khi sửa, tạo mới, xoá dòng vắng mặt, id lạ coi như tạo mới), đồng bộ dịp lễ (`replaceOccasions`: gắn/thay thế toàn bộ, 404 khi occasionId lạ), lọc `occasionId`, ràng buộc danh mục, sanitize mô tả HTML, `getPublicBySlug` |
 | Unit | `backend/tests/unit/shared/sanitizeHtml.test.ts` | 5 — giữ thẻ trong allowlist, xoá `<script>`, xoá mọi attribute, hạ cấp thẻ lạ |
 | Integration | `backend/tests/integration/products.routes.test.ts` + phần chung trong `rbac.test.ts` | 11 + phần chung — envelope 201, mã lỗi, 403 thiếu quyền, `GET /:slug` công khai + 404 |
 
@@ -149,15 +205,21 @@ Kiểm chứng thủ công qua trình duyệt thật (Playwright, không phải 
 nhập super_admin → tạo sản phẩm kèm 2 ảnh → sửa giá + gỡ 1 ảnh → xoá — toàn bộ chạy đúng trên
 Cloudinary + Postgres thật, không có lỗi console.
 
+Riêng luồng biến thể (11/09/2026), kiểm chứng thủ công thêm qua trình duyệt thật: tạo sản phẩm 2 biến
+thể (Nhỏ/Lớn, giá khác nhau) ở `/admin/products` → sang trang chi tiết storefront, chọn "Lớn", giá
+hiển thị đổi đúng theo biến thể → thêm vào giỏ, giỏ hàng hiện đúng tên size + giá → đặt hàng, trang
+xác nhận đơn hiện đúng "(Lớn)" và giá biến thể (không phải `basePrice`) → quay lại `/admin/products`,
+sửa: xoá biến thể "Lớn", đổi giá "Nhỏ", thêm biến thể "Vừa" mới → mở lại form xác nhận đã lưu đúng.
+Không có lỗi console/network ngoài các lỗi 401 (kiểm tra phiên đăng nhập lúc tải trang, có chủ đích)
+và cảnh báo Google OAuth origin (do chưa cấu hình client ID cho localhost, không liên quan tính năng).
+
 ---
 
 ## 8. Việc còn lại
 
 | Việc | Ưu tiên | Mã |
 |---|:---:|---|
-| `product_variants` (size/giá riêng: Nhỏ/Vừa/Lớn) | 🟡 | — |
-| Giỏ hàng + đặt hàng (nút "Thêm vào giỏ" ở `ProductCard` hiện chưa nối logic) | 🟡 | — |
-| Tìm kiếm/lọc theo giá, `occasions` (chưa có bảng) | 🟢 | — |
+| Tìm kiếm/lọc theo giá | 🟢 | — |
 | Kéo–thả sắp xếp `sortOrder` cho ảnh trên UI (hiện chỉ theo thứ tự upload) | 🟢 | — |
 | Tách permission `products.view` riêng cho `sales_staff` xem (không sửa) | 🟢 | Xem [12 §BE-10](../12-danh-gia-va-de-xuat.md) |
 

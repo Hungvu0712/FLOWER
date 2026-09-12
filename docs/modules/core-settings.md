@@ -118,8 +118,9 @@ tại → 404, `site_logo = null` gỡ `file_usages`, audit log kèm before/afte
 
 `backend/tests/integration/systemSettings.routes.test.ts` (6 test) — 401/403/422 qua HTTP thật.
 
-`backend/tests/unit/modules/auth.service.test.ts` — 3 test riêng cho `registration_enabled`: chặn
-`register()`, chặn tài khoản Google MỚI, KHÔNG chặn tài khoản Google đã tồn tại liên kết lần đầu.
+`backend/tests/unit/modules/auth.service.test.ts` — test riêng cho `registration_enabled` ở cả 3
+đường tạo tài khoản: chặn `register()`, chặn tài khoản Google MỚI (không chặn Google đã tồn tại), và
+`requestMagicLink()`/`verifyMagicLink()` (xem §6 — nối lại đăng ký qua magic link).
 
 **Đã kiểm chứng thật**: chạy migration + seed thật, gọi API thật qua `curl` (PATCH đổi `site_name`,
 bật/tắt `registration_enabled` rồi thử `POST /auth/register` thật — xác nhận đúng `403
@@ -128,21 +129,36 @@ website, bật/tắt cờ đăng ký, toast xác nhận đúng.
 
 ---
 
-## 6. Phát hiện thêm khi làm (chưa sửa — theo dõi riêng)
+## 6. `BE-20` · Nối lại đăng ký qua magic link (✅ 11/09/2026)
 
-**`BE-20` · `verifyMagicLink()` có nhánh "tự tạo tài khoản" KHÔNG BAO GIỜ chạy tới** — comment tại
-`auth.service.ts` nói "magic link đóng luôn vai trò đăng ký nhanh" (khớp mô tả ở
-[docs/06 §4](../06-api-reference.md)), nhưng `requestMagicLink()` chỉ tạo token (và gửi email) khi
-email **đã có tài khoản** — email chưa từng đăng ký sẽ không nhận được link nào cả, nên
-`verifyMagicLink()` không bao giờ nhận được 1 token có `userId = null`/email lạ để chạm tới nhánh tự
-tạo tài khoản đó. Có 2 hướng sửa: (a) bỏ điều kiện `user &&` ở `requestMagicLink()` để email lạ cũng
-nhận được link (đúng như tài liệu mô tả — nhưng cần cân nhắc lại có đổi hành vi chống dò tài khoản
-không, vì hiện tại **luôn** trả 200 bất kể email tồn tại hay không, nên về mặt response KHÔNG đổi gì,
-chỉ đổi việc email lạ có nhận được mail hay không), hoặc (b) xoá nhánh chết + sửa lại comment/tài liệu
-cho khớp thực tế (magic link chỉ dùng để đăng nhập, không đăng ký). **Chưa quyết định hướng nào** —
-cần người có thẩm quyền sản phẩm chọn, không tự ý đổi hành vi đăng ký khi đang làm việc khác
-(`assertRegistrationEnabled()` đã được thêm sẵn vào nhánh chết đó, phòng khi được nối lại).
-**Ước lượng khảo sát thêm + sửa**: ~1 giờ.
+**Phát hiện**: `verifyMagicLink()` có nhánh "tự tạo tài khoản" (comment nói *"magic link đóng luôn
+vai trò đăng ký nhanh"*, khớp mô tả ở [docs/06 §4](../06-api-reference.md)) nhưng KHÔNG BAO GIỜ chạy
+tới được — `requestMagicLink()` chỉ tạo token (và gửi email) khi email **đã có tài khoản**, nên email
+chưa từng đăng ký không nhận được link nào cả để chạm tới nhánh tự tạo tài khoản đó.
+
+**Đã sửa** (chọn hướng nối lại tính năng, khớp đúng mô tả tài liệu ban đầu): bỏ điều kiện `user &&` ở
+`requestMagicLink()` — giờ gửi link cho **mọi** email chưa bị khoá/xoá mềm, kể cả email chưa từng có
+tài khoản (token gắn `userId: undefined` → `null` trong DB, `verifyMagicLink()` tự nhận diện và tạo
+tài khoản mới khi xác nhận). Response không đổi (vẫn luôn trả 200, không lộ email nào có thật — xem
+[07 §1](../07-bao-mat.md)). Vẫn chặn gửi link khi: email đã có tài khoản nhưng đang bị khoá/xoá mềm
+(không cho lách khoá), hoặc email mới mà `registration_enabled` đang tắt.
+
+```mermaid
+flowchart TD
+    REQ["POST /auth/magic-link/request"] --> FIND["Tìm user theo email"]
+    FIND -->|"Có, đang bị khoá/xoá"| SKIP["Không gửi link<br/>(vẫn trả 200 y hệt)"]
+    FIND -->|"Có, đang hoạt động"| SEND["Tạo token + gửi email"]
+    FIND -->|"Không có (email mới)"| CHECKREG{"registration_enabled?"}
+    CHECKREG -->|Tắt| SKIP
+    CHECKREG -->|Bật| SEND
+
+    style SKIP fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
+    style SEND fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
+```
+
+**Đã kiểm chứng thật**: bật tạm `magic_link` trên DB dev, gọi `POST /auth/magic-link/request` thật với
+1 email hoàn toàn mới — xác nhận có bản ghi `magic_link_tokens` với `userId = null` được tạo đúng
+thiết kế.
 
 ---
 
@@ -153,4 +169,3 @@ cần người có thẩm quyền sản phẩm chọn, không tự ý đổi hà
 | `maintenance_mode` | 🟡 | Cần middleware chặn toàn site + lối thoát cho `super_admin` — thiết kế riêng, xem §4 |
 | Storefront đọc `site_name`/`site_logo`/`timezone` | 🟢 | Hiện 2 key này chỉ lưu được qua UI, chưa nơi nào hiển thị ra ngoài |
 | Gộp `login_method_settings` vào `system_settings` | 🟢 | Cân nhắc khi có ≥ 2 lý do thật cần, tránh tách/gộp bảng chỉ vì "cho gọn" — xem docs/02 §1 nguyên tắc chống over-engineering |
-| `BE-20` — nhánh tự tạo tài khoản chết trong `verifyMagicLink()` | 🟡 | Xem §6 — cần quyết định sản phẩm trước khi sửa |

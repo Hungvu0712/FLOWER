@@ -1,14 +1,8 @@
 import Link from 'next/link';
 import { FlowerIcon } from '@/components/ui/FlowerIcon';
 import { BackToTopButton } from './BackToTopButton';
-import {
-  HOTLINE,
-  HOTLINE_DISPLAY,
-  ADDRESS,
-  OPEN_HOURS,
-  ZALO_LINK,
-  ZALO_DISPLAY,
-} from '@/lib/contact-info';
+import { NewsletterSignupForm } from '@/components/storefront/NewsletterSignupForm';
+import { DEFAULT_STOREFRONT_SITE_CONTENT, type StorefrontSiteContent } from '@/lib/storefront-api';
 
 type FooterCategory = { id: string; name: string; slug: string };
 
@@ -110,12 +104,31 @@ function ContactRow({
   );
 }
 
-// Dùng chung cho storefront và trang tài khoản khách hàng (app/account/layout.tsx) — `categories`
-// chỉ được layout storefront (Server Component) truyền xuống, giống hệt cách Nav.tsx đang làm, nên
-// layout account không phải tự gọi API danh mục.
-export function Footer({ categories = [] }: { categories?: FooterCategory[] }) {
+// Dùng chung cho storefront và trang tài khoản khách hàng (app/account/layout.tsx) — `categories`/
+// `siteContent` chỉ được layout storefront (Server Component) truyền xuống, giống hệt cách Nav.tsx
+// đang làm, nên layout account không phải tự gọi API danh mục/site-content (dùng default an toàn).
+export function Footer({
+  categories = [],
+  siteContent = DEFAULT_STOREFRONT_SITE_CONTENT,
+}: {
+  categories?: FooterCategory[];
+  siteContent?: StorefrontSiteContent;
+}) {
+  const { hotline, hotlineTel, zaloLink, zaloDisplay, address, openHours } = siteContent;
   return (
     <footer className="border-t border-border-soft/70 bg-white/60 backdrop-blur-md">
+      <div className="border-b border-border-soft/70 bg-rose-light/40 px-8 py-8 lg:px-16">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left">
+          <div>
+            <h3 className="font-display text-lg font-semibold text-ink">Đăng ký nhận tin</h3>
+            <p className="mt-1 text-sm text-ink-muted">
+              Ưu đãi và mẫu hoa mới, gửi thẳng vào email của bạn.
+            </p>
+          </div>
+          <NewsletterSignupForm />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-10 px-8 py-16 sm:grid-cols-2 lg:grid-cols-4 lg:px-16">
         <div>
           <Link href="/" className="flex items-center gap-2.5">
@@ -156,7 +169,7 @@ export function Footer({ categories = [] }: { categories?: FooterCategory[] }) {
               </svg>
             </span>
             <a
-              href={ZALO_LINK}
+              href={zaloLink}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Nhắn Zalo"
@@ -209,12 +222,12 @@ export function Footer({ categories = [] }: { categories?: FooterCategory[] }) {
             <ContactRow
               icon={PhoneIcon}
               label="Hotline đặt hoa"
-              value={HOTLINE_DISPLAY}
-              href={`tel:${HOTLINE}`}
+              value={hotline}
+              href={`tel:${hotlineTel}`}
             />
-            <ContactRow icon={ZaloIcon} label="Zalo" value={ZALO_DISPLAY} href={ZALO_LINK} />
-            <ContactRow icon={PinIcon} label="Địa chỉ" value={ADDRESS} />
-            <ContactRow icon={ClockIcon} label="Giờ mở cửa" value={OPEN_HOURS} />
+            <ContactRow icon={ZaloIcon} label="Zalo" value={zaloDisplay} href={zaloLink} />
+            <ContactRow icon={PinIcon} label="Địa chỉ" value={address} />
+            <ContactRow icon={ClockIcon} label="Giờ mở cửa" value={openHours} />
           </ul>
         </div>
       </div>
@@ -223,16 +236,12 @@ export function Footer({ categories = [] }: { categories?: FooterCategory[] }) {
         <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
           <p className="text-center text-xs text-ink-muted sm:text-left">
             © {new Date().getFullYear()} Hoa Xinh — Hoa tươi mỗi ngày. Hotline{' '}
-            <a href={`tel:${HOTLINE}`} className="font-semibold text-rose hover:text-rose-dark">
-              {HOTLINE_DISPLAY}
+            <a href={`tel:${hotlineTel}`} className="font-semibold text-rose hover:text-rose-dark">
+              {hotline}
             </a>
           </p>
           <BackToTopButton />
         </div>
-        <p className="mt-2 text-center text-[11px] text-ink-muted/70 sm:text-left">
-          Thông tin liên hệ trên đây là dữ liệu demo dựng giao diện, sẽ được thay bằng thông tin
-          thật trước khi vận hành chính thức.
-        </p>
       </div>
     </footer>
   );

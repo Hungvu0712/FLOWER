@@ -172,6 +172,14 @@ describe("POST /api/v1/auth/magic-link/request", () => {
     expect(res.body.message).toBe("Nếu email tồn tại, liên kết đăng nhập đã được gửi.");
   });
 
+  it("email KHÔNG tồn tại vẫn thật sự nhận được link (docs/12 BE-20 — magic link kiêm đăng ký nhanh)", async () => {
+    db.user.findUnique.mockResolvedValue(null);
+    db.magicLinkToken.create.mockResolvedValue({});
+    await request(app).post("/api/v1/auth/magic-link/request").send({ email: "moi@example.com" });
+    expect(db.magicLinkToken.create).toHaveBeenCalled();
+    expect(emailService.sendEmail).toHaveBeenCalled();
+  });
+
   it("email TỒN TẠI trả response giống hệt nhánh trên", async () => {
     db.user.findUnique.mockResolvedValue(ACTIVE_USER);
     db.magicLinkToken.create.mockResolvedValue({});

@@ -60,9 +60,7 @@ describe("SuperAdmin — /api/v1/superadmin/settings", () => {
 
   it("member KHÔNG có settings.manage → 403", async () => {
     const memberCookie = loginAs("member-1", ["member"], []);
-    const res = await request(app)
-      .get("/api/v1/superadmin/settings")
-      .set("Cookie", memberCookie);
+    const res = await request(app).get("/api/v1/superadmin/settings").set("Cookie", memberCookie);
     expect(res.status).toBe(403);
   });
 

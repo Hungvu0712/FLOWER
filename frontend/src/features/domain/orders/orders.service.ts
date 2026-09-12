@@ -8,6 +8,8 @@ export type OrderItem = {
   id: string;
   productId: string | null;
   productName: string;
+  variantId: string | null;
+  variantName: string | null;
   unitPrice: number;
   quantity: number;
   subtotal: number;
@@ -20,6 +22,8 @@ export type Order = {
   status: OrderStatus;
   paymentMethod: string;
   subtotal: number;
+  couponCode: string | null;
+  discountAmount: number;
   total: number;
   recipientName: string;
   recipientPhone: string;
@@ -33,13 +37,16 @@ export type Order = {
 };
 
 export type CreateOrderInput = {
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; variantId?: string; quantity: number }[];
   recipientName: string;
   recipientPhone: string;
   deliveryAddress: string;
   deliveryDate: string; // 'YYYY-MM-DD'
   deliveryTimeSlot: OrderTimeSlot;
   note?: string;
+  // Mã giảm giá đã được xác nhận hợp lệ qua couponsService.validate() ở trang thanh-toán — backend
+  // vẫn re-validate lại THẬT trong cùng transaction tạo đơn (xem docs/modules/domain-coupons.md).
+  couponCode?: string;
   // Honeypot chống bot — input ẩn bằng CSS trong thanh-toan/page.tsx, người dùng thật không bao giờ
   // điền được. Backend coi CÓ giá trị (kể cả chỉ khoảng trắng) là dấu hiệu bot, xem orders.service.ts.
   website?: string;
@@ -82,5 +89,12 @@ export const ordersService = {
   updateStatus: (id: string, status: OrderStatus) =>
     api
       .patch<{ data: Order }>(`/api/v1/admin/orders/${id}/status`, { status })
+      .then((r) => r.data.data),
+
+  // Lịch giao hoa theo ngày (dashboard florist) — permission RIÊNG orders.view_delivery_queue, KHÔNG
+  // phân trang (trả thẳng mảng, xem orders.service.ts backend).
+  listDeliveryQueue: (date: string) =>
+    api
+      .get<{ data: Order[] }>('/api/v1/admin/orders/delivery-queue', { params: { date } })
       .then((r) => r.data.data),
 };

@@ -33,22 +33,18 @@ flowchart LR
         G13["✅ OPS-01 đã xử lý (11/09/2026)<br/>RUN_JOBS tách cron khỏi NODE_ENV<br/>scale ngang API mà cron chỉ chạy 1 nơi"]
         G14["✅ BE-12 đã xử lý (11/09/2026)<br/>OpenAPI/Swagger sinh từ zod schema thật<br/>GET /docs · GET /openapi.json"]
         G15["✅ Màn quản lý tài nguyên đã xây (11/09/2026)<br/>+ system_settings key-value tổng quát<br/>(site_name/logo/timezone/registration_enabled)"]
-    end
-
-    subgraph GAP["⚠️ Khoảng trống"]
-        B7["🟡 BE-20: nhánh tự tạo tài khoản<br/>chết trong verifyMagicLink()<br/>(phát hiện khi làm registration_enabled)"]
+        G16["✅ BE-20 đã xử lý (11/09/2026)<br/>Nối lại đăng ký qua magic link<br/>khớp đúng tài liệu ban đầu"]
     end
 
     style GOOD fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
-    style GAP fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
 ```
 
 **Nhận định chung**: nền tảng vững hơn mức thường thấy ở dự án cùng quy mô. Kiến trúc phân tầng
 đúng, quy ước nhất quán, và — điều hiếm gặp — **các quyết định đánh đổi đều được ghi lại lý do
-ngay trong code**. Toàn bộ 6 lỗ hổng phiên đăng nhập mức 🔴 (BE-01 → BE-06, 10/09/2026), **13/14
-khoản nợ 🟡** (§3, 10-11/09/2026), và **toàn bộ 10/10 khoản nợ 🟢** (§4, 11/09/2026) đã được xử lý.
-Còn duy nhất `BE-20` (§3, phát hiện 11/09/2026 khi làm `registration_enabled`) — cần quyết định sản
-phẩm trước khi sửa, không phải lỗi bảo mật hay chặn production.
+ngay trong code**. Toàn bộ 6 lỗ hổng phiên đăng nhập mức 🔴 (BE-01 → BE-06, 10/09/2026), **toàn bộ
+14/14 khoản nợ 🟡** (§3, 10-11/09/2026), và **toàn bộ 10/10 khoản nợ 🟢** (§4, 11/09/2026) đã được xử
+lý — bao gồm `BE-20` (phát hiện VÀ xử lý cùng ngày 11/09/2026 khi làm `registration_enabled`). Không
+còn khoản nợ kỹ thuật nào đang mở trong danh sách rà soát này.
 
 ### Bảng điểm
 
@@ -58,7 +54,7 @@ phẩm trước khi sửa, không phải lỗi bảo mật hay chặn production
 | Chuẩn hoá error/response | 10/10 | Nhất quán tuyệt đối, `asyncHandler` phủ 100% controller |
 | Bảo mật | 9/10 | 6/6 lỗ hổng 🔴 đã xử lý (§2); còn vài khoản nợ 🟡 không khẩn |
 | Khả năng bảo trì | 9/10 | Comment chất lượng cao; đã có Prettier thống nhất style (BE-08) |
-| Kiểm thử | 8/10 | 602 test backend + 144 test frontend + ~30 E2E; thiếu CI |
+| Kiểm thử | 8/10 | 607 test backend + 144 test frontend + ~30 E2E; thiếu CI |
 | Tài liệu | 9/10 | Đầy đủ, có sơ đồ; cần giữ đồng bộ với code |
 | Sẵn sàng production | 6/10 | Lỗ hổng phiên đăng nhập đã bịt; còn thiếu CI/CD, Docker, giám sát, HTTPS |
 
@@ -706,7 +702,7 @@ hoặc tài liệu đã di chuyển (`ARCHITECTURE.md`/`DATABASE.md`/`SECURITY.m
 
 ---
 
-### BE-20 · `verifyMagicLink()` có nhánh "tự tạo tài khoản" không bao giờ chạy tới
+### BE-20 · `verifyMagicLink()` có nhánh "tự tạo tài khoản" không bao giờ chạy tới — ✅ ĐÃ XỬ LÝ (11/09/2026)
 
 Phát hiện khi làm `registration_enabled` (Phase 4, `system_settings` — xem
 [docs/modules/core-settings.md §6](modules/core-settings.md)). Comment ở `auth.service.ts` và
@@ -726,20 +722,37 @@ if (user && user.status !== "blocked" && !user.deletedAt) {
 "tự tạo tài khoản" trong `verifyMagicLink()` (`if (!user) { user = await repo.createUserWithMemberRole(...) }`)
 là **dead code** không thể chạm tới qua luồng thật hiện tại.
 
-**Hai hướng sửa, chưa chọn hướng nào** (cần quyết định sản phẩm, không tự ý đổi hành vi đăng ký khi
-đang làm việc khác):
+**Đã chọn hướng 1** (người dùng quyết định): nối lại tính năng đăng ký qua magic link, khớp đúng mô tả
+tài liệu ban đầu. Bỏ điều kiện `user &&` ở `requestMagicLink()` — giờ gửi link cho **mọi** email chưa
+bị khoá/xoá mềm, kể cả email chưa từng có tài khoản:
 
-1. Bỏ điều kiện `user &&` ở `requestMagicLink()` để email lạ cũng nhận được link — khớp đúng mô tả
-   tài liệu hiện có. Response `requestMagicLink` **không đổi** (đã luôn trả 200 bất kể email tồn tại
-   hay không, đúng nguyên tắc chống dò tài khoản) — chỉ đổi việc email lạ có thực sự nhận được mail
-   hay không.
-2. Xoá nhánh chết trong `verifyMagicLink()` + sửa lại comment/tài liệu cho khớp thực tế: magic link
-   chỉ dùng để **đăng nhập** cho tài khoản đã tồn tại, không kiêm đăng ký.
+```ts
+// auth.service.ts — requestMagicLink() sau khi sửa
+const blocked = user ? user.status === "blocked" || Boolean(user.deletedAt) : false;
+const registrationBlocked = !user && (await systemSettings.getValue("registration_enabled")) === false;
+if (!blocked && !registrationBlocked) {
+  // tạo token (userId: user?.id — undefined nếu email mới) + gửi email
+}
+```
 
-`assertRegistrationEnabled()` (Phase 4) đã được thêm sẵn vào nhánh chết đó — phòng trường hợp hướng 1
-được chọn sau này, cờ `registration_enabled` sẽ tự áp dụng đúng luôn mà không cần sửa gì thêm.
+- Response **không đổi** (đã luôn trả 200 bất kể email tồn tại hay không, đúng nguyên tắc chống dò
+  tài khoản §07) — chỉ đổi việc email lạ có thực sự nhận được mail hay không.
+- Chặn gửi link khi: (a) email đã có tài khoản nhưng đang bị khoá/xoá mềm — không cho lách khoá qua
+  đường "đăng ký lại", hoặc (b) email **chưa có** tài khoản và `registration_enabled` đang tắt.
+- `assertRegistrationEnabled()` ở `verifyMagicLink()` (thêm sẵn từ trước) vẫn giữ nguyên — bắt race
+  hiếm khi cờ `registration_enabled` bị tắt ĐÚNG lúc giữa khi gửi link và khi xác nhận link (TTL
+  15 phút).
 
-**Ước lượng khảo sát thêm + quyết định + sửa**: ~1 giờ.
+**Test**: `backend/tests/unit/modules/auth.service.test.ts` — 5 test mới ở `requestMagicLink` (email
+mới vẫn được gửi link, chặn khi `registration_enabled` tắt, KHÔNG chặn email đã có tài khoản dù cờ
+tắt, chặn tài khoản bị khoá, chặn tài khoản đã xoá mềm) + 1 test mới ở `verifyMagicLink` (403
+`REGISTRATION_DISABLED` khi cờ tắt đúng lúc race). `backend/tests/integration/auth.routes.test.ts` —
+1 test xác nhận qua HTTP thật là `magicLinkToken.create` được gọi cho email mới.
+**Đã kiểm chứng thật**: bật tạm `magic_link` trên DB dev, gọi `POST /auth/magic-link/request` thật
+với 1 email hoàn toàn mới, xác nhận có bản ghi `magic_link_tokens` với `userId = null` được tạo —
+đúng như thiết kế.
+
+**Ước lượng**: ~1 giờ. **Thực tế**: ~40 phút.
 
 ---
 

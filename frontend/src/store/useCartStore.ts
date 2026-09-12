@@ -11,10 +11,21 @@ export type CartItem = {
   productId: string;
   name: string;
   slug: string;
-  basePrice: number;
+  // Giá THẬT SỰ dùng để tính tiền dòng này — giá biến thể nếu có chọn, ngược lại basePrice của sản
+  // phẩm (đổi tên từ `basePrice` cũ vì giờ không còn LUÔN LÀ basePrice nữa, xem variantId bên dưới).
+  unitPrice: number;
+  // Biến thể (size) đã chọn, nếu sản phẩm có biến thể — bỏ trống = sản phẩm không có biến thể.
+  variantId?: string;
+  variantName?: string;
   image: string | null;
   quantity: number;
 };
+
+// 1 dòng giỏ hàng = 1 cặp (productId, variantId) — CÙNG sản phẩm nhưng KHÁC biến thể là 2 dòng riêng
+// (giá khác nhau), khớp đúng ngữ nghĩa gộp dòng ở backend orders.service.ts.
+function sameLine(a: { productId: string; variantId?: string }, b: typeof a): boolean {
+  return a.productId === b.productId && (a.variantId ?? null) === (b.variantId ?? null);
+}
 
 type CartState = {
   items: CartItem[];
@@ -27,8 +38,8 @@ type CartState = {
   hasHydrated: boolean;
   setHasHydrated: (value: boolean) => void;
   addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
-  removeItem: (productId: string) => void;
-  setQuantity: (productId: string, quantity: number) => void;
+  removeItem: (productId: string, variantId?: string) => void;
+  setQuantity: (productId: string, quantity: number, variantId?: string) => void;
   clear: () => void;
 };
 
@@ -40,24 +51,28 @@ export const useCartStore = create<CartState>()(
       setHasHydrated: (value) => set({ hasHydrated: value }),
       addItem: (item, quantity = 1) =>
         set((state) => {
-          const existing = state.items.find((i) => i.productId === item.productId);
+          const existing = state.items.find((i) => sameLine(i, item));
           if (existing) {
             return {
               items: state.items.map((i) =>
-                i.productId === item.productId ? { ...i, quantity: i.quantity + quantity } : i,
+                sameLine(i, item) ? { ...i, quantity: i.quantity + quantity } : i,
               ),
             };
           }
           return { items: [...state.items, { ...item, quantity }] };
         }),
-      removeItem: (productId) =>
-        set((state) => ({ items: state.items.filter((i) => i.productId !== productId) })),
-      setQuantity: (productId, quantity) =>
+      removeItem: (productId, variantId) =>
+        set((state) => ({
+          items: state.items.filter((i) => !sameLine(i, { productId, variantId })),
+        })),
+      setQuantity: (productId, quantity, variantId) =>
         set((state) => ({
           items:
             quantity <= 0
-              ? state.items.filter((i) => i.productId !== productId)
-              : state.items.map((i) => (i.productId === productId ? { ...i, quantity } : i)),
+              ? state.items.filter((i) => !sameLine(i, { productId, variantId }))
+              : state.items.map((i) =>
+                  sameLine(i, { productId, variantId }) ? { ...i, quantity } : i,
+                ),
         })),
       clear: () => set({ items: [] }),
     }),
@@ -71,4 +86,4 @@ export const useCartStore = create<CartState>()(
 export const useCartCount = () =>
   useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0));
 export const useCartTotal = () =>
-  useCartStore((s) => s.items.reduce((sum, i) => sum + i.basePrice * i.quantity, 0));
+  useCartStore((s) => s.items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0));

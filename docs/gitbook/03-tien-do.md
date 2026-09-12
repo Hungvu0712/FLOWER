@@ -4,7 +4,7 @@ description: Tiến độ thực tế của dự án, cập nhật hai tuần m�
 
 # 3. Tiến độ dự án
 
-> **Cập nhật lần cuối: 11/09/2026** · Lần cập nhật tiếp theo: 23/09/2026
+> **Cập nhật lần cuối: 12/09/2026** · Lần cập nhật tiếp theo: 23/09/2026
 
 ---
 
@@ -13,10 +13,10 @@ description: Tiến độ thực tế của dự án, cập nhật hai tuần m�
 | Chỉ số | Giá trị |
 |---|---|
 | Giai đoạn hiện tại | **Phase 5 — Xây dựng nghiệp vụ bán hàng** |
-| Hoàn thành tổng thể | **~42%** |
+| Hoàn thành tổng thể | **~52%** |
 | Nền tảng kỹ thuật | ✅ Đã xong và đã kiểm thử |
-| Nghiệp vụ bán hàng | 🟡 Danh mục, sản phẩm, giỏ hàng, đặt hàng (COD) đã dùng được — chưa thanh toán online |
-| Số bài kiểm thử tự động đang chạy | **746** (backend 602 · giao diện 144) + ~30 kịch bản mô phỏng người dùng |
+| Nghiệp vụ bán hàng | 🟡 Gần xong — chỉ còn thiếu thanh toán online, mọi tính năng khác (danh mục, dịp lễ, sản phẩm kể cả biến thể size/giá riêng, giỏ hàng, đặt hàng COD, sổ địa chỉ, đánh giá + yêu thích, lịch giao hoa, mã giảm giá, blog + đăng ký nhận tin, nhắc lịch sinh nhật/kỷ niệm, **trạng thái đơn cập nhật trực tiếp (realtime)**) đã dùng được |
+| Số bài kiểm thử tự động đang chạy | **1007** (backend 860 · giao diện 147) + ~30 kịch bản mô phỏng người dùng |
 | Dự kiến bản dùng thử (MVP) | **Cuối tháng 12/2026** |
 | Dự kiến bản hoàn chỉnh | **Cuối tháng 2/2027** |
 
@@ -48,7 +48,7 @@ flowchart LR
 | 2 — Đăng nhập & tài khoản | 3 cách đăng nhập, quản lý phiên, quản lý thiết bị | ✅ | 08/2026 |
 | 3 — Phân quyền | Vai trò, quyền hạn, nhật ký thao tác | ✅ | 09/2026 |
 | 4 — Hạ tầng | Lưu trữ ảnh, gửi email, tác vụ tự động | 🟡 85% | 09/2026 |
-| 5 — Nghiệp vụ bán hoa | Sản phẩm, giỏ hàng, đơn hàng, thanh toán | 🟡 20% | 12/2026 |
+| 5 — Nghiệp vụ bán hoa | Sản phẩm (kể cả biến thể size/giá riêng), dịp lễ, giỏ hàng, đơn hàng (kể cả cập nhật trạng thái trực tiếp), sổ địa chỉ, đánh giá/yêu thích, lịch giao hoa, mã giảm giá, blog + newsletter, nhắc lịch sinh nhật/kỷ niệm, thanh toán | 🟡 96% | 12/2026 |
 | 6 — Kiểm thử & chất lượng | Kiểm thử tự động, rà soát bảo mật | 🟡 79% | 01/2027 |
 | 7 — Vận hành | Máy chủ, tự động triển khai, giám sát | ⬜ | 02/2027 |
 
@@ -114,10 +114,22 @@ ra nhiều tuần) — và làm thêm vài việc ngoài phạm vi rà soát ban
 | Thiết lập kiểm tra tự động khi nộp code (CI/CD) | 2 ngày | ⬜ Chưa làm — chất lượng ổn định hơn theo thời gian |
 | ~~**Xây dựng module Sản phẩm**~~ (thêm/sửa/xoá, nhiều ảnh — không quản lý tồn kho vì hoa tươi làm theo đơn) | 6 ngày | ✅ Đã xong (10/09/2026) — **có thể nhập sản phẩm thật vào hệ thống** |
 | ~~Màn hình tra cứu nhật ký thao tác~~ | 1 ngày | ✅ Đã xong (11/09/2026) |
+| ~~**Biến thể sản phẩm** (size/giá riêng, vd Nhỏ/Vừa/Lớn)~~ | 10 ngày | ✅ Đã xong (11/09/2026) — sớm hơn nhiều so với kế hoạch ban đầu — **có thể bán cùng 1 mẫu hoa với nhiều mức giá theo kích cỡ** |
+| ~~**Dịp lễ** (tag Sinh nhật, Valentine, Khai trương... gắn lên sản phẩm)~~ | — | ✅ Đã xong (12/09/2026) — **khách có thể xem hoa theo từng dịp lễ**, không chỉ theo danh mục |
+| ~~**Sổ địa chỉ người nhận**~~ | — | ✅ Đã xong (12/09/2026) — **khách quen lưu sẵn địa chỉ giao hoa**, đặt hàng lần sau chỉ cần chọn, không phải gõ lại |
+| ~~**Đánh giá + Yêu thích sản phẩm**~~ | — | ✅ Đã xong (12/09/2026) — khách viết đánh giá (chờ duyệt trước khi hiện công khai) và **lưu sản phẩm ưng ý để xem lại sau** |
+| ~~**Lịch giao hoa theo ngày** (cho nhân viên cắm hoa)~~ | 3 ngày | ✅ Đã xong (12/09/2026) — sớm hơn kế hoạch — **nhân viên cắm hoa xem đúng đơn cần chuẩn bị trong ngày**, không cần đụng vào toàn bộ màn quản lý đơn hàng |
+| ~~**Mã giảm giá / khuyến mãi**~~ | 10 ngày | ✅ Đã xong (12/09/2026) — sớm hơn nhiều so với kế hoạch ban đầu (vốn dự kiến làm SAU thanh toán online) — **khách nhập mã giảm giá ở trang thanh toán, thấy ngay số tiền được giảm trước khi đặt hàng** |
+| ~~**Blog + đăng ký nhận tin (newsletter)**~~ | 7 ngày | ✅ Đã xong (12/09/2026) — sớm hơn nhiều so với kế hoạch ban đầu — **có trang blog để đăng mẹo cắm hoa/tin khuyến mãi, khách đăng ký nhận email ngay ở chân trang** |
+| ~~**Nhắc lịch sinh nhật/kỷ niệm**~~ | — | ✅ Đã xong (12/09/2026) — **khách lưu ngày sinh nhật người thân, hệ thống tự gửi email nhắc trước để kịp đặt hoa** |
+| ~~**Trạng thái đơn cập nhật trực tiếp (realtime)**~~ | — | ✅ Đã xong (12/09/2026) — **trang xác nhận đơn của khách và màn quản trị tự cập nhật ngay khi có thay đổi, không cần bấm tải lại trang** |
 
 **Mốc quan trọng cuối kỳ — đã đạt sớm hơn dự kiến**: bạn đã đăng nhập được vào khu quản trị và
 **nhập sản phẩm thật vào hệ thống** — hệ thống hiện chứa dữ liệu thật của cửa hàng thay vì chỉ có
-dữ liệu mẫu. Việc còn lại trong kỳ này chỉ còn CI/CD (kiểm tra tự động khi nộp code).
+dữ liệu mẫu. Ngoài ra, 8 tính năng vốn dự kiến làm SAU (sổ địa chỉ, đánh giá, yêu thích, lịch giao
+hoa, mã giảm giá, blog + newsletter, nhắc lịch sinh nhật/kỷ niệm, trạng thái đơn realtime) đã hoàn
+thành sớm hơn kế hoạch. Nghiệp vụ bán hoa (Phase 5) hiện chỉ còn thiếu **thanh toán online** — việc
+còn lại khác trong kỳ này chỉ còn CI/CD (kiểm tra tự động khi nộp code).
 
 ---
 
@@ -133,17 +145,20 @@ gantt
     Sản phẩm (cơ bản)             :done, p1, 2026-09-09, 2d
     Giỏ hàng (guest, COD)         :done, p1b, after p1, 1d
     Đơn hàng cơ bản + chọn ngày giờ giao :done, p2, after p1b, 1d
-    Biến thể sản phẩm (size/giá riêng)   :p1c, 2026-09-12, 10d
-    Thanh toán online              :crit, p4, after p1c, 14d
+    Biến thể sản phẩm (size/giá riêng)   :done, p1c, 2026-09-11, 1d
+    Dịp lễ · Sổ địa chỉ · Lịch giao hoa  :done, p1d, 2026-09-12, 1d
+    Mã giảm giá                    :done, p1e, 2026-09-12, 1d
+    Thanh toán online              :crit, p4, after p1e, 14d
 
     section Giao diện khách hàng
     Trang danh sách & chi tiết SP  :done, p5, after p1, 3d
     Trang giỏ hàng & thanh toán    :done, p6, after p2, 2d
 
     section Hoàn thiện
-    Đánh giá · yêu thích         :p7, after p4, 10d
-    Khuyến mãi · mã giảm giá     :p8, after p7, 10d
-    Blog · nội dung              :p9, after p8, 7d
+    Đánh giá · yêu thích         :done, p7, 2026-09-12, 1d
+    Blog · newsletter            :done, p9, 2026-09-12, 1d
+    Nhắc lịch sinh nhật/kỷ niệm  :done, p9b, 2026-09-12, 1d
+    Trạng thái đơn realtime      :done, p9c, 2026-09-12, 1d
 
     section Vận hành
     Đưa lên máy chủ thật         :crit, p10, after p4, 10d

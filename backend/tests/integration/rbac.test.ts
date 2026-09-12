@@ -26,13 +26,32 @@ const PROTECTED = [
   },
   { method: "get" as const, path: "/api/v1/superadmin/audit-logs", permission: "audit.view" },
   { method: "get" as const, path: "/api/v1/admin/categories", permission: "categories.manage" },
+  { method: "get" as const, path: "/api/v1/admin/occasions", permission: "categories.manage" },
   { method: "get" as const, path: "/api/v1/admin/products", permission: "products.manage" },
   { method: "get" as const, path: "/api/v1/admin/contact-messages", permission: "contact.manage" },
   { method: "get" as const, path: "/api/v1/admin/orders", permission: "orders.view_all" },
+  {
+    method: "get" as const,
+    path: "/api/v1/admin/orders/delivery-queue?date=2026-12-25",
+    permission: "orders.view_delivery_queue",
+  },
   { method: "get" as const, path: "/api/v1/files", permission: "files.manage" },
   { method: "get" as const, path: "/api/v1/folders", permission: "files.manage" },
   { method: "get" as const, path: "/api/v1/account/orders", permission: "orders.view_own" },
   { method: "get" as const, path: "/api/v1/account/me", permission: null },
+  { method: "get" as const, path: "/api/v1/account/addresses", permission: null },
+  { method: "get" as const, path: "/api/v1/account/wishlist", permission: null },
+  { method: "get" as const, path: "/api/v1/account/reviews", permission: null },
+  { method: "get" as const, path: "/api/v1/account/special-dates", permission: null },
+  { method: "get" as const, path: "/api/v1/admin/reviews", permission: "reviews.moderate" },
+  { method: "get" as const, path: "/api/v1/admin/coupons", permission: "promotions.manage" },
+  { method: "get" as const, path: "/api/v1/admin/blog", permission: "blog.manage" },
+  { method: "get" as const, path: "/api/v1/admin/newsletter", permission: "blog.manage" },
+  {
+    method: "patch" as const,
+    path: "/api/v1/admin/site-content/hotline",
+    permission: "site_content.manage",
+  },
 ];
 
 beforeEach(() => resetPrismaMock());
@@ -103,6 +122,7 @@ describe("Tầng 3 — đủ quyền", () => {
       db.auditLog.findMany.mockResolvedValue([]);
       db.auditLog.count.mockResolvedValue(0);
       db.category.findMany.mockResolvedValue([]);
+      db.occasion.findMany.mockResolvedValue([]);
       db.product.findMany.mockResolvedValue([]);
       db.product.count.mockResolvedValue(0);
       db.contactMessage.findMany.mockResolvedValue([]);
@@ -112,6 +132,14 @@ describe("Tầng 3 — đủ quyền", () => {
       db.folder.findMany.mockResolvedValue([]);
       db.order.findMany.mockResolvedValue([]);
       db.order.count.mockResolvedValue(0);
+      db.review.findMany.mockResolvedValue([]);
+      db.review.count.mockResolvedValue(0);
+      db.coupon.findMany.mockResolvedValue([]);
+      db.coupon.count.mockResolvedValue(0);
+      db.blogPost.findMany.mockResolvedValue([]);
+      db.blogPost.count.mockResolvedValue(0);
+      db.newsletterSubscriber.findMany.mockResolvedValue([]);
+      db.newsletterSubscriber.count.mockResolvedValue(0);
 
       const res = await request(app)[method](path).set("Cookie", cookie);
       expect([401, 403]).not.toContain(res.status);
@@ -120,16 +148,31 @@ describe("Tầng 3 — đủ quyền", () => {
 });
 
 describe("Endpoint công khai — KHÔNG yêu cầu đăng nhập", () => {
-  it.each(["/health", "/api/v1/auth/login-methods", "/api/v1/categories", "/api/v1/products"])(
-    "%s trả 200 khi chưa đăng nhập",
-    async (path) => {
-      db.loginMethodSetting.findMany.mockResolvedValue([]);
-      db.category.findMany.mockResolvedValue([]);
-      db.product.findMany.mockResolvedValue([]);
-      db.product.count.mockResolvedValue(0);
-      expect((await request(app).get(path)).status).toBe(200);
-    },
-  );
+  it.each([
+    "/health",
+    "/api/v1/auth/login-methods",
+    "/api/v1/categories",
+    "/api/v1/occasions",
+    "/api/v1/products",
+    "/api/v1/site-content",
+  ])("%s trả 200 khi chưa đăng nhập", async (path) => {
+    db.loginMethodSetting.findMany.mockResolvedValue([]);
+    db.category.findMany.mockResolvedValue([]);
+    db.occasion.findMany.mockResolvedValue([]);
+    db.product.findMany.mockResolvedValue([]);
+    db.product.count.mockResolvedValue(0);
+    db.systemSetting.findMany.mockResolvedValue([]);
+    expect((await request(app).get(path)).status).toBe(200);
+  });
+
+  it("GET /api/v1/reviews trả 200 khi chưa đăng nhập (cần productId query)", async () => {
+    db.review.findMany.mockResolvedValue([]);
+    db.review.count.mockResolvedValue(0);
+    const res = await request(app).get(
+      "/api/v1/reviews?productId=11111111-1111-1111-1111-111111111111",
+    );
+    expect(res.status).toBe(200);
+  });
 
   it("GET /api/v1/categories chỉ trả danh mục đang bật và không lộ trường nội bộ", async () => {
     db.category.findMany.mockResolvedValue([

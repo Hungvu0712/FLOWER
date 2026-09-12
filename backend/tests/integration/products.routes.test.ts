@@ -12,12 +12,17 @@ beforeEach(() => {
   adminCookie = loginAs("admin-1", ["admin"], ["products.manage"]);
   db.auditLog.create.mockResolvedValue({});
   vi.spyOn(filesService, "syncEntityFiles").mockResolvedValue(undefined);
-  db.product.findUniqueOrThrow.mockResolvedValue({ id: "p1" });
+  db.product.findUniqueOrThrow.mockResolvedValue({ id: "p1", occasions: [] });
 });
 
 describe("GET /api/v1/products/:slug (công khai)", () => {
   it("trả sản phẩm đang bật theo slug, KHÔNG cần đăng nhập", async () => {
-    db.product.findFirst.mockResolvedValue({ id: "p1", slug: "hoa-cuoi", name: "Hoa cưới" });
+    db.product.findFirst.mockResolvedValue({
+      id: "p1",
+      slug: "hoa-cuoi",
+      name: "Hoa cưới",
+      occasions: [],
+    });
     const res = await request(app).get("/api/v1/products/hoa-cuoi");
     expect(res.status).toBe(200);
     expect(res.body.data.slug).toBe("hoa-cuoi");

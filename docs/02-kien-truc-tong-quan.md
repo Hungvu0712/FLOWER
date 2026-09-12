@@ -79,6 +79,7 @@ flowchart TB
         SVC["Service<br/>business logic"]
         REPO["Repository / Prisma"]
         JOBS["Cron Jobs<br/>backup · dọn file mồ côi"]
+        RT["Socket.io<br/>realtime trạng thái đơn"]
     end
 
     subgraph EXT["Dịch vụ ngoài"]
@@ -103,6 +104,8 @@ flowchart TB
     BROWSER -.->|"upload trực tiếp<br/>qua chữ ký Cloudinary"| CD
     JOBS --> PG
     JOBS --> CD
+    BROWSER <-.->|"WebSocket<br/>cùng cổng HTTP"| RT
+    SVC -.->|"phát event sau khi<br/>tạo/đổi trạng thái đơn"| RT
 
     style FE fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
     style BE fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a

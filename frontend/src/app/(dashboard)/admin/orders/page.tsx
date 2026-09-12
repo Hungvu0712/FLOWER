@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useOrders, useUpdateOrderStatus } from '@/features/domain/orders/orders.hooks';
+import { useAdminOrdersRealtime } from '@/features/domain/orders/orders.realtime.hooks';
 import {
   ORDER_STATUS_LABELS,
   ORDER_TIME_SLOT_LABELS,
@@ -52,6 +53,7 @@ export default function AdminOrdersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const { data, isLoading } = useOrders({ status: filter, limit: 50 });
   const updateStatus = useUpdateOrderStatus();
+  useAdminOrdersRealtime(); // đơn mới/đổi trạng thái từ nơi khác (vd florist) tự cập nhật danh sách
 
   const orders = data?.data ?? [];
 
@@ -129,11 +131,25 @@ export default function AdminOrdersPage() {
                       {order.items.map((item) => (
                         <div key={item.id} className="flex items-center justify-between text-sm">
                           <span className="text-ink-soft">
-                            {item.productName} × {item.quantity}
+                            {item.productName}
+                            {item.variantName && ` (${item.variantName})`} × {item.quantity}
                           </span>
                           <span className="text-ink">{formatVnd(item.subtotal)}</span>
                         </div>
                       ))}
+                      {order.discountAmount > 0 && (
+                        <div className="flex items-center justify-between text-sm text-ink-soft">
+                          <span>
+                            Giảm giá
+                            {order.couponCode && (
+                              <span className="ml-1 font-mono text-xs text-ink-muted">
+                                ({order.couponCode})
+                              </span>
+                            )}
+                          </span>
+                          <span>-{formatVnd(order.discountAmount)}</span>
+                        </div>
+                      )}
                     </div>
 
                     {!isFinal && (

@@ -58,8 +58,8 @@ hàng xong" để effect bỏ qua lần đó. Xem `frontend/src/app/(storefront)
 
 | Bảng | Trạng thái | Khác biệt so với [05 §3.7](../05-database-va-rbac.md) |
 |---|---|---|
-| `orders` | ✅ | Nhúng thẳng field giao hàng (`recipient_name`, `recipient_phone`, `delivery_address`, `delivery_date`, `delivery_time_slot`) thay vì tách bảng `order_deliveries` riêng — chưa cần `shipper_id` vì chưa có màn phân công. `subtotal`/`total` kiểu `Int` (VND, giống `products.base_price`) thay vì `decimal`. KHÔNG có `discount`/`shipping_fee`/`payment_status` (chưa có coupon/phí ship/thanh toán online). |
-| `order_items` | ✅ | Snapshot `product_name`/`unit_price` tại thời điểm đặt — sản phẩm đổi tên/giá sau đó không ảnh hưởng đơn cũ. Chưa có `variant_id` (chưa có `product_variants`) hay `card_message` (dùng chung `orders.note`). |
+| `orders` | ✅ | Nhúng thẳng field giao hàng (`recipient_name`, `recipient_phone`, `delivery_address`, `delivery_date`, `delivery_time_slot`) thay vì tách bảng `order_deliveries` riêng — chưa cần `shipper_id` vì chưa có màn phân công. `subtotal`/`total` kiểu `Int` (VND, giống `products.base_price`) thay vì `decimal`. CÓ `coupon_code`/`discount_amount` (snapshot mã giảm giá — xem [domain-coupons.md](domain-coupons.md)). KHÔNG có `shipping_fee`/`payment_status` (chưa có phí ship/thanh toán online). |
+| `order_items` | ✅ | Snapshot `product_name`/`unit_price` tại thời điểm đặt — sản phẩm đổi tên/giá sau đó không ảnh hưởng đơn cũ. Có `variant_id` (nullable, `onDelete: SetNull`) + `variant_name` (snapshot) khi dòng đơn chọn biến thể — xem [domain-products.md §2.5](domain-products.md#25-biến-thể-sizegiá-riêng--product_variants). Chưa có `card_message` riêng (dùng chung `orders.note`). |
 | `order_deliveries` | ⬜ | Tách ra khi làm màn phân công shipper thật — xem §8. |
 | `payments` | ⬜ | Chỉ COD ở giai đoạn này (`orders.payment_method = 'cod'`, cố định). |
 | `order_status_history` | — (dùng lại) | KHÔNG có bảng riêng — mỗi lần đổi trạng thái ghi vào `AuditLog` chung (`action: 'order.update_status'`), đúng cách `categories`/`products`/`contact` đang làm, không xây cơ chế lịch sử song song. |
@@ -77,6 +77,8 @@ erDiagram
         uuid user_id FK "nullable — null = guest"
         string status "pending|confirmed|preparing|delivering|completed|cancelled"
         int subtotal
+        string coupon_code "nullable — snapshot, xem domain-coupons.md"
+        int discount_amount "0 nếu không dùng mã"
         int total
         string recipient_name
         string recipient_phone
@@ -89,6 +91,8 @@ erDiagram
         uuid order_id FK
         uuid product_id FK "nullable, SetNull"
         string product_name "snapshot"
+        uuid variant_id FK "nullable, SetNull"
+        string variant_name "snapshot"
         int unit_price "snapshot"
         int quantity
         int subtotal
@@ -185,10 +189,51 @@ role đó.
 | `app/(storefront)/thanh-toan/page.tsx` | Form giao hàng + tóm tắt đơn, gọi `POST /orders` |
 | `app/(storefront)/don-hang/[id]/page.tsx` | Trang xác nhận (public, Server Component) |
 | `app/(dashboard)/admin/orders/page.tsx` | Danh sách + lọc theo trạng thái + mở rộng dòng xem chi tiết/đổi trạng thái |
+| `app/(dashboard)/admin/orders/delivery-queue/page.tsx` | Lịch giao hoa theo ngày (dashboard florist) — xem §4b |
 
 `ProductCard`/trang chi tiết sản phẩm đã nối nút "Thêm vào giỏ" thật (trước đó chỉ là nút trang trí,
 không có `onClick`) — tiện thể sửa luôn 1 lỗi có sẵn: lớp phủ gọi/Zalo hover trên `ProductCard` thiếu
 `pointer-events-none` lúc ẩn, khiến nó che mất click vào ảnh sản phẩm ngay cả khi chưa hover.
+
+---
+
+## 4b. Lịch giao hoa theo ngày (dashboard florist)
+
+`GET /api/v1/admin/orders/delivery-queue?date=YYYY-MM-DD` — permission **RIÊNG**
+`orders.view_delivery_queue` (đã seed sẵn cho `florist` từ trước, xem §3), KHÁC `orders.view_all` (chỉ
+admin/super_admin/sales_staff). Không phân trang — trả thẳng mảng đơn của ĐÚNG 1 ngày, sắp theo khung
+giờ giao (sáng → chiều → tối), loại trừ đơn đã huỷ.
+
+```mermaid
+flowchart LR
+    A["ordersAdminRouter"] --> B["GET /delivery-queue<br/>PHẢI đặt TRƯỚC '/:id'"]
+    A --> C["GET /:id"]
+    B --> D["authorize('orders.view_delivery_queue')"]
+    C --> E["authorize('orders.view_all')"]
+
+    style D fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
+    style E fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
+```
+
+**Cạm bẫy thứ tự route**: `/delivery-queue` phải khai báo TRƯỚC `/:id` trong
+`orders.admin.routes.ts` — Express khớp route theo thứ tự đăng ký, đặt sau sẽ bị `:id` "nuốt" mất
+(rồi validate UUID thất bại vì `"delivery-queue"` không phải UUID) — cùng cạm bẫy đã gặp ở
+`products.routes.ts` (`/:slug` đặt sau `/`).
+
+### Florist vào được ĐÚNG 1 trang trong `/admin/*`, không hơn
+
+`florist` KHÔNG có `orders.view_all` nên KHÔNG dùng được `/admin/orders` bình thường — nhưng
+`AdminShell.tsx` (frontend) mặc định chỉ cho role `admin`/`super_admin` vào TOÀN BỘ `/admin/*`. Giải
+pháp: mở NGOẠI LỆ đúng 1 đường dẫn (`FLORIST_ALLOWED_PATH = '/admin/orders/delivery-queue'`) cho role
+`florist`, và đổi hẳn sidebar thành rút gọn (chỉ 1 link "Lịch giao hoa") khi user CHỈ có role florist
+(không kiêm admin/super_admin) — sidebar đầy đủ sẽ toàn dẫn tới trang `403` vì florist không có
+permission nào khác, gây rối chứ không hữu ích. Đây vẫn chỉ là lớp UX (giống mọi kiểm tra role khác ở
+`AdminShell.tsx`) — ranh giới bảo mật thật sự luôn ở `authorize('orders.view_delivery_queue')` phía
+backend.
+
+Nút đổi trạng thái ở trang này **không có** nút "Huỷ đơn" (khác `/admin/orders`) — florist chỉ có
+`orders.update_status`, không có `orders.cancel` (đúng mô tả role ở docs/05: "KHÔNG truy cập thông tin
+thanh toán... chỉ được cập nhật đơn đang ở trạng thái đang chuẩn bị").
 
 ---
 
@@ -209,8 +254,8 @@ không có `onClick`) — tiện thể sửa luôn 1 lỗi có sẵn: lớp ph�
 
 | Tầng | File | Số test |
 |---|---|---|
-| Unit | `backend/tests/unit/modules/orders.service.test.ts` | 20 — snapshot giá, gộp trùng sản phẩm, sinh `orderCode` không trùng, ràng buộc trạng thái, quyền theo giá trị `status`, honeypot |
-| Integration | `backend/tests/integration/orders.routes.test.ts` | 17 — guest checkout công khai, tra cứu công khai, quyền admin theo permission cụ thể, honeypot |
+| Unit | `backend/tests/unit/modules/orders.service.test.ts` | 36 — snapshot giá, gộp trùng theo khoá `(productId, variantId)`, giá lấy từ biến thể khi có `variantId`, `409` khi `variantId` không tồn tại hoặc không thuộc `productId` gửi lên, sinh `orderCode` không trùng, ràng buộc trạng thái, quyền theo giá trị `status`, honeypot, lịch giao hoa theo ngày (§4b), áp dụng mã giảm giá + chống race condition hết lượt dùng (xem [domain-coupons.md](domain-coupons.md)) |
+| Integration | `backend/tests/integration/orders.routes.test.ts` | 21 — guest checkout công khai, tra cứu công khai, quyền admin theo permission cụ thể, honeypot, `/delivery-queue` không bị `/:id` nuốt mất |
 | RBAC chung | `backend/tests/integration/rbac.test.ts` | Thêm `GET /admin/orders` vào bảng `PROTECTED` dùng chung 3 tầng (401/403/200) |
 
 Kiểm chứng thủ công qua `curl` + trình duyệt thật (Playwright, không lưu trong repo): thêm giỏ → sửa
@@ -240,11 +285,13 @@ CUỐI và huỷ-khi-đang-giao. Nếu cần state machine chặt hơn (chỉ ch
 | Thanh toán online (VNPay/Momo) — bảng `payments`, webhook verify HMAC | 🟡 | Hiện chỉ COD |
 | Tách `order_deliveries` riêng + `shipper_id` khi làm màn phân công shipper | 🟡 | Hiện nhúng thẳng field giao hàng vào `orders` (xem §2) |
 | ~~`GET /api/v1/account/orders` — khách xem lịch sử đơn khi đăng nhập~~ | ✅ | Đã làm (11/09/2026, docs/12 §5.1) — chỉ API, **chưa có trang UI** hiển thị danh sách này ở frontend |
-| Hàng đợi soạn hoa/giao hàng riêng cho `florist`/`shipper` (`orders.view_delivery_queue`/`view_shipping_queue`) | 🟢 | Permission đã seed sẵn, chưa có UI/route dùng tới |
+| ~~Hàng đợi soạn hoa riêng cho `florist` (`orders.view_delivery_queue`)~~ | ✅ | Đã làm (12/09/2026) — xem §4b |
+| Hàng đợi giao hàng riêng cho `shipper` (`orders.view_shipping_queue`) | 🟢 | Permission đã seed sẵn, chưa có UI/route dùng tới — có thể sao chép mẫu §4b |
 | Phân công shipper (`orders.assign_shipper`) | 🟢 | Permission đã seed sẵn, chưa có UI |
 | State machine chặt hơn (chặn nhảy cóc trạng thái) | 🟢 | Xem §7 |
-| `product_variants`, `card_message` riêng cho thiệp chúc | 🟢 | Hiện dùng chung `orders.note` |
-| Coupon/mã giảm giá, phí ship | 🟢 | Chưa có `discount`/`shipping_fee` |
+| `card_message` riêng cho thiệp chúc | 🟢 | Hiện dùng chung `orders.note` |
+| ~~Coupon/mã giảm giá~~ | ✅ | Đã làm (12/09/2026) — xem [domain-coupons.md](domain-coupons.md) |
+| Phí ship (`shipping_fee`) | 🟢 | Chưa có |
 | Giới hạn theo `recipientPhone` (không chỉ theo IP) | 🟡 | Chặn trường hợp bot đổi IP nhưng dùng lại số điện thoại — xem §9 |
 | CAPTCHA (Cloudflare Turnstile) | 🟢 | Chỉ cần khi honeypot + rate limit không đủ — thêm 1 bước cho khách thật nên để dự phòng |
 
@@ -293,3 +340,92 @@ Chi tiết kỹ thuật đáng chú ý:
 không kiểm tra CSS — không chặn được kẻ tấn công có chủ đích đọc thẳng bundle JS công khai để biết
 tên field `website` cần bỏ trống khi gọi thẳng API. Với đối tượng đó, lớp phòng thủ tiếp theo là giới
 hạn theo `recipientPhone` hoặc CAPTCHA — xem §8.
+
+---
+
+## 10. Realtime trạng thái đơn (Socket.io)
+
+Trang xác nhận đơn công khai (`/don-hang/:id`) và 2 màn quản trị (`/admin/orders`,
+`/admin/orders/delivery-queue`) tự cập nhật khi trạng thái đơn đổi — **không cần F5**. Hạ tầng
+Socket.io TÁCH RIÊNG core (dùng lại được cho domain khác) và domain (logic cụ thể của orders):
+
+| | |
+|---|---|
+| **Core (hạ tầng chung)** | `modules/core/realtime/realtime.service.ts` — `initSocket()`/`getIO()`, không biết gì về "đơn hàng" |
+| **Domain (logic orders)** | `modules/domain/orders/orders.realtime.ts` — room, event, kiểm tra quyền join room quản trị |
+
+### 10.1. Hai loại room — công khai theo id vs quản trị cần xác thực
+
+```mermaid
+flowchart TD
+    A["Client connect Socket.io"] --> B{"Emit event nào?"}
+    B -->|"order:watch (orderId)"| C["Join room order:&lt;id&gt;<br/>KHÔNG cần xác thực"]
+    B -->|"admin:watch"| D["Đọc cookie access_token<br/>từ socket.handshake.headers.cookie"]
+    D --> E{"Xác thực được +<br/>đủ orders.view_all/<br/>orders.view_delivery_queue?"}
+    E -->|Không| F["Bỏ qua — KHÔNG join,<br/>KHÔNG disconnect socket"]
+    E -->|Có| G["Join room admin:orders"]
+
+    style C fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
+    style D fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
+    style E fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
+    style F fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
+    style G fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
+```
+
+- **`order:<id>`** — join KHÔNG cần đăng nhập, biết đúng UUID coi như có quyền theo dõi đơn đó, đúng
+  NGUYÊN mô hình bảo mật đã có của `GET /orders/:id` công khai (id đóng vai trò token, xem §2).
+- **`admin:orders`** — PHẢI xác thực + đủ quyền mới join được. Socket.io **không đi qua Express
+  middleware** (không có `cookie-parser`/`authenticate` chạy trước) — `orders.realtime.ts` tự đọc
+  thẳng header `Cookie` thô lúc handshake, tự `verifyAccessToken()` + `loadUserRolesAndPermissions()`
+  (đúng 2 hàm `authenticate` middleware dùng cho HTTP, gọi lại trực tiếp thay vì tái sử dụng
+  middleware vì middleware nhận `req`/`res` của Express, không áp dụng cho Socket.io). Sai/thiếu
+  quyền → im lặng bỏ qua, KHÔNG disconnect cả socket (socket đó có thể vẫn đang theo dõi 1 đơn công
+  khai khác qua `order:watch`).
+
+### 10.2. Emit ở đâu
+
+`orders.service.ts` gọi 2 hàm sau NGAY SAU khi ghi DB thành công (không gói trong transaction — phát
+event là tác dụng phụ, không phải một phần tính đúng đắn của giao dịch):
+
+| Hàm | Gọi sau | Phát tới |
+|---|---|---|
+| `emitOrderCreated(order)` | `create()` | CHỈ `admin:orders` — khách vừa đặt được điều hướng thẳng sang trang xác nhận, không cần biết "đơn của mình vừa tạo" qua socket |
+| `emitOrderStatusChanged(order)` | `updateStatus()` | CẢ `admin:orders` LẪN `order:<id>` — dashboard quản trị tự refetch, khách đang mở trang xác nhận thấy badge đổi ngay |
+
+Cả 2 hàm dùng `getIO()?.to(...)` — `getIO()` trả `null` khi `initSocket()` chưa chạy (vd trong unit
+test, không có `http.Server` thật) → phát event trở thành no-op, KHÔNG throw, không cần mock gì thêm
+ở test.
+
+### 10.3. Frontend — chỉ invalidate cache, không tự merge dữ liệu
+
+- **`useLiveOrderStatus(orderId, initialStatus)`** — dùng ở `OrderConfirmationView` (Client Component,
+  được `don-hang/[id]/page.tsx` — Server Component — render ra với `order` đã fetch sẵn). CHỈ theo dõi
+  `status`, mọi field khác (địa chỉ, sản phẩm, tổng tiền...) là snapshot cố định tại thời điểm đặt
+  hàng, không cần realtime.
+- **`useAdminOrdersRealtime()`** — dùng ở 2 trang quản trị, nhận event `order:created`/
+  `order:status_changed` rồi `queryClient.invalidateQueries(['admin','orders'])` +
+  `invalidateQueries(['admin','delivery-queue'])` để React Query tự refetch — KHÔNG tự merge dữ liệu
+  realtime vào state client (tránh lệch với filter/phân trang hiện tại của từng trang).
+- 1 kết nối WebSocket duy nhất cho toàn app (`lib/socket.ts`, singleton) — nhiều hook cùng lúc chỉ
+  thêm/gỡ listener trên CÙNG 1 socket, không mở nhiều kết nối trùng lặp.
+
+### 10.4. Kiểm thử
+
+| Tầng | File | Số test |
+|---|---|---|
+| Unit | `backend/tests/unit/modules/orders.realtime.test.ts` | 7 — `resolveAdminAccess()`: không cookie, cookie sai tên, token giả mạo, thiếu quyền, đủ quyền (cả 2 permission), đọc đúng cookie giữa nhiều cookie khác |
+| Unit | `backend/tests/unit/modules/orders.service.test.ts` | +2 — `emitOrderCreated`/`emitOrderStatusChanged` được gọi đúng sau khi tạo đơn/đổi trạng thái thành công |
+
+Kiểm chứng end-to-end qua trình duyệt thật (Playwright, 2 browser context riêng biệt mô phỏng khách +
+admin, script tạm không lưu trong repo, 12/09/2026): (1) khách mở trang xác nhận đơn, admin đổi trạng
+thái qua API ở context KHÁC → badge khách tự đổi trong vài giây, KHÔNG F5; (2) admin mở `/admin/orders`,
+đặt 1 đơn mới qua API công khai → danh sách tự hiện đơn mới, KHÔNG F5. Dữ liệu test đã xoá sạch sau
+khi verify qua script `tsx`+`PrismaClient` tạm.
+
+### 10.5. Việc còn lại
+
+| Việc | Ưu tiên |
+|---|:---:|
+| Thông báo đẩy (browser push notification) khi đơn đổi trạng thái, không chỉ cập nhật UI đang mở | 🟢 |
+| Chỉ báo "đang kết nối realtime" cho khách biết trang đang theo dõi live (hiện im lặng, không có dấu hiệu UI nào) | 🟢 |
+| Scale ngang nhiều instance API — Socket.io cần Redis adapter để broadcast xuyên instance (hiện 1 instance, chưa cần) | 🟡 |

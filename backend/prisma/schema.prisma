@@ -37,6 +37,12 @@ model User {
   uploadedFiles File[]        @relation("UploadedBy")
   folders       Folder[]      @relation("FolderCreatedBy")
   orders        Order[]
+  addresses     Address[]
+  wishlists     Wishlist[]
+  reviews       Review[]
+  couponUsages  CouponUsage[]
+  blogPosts     BlogPost[]
+  specialDates  SpecialDate[]
 
   @@map("users")
 }
@@ -197,12 +203,13 @@ model File {
   createdAt          DateTime  @default(now()) @map("created_at")
   deletedAt          DateTime? @map("deleted_at")
 
-  folder            Folder?        @relation(fields: [folderId], references: [id])
-  uploader          User?          @relation("UploadedBy", fields: [uploadedBy], references: [id])
-  usages            FileUsage[]
-  avatarOf          User[]
-  imageOfCategories Category[]
-  productImages     ProductImage[]
+  folder               Folder?        @relation(fields: [folderId], references: [id])
+  uploader             User?          @relation("UploadedBy", fields: [uploadedBy], references: [id])
+  usages               FileUsage[]
+  avatarOf             User[]
+  imageOfCategories    Category[]
+  productImages        ProductImage[]
+  thumbnailOfBlogPosts BlogPost[]
 
   @@index([deletedAt])
   @@map("files")
@@ -311,13 +318,70 @@ model Product {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  category   Category?      @relation(fields: [categoryId], references: [id])
+  category   Category?         @relation(fields: [categoryId], references: [id])
   images     ProductImage[]
+  variants   ProductVariant[]
+  occasions  ProductOccasion[]
   orderItems OrderItem[]
+  wishlists  Wishlist[]
+  reviews    Review[]
 
   @@index([deletedAt])
   @@index([categoryId])
   @@map("products")
+}
+
+// Tag dịp lễ (Sinh nhật, Valentine, Khai trương...) — KHÁC categories: phẳng (không cây cha-con), 1
+// sản phẩm gắn được NHIỀU dịp lễ cùng lúc (n-n qua product_occasions), trong khi categoryId trên
+// Product chỉ 1-n. Xem docs/05 §3.4.
+model Occasion {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  products ProductOccasion[]
+
+  @@map("occasions")
+}
+
+// Bảng nối n-n thuần (không có cột riêng) — theo đúng khuôn mẫu role_permissions/user_roles đã dùng
+// trong schema này (composite PK, KHÔNG dùng implicit many-to-many của Prisma). onDelete: Cascade cả
+// 2 chiều — xoá sản phẩm hoặc xoá occasion chỉ gỡ tag liên quan, không cần ràng buộc xoá riêng như
+// categories (danh mục con) hay product_variants (order_items tham chiếu).
+model ProductOccasion {
+  productId  String @map("product_id")
+  occasionId String @map("occasion_id")
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  occasion Occasion @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+
+  @@id([productId, occasionId])
+  @@index([occasionId])
+  @@map("product_occasions")
+}
+
+// Mức giá theo kích cỡ (Nhỏ/Vừa/Lớn...) — KHÔNG có tồn kho riêng, cùng lý do với `products.basePrice`
+// (hoa tươi làm theo đơn). 1 sản phẩm có thể có 0 biến thể (dùng thẳng `basePrice`) hoặc nhiều biến
+// thể (khi đó `basePrice` chỉ còn ý nghĩa "giá từ..." hiển thị ở trang danh sách — trang chi tiết bắt
+// khách chọn 1 biến thể cụ thể mới ra giá thật, xem products.service.ts). Xem docs/05 §3.4.
+model ProductVariant {
+  id        String   @id @default(uuid())
+  productId String   @map("product_id")
+  name      String
+  price     Int
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([productId])
+  @@map("product_variants")
 }
 
 model ProductImage {
@@ -337,9 +401,11 @@ model ProductImage {
 
 // Giai đoạn "cơ bản" (xem docs/modules/domain-orders.md) — CHƯA có: order_deliveries riêng (nhúng
 // thẳng field giao hàng vào orders, chưa cần shipperId vì chưa có màn phân công), payments/
-// payment_status (chỉ COD, xác nhận qua điện thoại), discount/shipping_fee (chưa có coupon/phí ship),
-// order_status_history riêng (dùng lại AuditLog chung, action "order.update_status"). Đây là các bảng
-// ⬜ trong docs/05 §3.4/§3.7 — xây tiếp khi làm thanh toán online / phân công shipper thật.
+// payment_status (chỉ COD, xác nhận qua điện thoại), shipping_fee (chưa có phí ship),
+// order_status_history riêng (dùng lại AuditLog chung, action "order.update_status"). CÓ
+// couponCode/discountAmount (mã giảm giá — xem model Coupon bên dưới, docs/modules/domain-coupons.md).
+// Đây là các bảng ⬜ còn lại trong docs/05 §3.4/§3.7 — xây tiếp khi làm thanh toán online / phân công
+// shipper thật.
 model Order {
   id        String  @id @default(uuid())
   // Mã đơn NGẮN, DỄ ĐỌC để khách đọc qua điện thoại — KHÁC `id` (UUID): id dùng làm token tra cứu
@@ -351,8 +417,12 @@ model Order {
   status        String @default("pending") @map("status") // 'pending'|'confirmed'|'preparing'|'delivering'|'completed'|'cancelled' — xem ORDER_STATUSES
   paymentMethod String @default("cod") @map("payment_method") // chỉ 'cod' ở giai đoạn này
 
-  subtotal Int // tổng tiền hàng (= tổng subtotal của order_items)
-  total    Int // = subtotal (chưa có discount/shipping_fee)
+  subtotal       Int // tổng tiền hàng (= tổng subtotal của order_items), TRƯỚC khi trừ giảm giá
+  // Snapshot mã đã dùng (không JOIN sống tới coupons — coupon có thể bị sửa/xoá sau, đơn cũ vẫn phải
+  // hiển thị đúng mã đã áp dụng lúc đặt). null = không dùng mã.
+  couponCode     String? @map("coupon_code")
+  discountAmount Int     @default(0) @map("discount_amount") // số tiền ĐÃ giảm thật (0 nếu không có mã)
+  total          Int // = subtotal - discountAmount (chưa có shipping_fee)
 
   recipientName    String   @map("recipient_name") // người NHẬN hoa — có thể khác người đặt
   recipientPhone   String   @map("recipient_phone")
@@ -364,8 +434,9 @@ model Order {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user  User?       @relation(fields: [userId], references: [id])
-  items OrderItem[]
+  user        User?        @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+  couponUsage CouponUsage?
 
   @@index([userId])
   @@index([status])
@@ -381,13 +452,189 @@ model OrderItem {
   // đơn hàng cũ vẫn phải hiển thị đúng những gì khách đã đặt lúc đó (khác kiểu JOIN sống tới products).
   productId   String? @map("product_id")
   productName String  @map("product_name")
+  // Biến thể (size) ĐÃ CHỌN lúc đặt, nếu sản phẩm có biến thể — cũng snapshot tên riêng, KHÔNG dựa
+  // vào JOIN sống tới product_variants (cùng lý do với productName ở trên: biến thể có thể bị admin
+  // xoá/đổi tên/đổi giá sau này, đơn cũ vẫn phải hiển thị đúng những gì khách đã chọn lúc đặt).
+  variantId   String? @map("variant_id")
+  variantName String? @map("variant_name")
   unitPrice   Int     @map("unit_price")
   quantity    Int
   subtotal    Int // unitPrice * quantity, lưu sẵn tránh tính lại
 
-  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   @@map("order_items")
+}
+
+// Sổ địa chỉ người nhận — khách lưu nhiều địa chỉ giao hoa, chọn nhanh lúc đặt hàng (autofill form
+// checkout) thay vì gõ lại mỗi lần. Thuần dữ liệu cá nhân — KHÔNG có permission riêng, chỉ cần
+// authenticate (giống /account/profile), xem docs/modules/domain-addresses.md.
+model Address {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  recipientName  String   @map("recipient_name")
+  recipientPhone String   @map("recipient_phone")
+  addressLine    String   @map("address_line")
+  ward           String?
+  district       String?
+  city           String?
+  // Tối đa 1 địa chỉ mặc định/user — enforce ở service (unset địa chỉ mặc định cũ trước khi đặt cái
+  // mới), KHÔNG dùng unique index (Postgres unique cho phép NHIỀU giá trị false/null, không chặn
+  // được nhiều hàng cùng true trong 1 cột boolean thường).
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// Danh sách yêu thích — bảng nối n-n thuần (composite PK, giống product_occasions/role_permissions),
+// KHÔNG dùng implicit many-to-many của Prisma. Xem docs/modules/domain-wishlist.md.
+model Wishlist {
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
+  @@index([productId])
+  @@map("wishlists")
+}
+
+// Đánh giá sản phẩm — CẦN duyệt trước khi hiện công khai (isApproved mặc định false), quyền duyệt
+// `reviews.moderate` (seed sẵn, xem domain.seed.ts). Mỗi user chỉ đánh giá 1 lần/sản phẩm (unique).
+// CHƯA có `images` (đơn giản hoá MVP so với bản thiết kế đầu ở docs/05 §3.4) — xem
+// docs/modules/domain-reviews.md §7 việc còn lại.
+model Review {
+  id         String   @id @default(uuid())
+  productId  String   @map("product_id")
+  userId     String   @map("user_id")
+  rating     Int // 1-5
+  comment    String?
+  isApproved Boolean  @default(false) @map("is_approved")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId])
+  @@index([isApproved])
+  @@map("reviews")
+}
+
+// Mã giảm giá — 1 đơn áp dụng ĐƯỢC TỐI ĐA 1 mã (đơn giản hoá, không cộng dồn nhiều mã cùng lúc).
+// `usedCount` đếm sẵn (denormalized) để kiểm tra `usageLimit` nhanh mà không cần COUNT(*) trên
+// coupon_usages mỗi lần validate — tăng NGUYÊN TỬ trong cùng transaction lúc tạo đơn
+// (orders.service.ts) để chống race condition (2 khách cùng dùng mã còn đúng 1 lượt cuối cùng tại
+// cùng thời điểm). Xem docs/modules/domain-coupons.md.
+model Coupon {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  type          String // 'percent' | 'fixed'
+  value         Int // percent: 1-100 (%) · fixed: VND nguyên
+  minOrderValue Int?      @map("min_order_value") // null = không giới hạn đơn tối thiểu
+  startDate     DateTime? @map("start_date") // null = có hiệu lực ngay
+  endDate       DateTime? @map("end_date") // null = không hết hạn
+  usageLimit    Int?      @map("usage_limit") // null = không giới hạn lượt dùng
+  usedCount     Int       @default(0) @map("used_count")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  usages CouponUsage[]
+
+  @@map("coupons")
+}
+
+// 1 dòng/đơn ĐÃ dùng mã — unique theo order_id (khớp đúng "1 đơn tối đa 1 mã" ở Coupon). Đây là bản
+// ghi LỊCH SỬ (discountAmount snapshot), KHÔNG phải nơi tính lại số dư lượt dùng — usageLimit kiểm
+// tra qua Coupon.usedCount.
+model CouponUsage {
+  id             String   @id @default(uuid())
+  couponId       String   @map("coupon_id")
+  orderId        String   @unique @map("order_id")
+  userId         String?  @map("user_id") // null nếu guest checkout
+  discountAmount Int      @map("discount_amount")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([couponId])
+  @@index([userId])
+  @@map("coupon_usages")
+}
+
+// Bài viết blog — permission DÙNG LẠI `blog.manage` (đã seed sẵn từ đầu dự án, chỉ admin/super_admin
+// — xem docs/05 §2.4). Soft delete giống Product (khác Category hard delete) — dù chưa có bảng nào
+// tham chiếu blog_posts, giữ soft delete để nhất quán + khôi phục được nếu xoá nhầm bài viết dài.
+// `publishedAt` null = draft (chỉ admin thấy qua /admin/blog); có giá trị = đã/sẽ xuất bản — public
+// chỉ thấy khi `publishedAt <= now()` (cho phép LÊN LỊCH xuất bản tương lai, không cần cột riêng).
+model BlogPost {
+  id              String    @id @default(uuid())
+  authorId        String?   @map("author_id") // nullable — SetNull nếu tài khoản tác giả bị xoá, bài viết vẫn còn
+  title           String
+  slug            String    @unique
+  excerpt         String? // tóm tắt hiện ở trang danh sách — viết tay, KHÔNG tự cắt từ content
+  content         String // rich text HTML đã sanitize (sanitizeDescriptionHtml) — giống Product.description
+  thumbnailFileId String?   @map("thumbnail_file_id")
+  publishedAt     DateTime? @map("published_at")
+  deletedAt       DateTime? @map("deleted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  author        User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  thumbnailFile File? @relation(fields: [thumbnailFileId], references: [id])
+
+  @@index([deletedAt])
+  @@index([publishedAt])
+  @@map("blog_posts")
+}
+
+// Đăng ký nhận email khuyến mãi/tin mới — form ở footer storefront, KHÔNG cần đăng nhập. Permission
+// DÙNG LẠI `blog.manage` cho màn xem danh sách quản trị (cùng nhóm "Nội dung" — xem docs/05 §2.4).
+// GIỮ LẠI bản ghi khi unsubscribe (isActive: false) thay vì xoá — biết ai đã từng đăng ký/rời đi, và
+// để resubscribe không tạo trùng dòng. Đây là giai đoạn "thu thập email" — CHƯA có gửi newsletter
+// hàng loạt (soạn + gửi campaign), xem docs/modules/domain-blog.md §7.
+model NewsletterSubscriber {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  isActive       Boolean   @default(true) @map("is_active")
+  subscribedAt   DateTime  @default(now()) @map("subscribed_at")
+  unsubscribedAt DateTime? @map("unsubscribed_at")
+
+  @@map("newsletter_subscribers")
+}
+
+// Nhắc lịch sinh nhật/kỷ niệm — thuần dữ liệu cá nhân, KHÔNG permission riêng (chỉ cần đăng nhập,
+// giống Address/Wishlist — xem docs/05 §2.4). `date` chỉ THÁNG-NGÀY có ý nghĩa (lặp lại HẰNG NĂM) —
+// năm lưu trong cột không mang ý nghĩa gì, job đọc/ghi luôn cố định UTC để tránh lệch ngày do múi giờ
+// (cùng bug đã gặp với Order.deliveryDate, xem orders.service.ts). `lastRemindedYear` chống gửi email
+// nhắc trùng nhiều lần cho CÙNG 1 lượt dịp (vd job chạy bù sau khi server restart trong ngày đã gửi) —
+// xem docs/modules/domain-special-dates.md.
+model SpecialDate {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  label            String // "Sinh nhật mẹ", "Kỷ niệm cưới"...
+  date             DateTime @db.Date
+  remindDaysBefore Int      @default(3) @map("remind_days_before")
+  lastRemindedYear Int?     @map("last_reminded_year")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("special_dates")
 }

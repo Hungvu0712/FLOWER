@@ -28,6 +28,11 @@ export const SUPER_ADMIN_PERMISSIONS = [
   "orders.update_status",
   "orders.cancel",
   "orders.view_own",
+  "orders.view_delivery_queue",
+  "reviews.moderate",
+  "promotions.manage",
+  "blog.manage",
+  "site_content.manage",
 ];
 
 export { db };

@@ -7,6 +7,7 @@ import {
   getStorefrontCategories,
   getStorefrontCategoryBySlug,
   getStorefrontProducts,
+  getStorefrontSiteContent,
 } from '@/lib/storefront-api';
 
 // docs/12 FE-06 — xem giải thích chung ở san-pham/[slug]/page.tsx (cùng cơ chế dedupe fetch).
@@ -40,11 +41,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const category = await getStorefrontCategoryBySlug(slug);
   if (!category) notFound();
 
-  const [allCategories, products] = await Promise.all([
+  const [allCategories, products, siteContent] = await Promise.all([
     getStorefrontCategories(),
     // Chỉ lọc ĐÚNG danh mục này (categoryId), KHÔNG gồm sản phẩm của danh mục con — backend chưa hỗ
     // trợ lọc theo cả cây, xem docs/modules/domain-products.md §8.
     getStorefrontProducts({ limit: 24, categoryId: category.id }),
+    getStorefrontSiteContent(),
   ]);
   const childCategories = allCategories.filter((c) => c.parentId === category.id);
 
@@ -99,7 +101,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         ) : (
           <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
             {products.map((p, i) => (
-              <ProductCard key={p.id} product={p} index={i} />
+              <ProductCard key={p.id} product={p} index={i} siteContent={siteContent} />
             ))}
           </div>
         )}

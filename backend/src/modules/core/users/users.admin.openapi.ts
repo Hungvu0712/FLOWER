@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { registerRoute } from "../../../openapi/components";
-import { userIdParamSchema, updateRoleSchema, listUsersQuerySchema } from "./users.admin.validation";
+import {
+  userIdParamSchema,
+  updateRoleSchema,
+  listUsersQuerySchema,
+} from "./users.admin.validation";
 
 const TAGS = ["SuperAdmin · Users"];
 const PERMISSION = "users.manage";
@@ -23,7 +27,8 @@ registerRoute({
   path: "/api/v1/superadmin/users",
   tags: TAGS,
   summary: "Danh sách user (phân trang)",
-  description: "Không trả user đã xoá mềm. `search` tìm trong `fullName`/`email`, không phân biệt hoa thường.",
+  description:
+    "Không trả user đã xoá mềm. `search` tìm trong `fullName`/`email`, không phân biệt hoa thường.",
   auth: { permission: PERMISSION },
   request: { query: listUsersQuerySchema },
   response: { schema: userListItemSchema, paginated: true },

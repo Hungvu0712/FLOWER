@@ -12,4 +12,8 @@ openApiRouter.get("/openapi.json", (_req, res) => {
   res.json(generateOpenApiDocument());
 });
 
-openApiRouter.use("/docs", swaggerUi.serve, swaggerUi.setup(undefined, { swaggerUrl: "/openapi.json" }));
+openApiRouter.use(
+  "/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(undefined, { swaggerUrl: "/openapi.json" }),
+);

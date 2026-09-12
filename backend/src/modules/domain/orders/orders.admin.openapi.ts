@@ -1,8 +1,28 @@
+import { z } from "zod";
 import { registerRoute } from "../../../openapi/components";
-import { listOrdersQuerySchema, orderIdParamSchema, updateOrderStatusSchema } from "./orders.validation";
+import {
+  listDeliveryQueueQuerySchema,
+  listOrdersQuerySchema,
+  orderIdParamSchema,
+  updateOrderStatusSchema,
+} from "./orders.validation";
 import { orderSchema } from "./orders.openapi";
 
 const TAGS = ["Admin · Orders"];
+
+registerRoute({
+  method: "get",
+  path: "/api/v1/admin/orders/delivery-queue",
+  tags: TAGS,
+  summary: "Lịch giao hoa theo ngày (dashboard florist)",
+  description:
+    "Permission RIÊNG `orders.view_delivery_queue` — florist có quyền này nhưng KHÔNG có " +
+    "`orders.view_all`. Trả TOÀN BỘ đơn của đúng 1 ngày (`date`), sắp theo khung giờ giao " +
+    "(sáng → chiều → tối), loại trừ đơn đã huỷ. Không phân trang (1 ngày hiếm khi có quá nhiều đơn).",
+  auth: { permission: "orders.view_delivery_queue" },
+  request: { query: listDeliveryQueueQuerySchema },
+  response: { schema: z.array(orderSchema) },
+});
 
 registerRoute({
   method: "get",
@@ -32,7 +52,7 @@ registerRoute({
   summary: "Đổi trạng thái đơn",
   description:
     "Quyền phụ thuộc GIÁ TRỊ `status` gửi lên, không phải 1 permission cố định: " +
-    "`status: \"cancelled\"` cần `orders.cancel`, mọi giá trị khác cần `orders.update_status` " +
+    '`status: "cancelled"` cần `orders.cancel`, mọi giá trị khác cần `orders.update_status` ' +
     "(tự kiểm tra trong orders.service.ts, không phải authorize() cố định ở route).",
   auth: {},
   request: { params: orderIdParamSchema, body: updateOrderStatusSchema },

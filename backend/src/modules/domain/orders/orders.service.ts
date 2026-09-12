@@ -2,12 +2,20 @@ import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../shared/errors";
 import { buildPaginationMeta } from "../../../shared/response/ApiResponse";
 import * as auditLog from "../../core/audit-log/auditLog.service";
+import { computeDiscount } from "../coupons/coupons.service";
+import { emitOrderCreated, emitOrderStatusChanged } from "./orders.realtime";
 import type {
   CreateOrderInput,
+  ListDeliveryQueueQuery,
   ListOrdersQuery,
   ListOwnOrdersQuery,
   UpdateOrderStatusInput,
 } from "./orders.validation";
+
+// Thứ tự hiển thị khung giờ trong ngày — Prisma không sắp được theo thứ tự tuỳ ý cho cột string kiểu
+// enum-like ('sang'|'chieu'|'toi' không theo thứ tự bảng chữ cái mong muốn), nên sort lại ở tầng ứng
+// dụng sau khi lấy dữ liệu (xem listDeliveryQueue).
+const TIME_SLOT_ORDER: Record<string, number> = { sang: 0, chieu: 1, toi: 2 };
 
 const ORDER_SELECT = {
   id: true,
@@ -16,6 +24,8 @@ const ORDER_SELECT = {
   status: true,
   paymentMethod: true,
   subtotal: true,
+  couponCode: true,
+  discountAmount: true,
   total: true,
   recipientName: true,
   recipientPhone: true,
@@ -30,6 +40,8 @@ const ORDER_SELECT = {
       id: true,
       productId: true,
       productName: true,
+      variantId: true,
+      variantName: true,
       unitPrice: true,
       quantity: true,
       subtotal: true,
@@ -71,43 +83,68 @@ export async function create(
     throw new AppError("Yêu cầu không hợp lệ", 422, "INVALID_SUBMISSION");
   }
 
-  // Gộp trùng productId — khách có thể lỡ thêm cùng sản phẩm nhiều lần ở giỏ hàng phía client.
-  const quantityByProductId = new Map<string, number>();
+  // Gộp trùng productId+variantId — khách có thể lỡ thêm cùng sản phẩm (cùng biến thể) nhiều lần ở
+  // giỏ hàng phía client. Cùng productId nhưng KHÁC variantId là 2 dòng riêng (khác giá), không gộp.
+  const quantityByKey = new Map<
+    string,
+    { productId: string; variantId?: string; quantity: number }
+  >();
   for (const item of input.items) {
-    quantityByProductId.set(
-      item.productId,
-      (quantityByProductId.get(item.productId) ?? 0) + item.quantity,
-    );
+    const key = `${item.productId}::${item.variantId ?? ""}`;
+    const existing = quantityByKey.get(key);
+    if (existing) existing.quantity += item.quantity;
+    else quantityByKey.set(key, { ...item });
   }
 
   const products = await prisma.product.findMany({
-    where: { id: { in: [...quantityByProductId.keys()] }, deletedAt: null, isActive: true },
+    where: {
+      id: { in: [...new Set([...quantityByKey.values()].map((v) => v.productId))] },
+      deletedAt: null,
+      isActive: true,
+    },
     select: { id: true, name: true, basePrice: true },
   });
   const productById = new Map(products.map((p) => [p.id, p]));
+
+  const variantIds = [...quantityByKey.values()].flatMap((v) => (v.variantId ? [v.variantId] : []));
+  const variants = variantIds.length
+    ? await prisma.productVariant.findMany({
+        where: { id: { in: variantIds } },
+        select: { id: true, productId: true, name: true, price: true },
+      })
+    : [];
+  const variantById = new Map(variants.map((v) => [v.id, v]));
 
   let subtotal = 0;
   const orderItemsData: {
     productId: string;
     productName: string;
+    variantId: string | undefined;
+    variantName: string | undefined;
     unitPrice: number;
     quantity: number;
     subtotal: number;
   }[] = [];
-  for (const [productId, quantity] of quantityByProductId) {
+  for (const { productId, variantId, quantity } of quantityByKey.values()) {
     const product = productById.get(productId);
-    if (!product) {
+    // variant phải thuộc ĐÚNG productId đang xét — chặn khách (hoặc client bị lỗi/giả mạo) gửi
+    // variantId của sản phẩm KHÁC kèm productId này, sẽ tính nhầm giá.
+    const variant = variantId ? variantById.get(variantId) : undefined;
+    if (!product || (variantId && (!variant || variant.productId !== productId))) {
       throw new AppError(
         "Một số sản phẩm trong giỏ không còn khả dụng, vui lòng tải lại giỏ hàng",
         409,
         "PRODUCT_UNAVAILABLE",
       );
     }
-    const itemSubtotal = product.basePrice * quantity;
+    const unitPrice = variant ? variant.price : product.basePrice;
+    const itemSubtotal = unitPrice * quantity;
     orderItemsData.push({
       productId,
       productName: product.name,
-      unitPrice: product.basePrice,
+      variantId: variant?.id,
+      variantName: variant?.name,
+      unitPrice,
       quantity,
       subtotal: itemSubtotal,
     });
@@ -117,12 +154,60 @@ export async function create(
   const orderCode = await generateOrderCode();
 
   const created = await prisma.$transaction(async (tx) => {
+    // Re-validate mã giảm giá NGAY TRONG transaction (không tin kết quả POST /coupons/validate gọi
+    // trước đó ở client — có thể đã lỗi thời do coupon bị sửa/hết lượt giữa lúc khách xem trước và
+    // lúc bấm đặt hàng thật). Tăng usedCount bằng updateMany có điều kiện (WHERE usedCount < limit)
+    // NGAY TRONG transaction này — Postgres khoá row khi UPDATE nên 2 request cùng dùng mã còn ĐÚNG 1
+    // lượt cuối tại cùng thời điểm sẽ tuần tự hoá qua khoá row, không thể cả 2 cùng "lọt qua".
+    let discountAmount = 0;
+    let couponCode: string | undefined;
+    let couponId: string | undefined;
+    if (input.couponCode) {
+      const code = input.couponCode.trim().toUpperCase();
+      const coupon = await tx.coupon.findUnique({ where: { code } });
+      if (!coupon) throw new AppError("Mã giảm giá không tồn tại", 404, "COUPON_NOT_FOUND");
+      if (!coupon.isActive) {
+        throw new AppError("Mã giảm giá đã bị tạm ngưng", 409, "COUPON_INACTIVE");
+      }
+      const now = new Date();
+      if (coupon.startDate && now < coupon.startDate) {
+        throw new AppError("Mã giảm giá chưa tới ngày áp dụng", 409, "COUPON_NOT_STARTED");
+      }
+      if (coupon.endDate && now > coupon.endDate) {
+        throw new AppError("Mã giảm giá đã hết hạn", 409, "COUPON_EXPIRED");
+      }
+      if (coupon.minOrderValue !== null && subtotal < coupon.minOrderValue) {
+        throw new AppError(
+          `Đơn hàng cần tối thiểu ${coupon.minOrderValue.toLocaleString("vi-VN")}đ để dùng mã này`,
+          409,
+          "COUPON_MIN_ORDER_NOT_MET",
+        );
+      }
+
+      const guarded = await tx.coupon.updateMany({
+        where: {
+          id: coupon.id,
+          OR: [{ usageLimit: null }, { usedCount: { lt: coupon.usageLimit ?? 0 } }],
+        },
+        data: { usedCount: { increment: 1 } },
+      });
+      if (guarded.count === 0) {
+        throw new AppError("Mã giảm giá đã hết lượt sử dụng", 409, "COUPON_USAGE_LIMIT_REACHED");
+      }
+
+      discountAmount = computeDiscount(coupon, subtotal);
+      couponCode = coupon.code;
+      couponId = coupon.id;
+    }
+
     const order = await tx.order.create({
       data: {
         orderCode,
         userId: userId ?? null,
         subtotal,
-        total: subtotal,
+        couponCode,
+        discountAmount,
+        total: subtotal - discountAmount,
         recipientName: input.recipientName,
         recipientPhone: input.recipientPhone,
         deliveryAddress: input.deliveryAddress,
@@ -138,6 +223,16 @@ export async function create(
     await tx.orderItem.createMany({
       data: orderItemsData.map((item) => ({ ...item, orderId: order.id })),
     });
+    if (couponId) {
+      await tx.couponUsage.create({
+        data: {
+          couponId,
+          orderId: order.id,
+          userId: userId ?? null,
+          discountAmount,
+        },
+      });
+    }
     return order;
   });
 
@@ -154,6 +249,8 @@ export async function create(
     after: full,
     ...(ipAddress && { ipAddress }),
   });
+
+  emitOrderCreated(full);
 
   return full;
 }
@@ -184,6 +281,22 @@ export async function listOwn(userId: string, { page, limit }: ListOwnOrdersQuer
     prisma.order.count({ where }),
   ]);
   return { items, meta: buildPaginationMeta(page, limit, total) };
+}
+
+// Lịch giao hoa theo ngày — dùng permission RIÊNG `orders.view_delivery_queue` (florist có, nhưng
+// KHÔNG có `orders.view_all` — florist chỉ cần thấy đơn cần soạn hoa của 1 ngày, không cần/không nên
+// thấy toàn bộ lịch sử đơn hệ thống). Loại `cancelled` — đơn đã huỷ không cần soạn hoa; GIỮ LẠI mọi
+// trạng thái khác (kể cả `pending` chưa xác nhận) để florist thấy bức tranh đầy đủ trong ngày.
+export async function listDeliveryQueue({ date }: ListDeliveryQueueQuery) {
+  const deliveryDate = new Date(`${date}T00:00:00.000Z`); // xem create() — LUÔN neo giờ UTC cho cột @db.Date
+  const orders = await prisma.order.findMany({
+    where: { deliveryDate, status: { not: "cancelled" } },
+    orderBy: { createdAt: "asc" },
+    select: ORDER_SELECT,
+  });
+  return [...orders].sort(
+    (a, b) => TIME_SLOT_ORDER[a.deliveryTimeSlot]! - TIME_SLOT_ORDER[b.deliveryTimeSlot]!,
+  );
 }
 
 export async function listAdmin({ status, page, limit }: ListOrdersQuery) {
@@ -249,6 +362,8 @@ export async function updateStatus(
     after: { status: newStatus },
     ...(ipAddress && { ipAddress }),
   });
+
+  emitOrderStatusChanged(updated);
 
   return updated;
 }

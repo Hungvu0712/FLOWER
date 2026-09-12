@@ -22,11 +22,11 @@
 | 2 | Authentication — 3 phương thức, session, rotation | ✅ | ██████████ 100% |
 | 3 | RBAC — users, roles, permissions, audit log | ✅ | ██████████ 100% |
 | 4 | Infrastructure — Cloudinary, email, jobs, settings | ✅ | ██████████ 100% |
-| 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██░░░░░░░░ 20% |
+| 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██████████ 96% |
 | 6 | Quality — testing, OpenAPI, logging | 🟡 | ███████░░░ 79% |
 | 7 | Production — Docker, CI/CD, monitoring | ⬜ | ░░░░░░░░░░ 0% |
 
-**Tổng thể: ~42%** · Số test đang chạy: **746** (BE 602 · FE 144) + ~30 kịch bản E2E
+**Tổng thể: ~52%** · Số test đang chạy: **1007** (BE 860 · FE 147) + ~30 kịch bản E2E
 
 ---
 
@@ -97,7 +97,7 @@
 - [x] Form Liên hệ công khai (`/api/v1/contact`, rate limit 5/15p theo IP) + admin xem/đánh dấu xử lý (`contact.manage`) — xem [docs/modules/core-contact.md](docs/modules/core-contact.md)
 - [x] CRUD `folders` *(`BE-19`)*
 - [x] **Màn hình quản lý tài nguyên** (cây thư mục lazy-load, xem file dạng lưới/danh sách) *(11/09/2026 — `/admin/resources`, xem [docs/modules/core-files.md §8](docs/modules/core-files.md))*
-- [x] **Mở rộng `system_settings` key-value tổng quát** *(11/09/2026 — `site_name`/`site_logo`/`timezone`/`registration_enabled`, UI `/superadmin/settings`; `registration_enabled` có enforcement thật ở `auth.service.ts`; phát hiện thêm `BE-20` khi làm — xem [docs/12](docs/12-danh-gia-va-de-xuat.md); CHƯA làm `maintenance_mode` — cần middleware riêng, xem [docs/modules/core-settings.md §4](docs/modules/core-settings.md))*
+- [x] **Mở rộng `system_settings` key-value tổng quát** *(11/09/2026 — `site_name`/`site_logo`/`timezone`/`registration_enabled`, UI `/superadmin/settings`; `registration_enabled` có enforcement thật ở `auth.service.ts`; phát hiện VÀ xử lý luôn `BE-20` khi làm (nối lại đăng ký qua magic link) — xem [docs/12](docs/12-danh-gia-va-de-xuat.md); CHƯA làm `maintenance_mode` — cần middleware riêng, xem [docs/modules/core-settings.md §4](docs/modules/core-settings.md))*
 - [x] Nén + mã hoá backup *(`OPS-02` — `pg_dump --compress=9` + RSA/AES-256-GCM khi có `BACKUP_ENCRYPTION_PUBLIC_KEY`; còn thiếu tách bucket/tài khoản Cloudinary riêng — việc vận hành, xem docs/12)*
 
 ## Phase 5 — Domain 🟡
@@ -105,34 +105,36 @@
 - [x] **Categories** — CRUD cây, slug tự sinh bỏ dấu, chống vòng lặp cha-con
 - [x] API công khai `/categories` (không lộ trường nội bộ)
 - [x] UI `/admin/categories`
-- [x] **Products** — CRUD, giá, thư viện nhiều ảnh, mô tả rich text (TipTap, sanitize XSS ở backend), soft delete *(không có tồn kho — hoa tươi làm theo đơn; chưa có `product_variants` — xem [docs/modules/domain-products.md §8](docs/modules/domain-products.md))*
+- [x] **Products** — CRUD, giá, thư viện nhiều ảnh, mô tả rich text (TipTap, sanitize XSS ở backend), soft delete *(không có tồn kho — hoa tươi làm theo đơn)*
+- [x] **`product_variants` (size/giá riêng)** *(11/09/2026 — bảng quan hệ riêng, KHÔNG có tồn kho (cùng triết lý `basePrice`); đồng bộ theo kiểu thay thế toàn bộ danh sách nhưng GIỮ NGUYÊN `id` của biến thể đang sửa (tránh vỡ `order_items.variant_id` của đơn cũ); `orders.service.ts` chống IDOR — kiểm tra `variantId` thật sự thuộc `productId` gửi lên; giỏ hàng/checkout gộp dòng theo `(productId, variantId)`; UI chọn size ở trang chi tiết sản phẩm + quản lý biến thể ở `/admin/products` — xem [docs/modules/domain-products.md §8](docs/modules/domain-products.md))*
 - [x] API công khai `/products` (phân trang, không lộ trường nội bộ)
 - [x] UI `/admin/products`
 - [x] Trang chủ storefront (`/`) đọc danh mục/sản phẩm thật qua API công khai (Server Component, `fetch` + `revalidate: 60s`) — thay hẳn mảng dữ liệu giả cứng trong code trước đó
 - [x] Dữ liệu mẫu: 4 danh mục + 8 sản phẩm qua `domain.seed.ts` (chưa có ảnh — seed script không tự upload Cloudinary được, hiện icon hoa thay thế)
 - [x] Trang danh mục (`/danh-muc/[slug]`) + trang chi tiết sản phẩm (`/san-pham/[slug]`) — API công khai `GET /products/:slug`, gallery đổi ảnh, sản phẩm liên quan cùng danh mục, CTA gọi/Zalo
-- [ ] Occasions (dịp lễ) ⬜
+- [x] **Occasions (dịp lễ)** *(12/09/2026 — tag phẳng (không cây), n-n với sản phẩm qua `product_occasions`; dùng LẠI permission `categories.manage` (không tách permission riêng); xoá occasion KHÔNG chặn dù còn sản phẩm gắn tag (`onDelete: Cascade` chỉ gỡ tag, khác categories chặn xoá khi còn con); UI `/admin/occasions` + chọn nhiều dịp lễ (pill) ở form sản phẩm + trang storefront `/dip-le/[slug]` + chip dịp lễ ở trang chi tiết sản phẩm — xem [docs/modules/domain-occasions.md](docs/modules/domain-occasions.md))*
 - [x] **Cart (guest cart)** — lưu phía client (Zustand + localStorage), KHÔNG có bảng `carts` ở backend *(quyết định kiến trúc — xem [docs/modules/domain-orders.md §1](docs/modules/domain-orders.md))*
 - [x] **Orders + chọn ngày giờ giao** — giai đoạn cơ bản: guest checkout, COD, cửa hàng xác nhận qua điện thoại *(chưa thanh toán online — xem [docs/modules/domain-orders.md §8](docs/modules/domain-orders.md))*
 - [x] Trang giỏ hàng (`/gio-hang`) + checkout (`/thanh-toan`) + xác nhận đơn công khai (`/don-hang/[id]`, `id` UUID làm token tra cứu)
 - [x] UI `/admin/orders` — lọc theo trạng thái, mở rộng xem chi tiết, đổi trạng thái (quyền theo giá trị `status`, đúng ma trận docs/05 §2.4)
-- [ ] Sổ địa chỉ người nhận ⬜
+- [x] **Sổ địa chỉ người nhận** *(12/09/2026 — thuần dữ liệu cá nhân, KHÔNG permission riêng (chỉ cần đăng nhập, giống `/account/profile`); địa chỉ đầu tiên tự động mặc định; mọi thao tác theo `id` chống IDOR (`where: {id, userId}`); tích hợp autofill ở trang thanh toán qua dropdown "Chọn từ sổ địa chỉ" — xem [docs/modules/domain-addresses.md](docs/modules/domain-addresses.md))*
 - [ ] Payments online (VNPay/Momo) ⬜ *(7 ngày — hiện chỉ COD)*
-- [ ] Lịch giao hoa theo ngày (dashboard riêng cho florist) ⬜ *(3 ngày)*
-- [ ] Reviews + wishlist ⬜
-- [ ] Promotions / coupons ⬜
-- [ ] Blog + newsletter ⬜
-- [ ] Nhắc lịch sinh nhật/kỷ niệm ⬜
-- [ ] Realtime trạng thái đơn (Socket.io) ⬜
+- [x] **Lịch giao hoa theo ngày (dashboard riêng cho florist)** *(12/09/2026 — permission RIÊNG `orders.view_delivery_queue` (florist có, KHÔNG có `orders.view_all`); trang `/admin/orders/delivery-queue`, sidebar rút gọn còn đúng 1 link khi user chỉ có role florist (không kiêm admin); không có nút "Huỷ đơn" (florist không có `orders.cancel`) — xem [docs/modules/domain-orders.md §4b](docs/modules/domain-orders.md))*
+- [x] **Reviews + wishlist** *(12/09/2026 — reviews cần duyệt (`isApproved` mặc định false, permission `reviews.moderate` riêng), mỗi user 1 đánh giá/sản phẩm; wishlist là bảng nối n-n thuần, idempotent thêm/xoá; phát hiện và sửa 1 bug hydration mismatch thật khi build (`ProductReviews.tsx` — xem [docs/modules/domain-reviews.md §4](docs/modules/domain-reviews.md)) — xem thêm [docs/modules/domain-wishlist.md](docs/modules/domain-wishlist.md))*
+- [x] **Promotions / coupons** *(12/09/2026 — 1 đơn tối đa 1 mã (`CouponUsage.orderId` unique); `usedCount` đếm sẵn (denormalized), tăng ATOMIC bằng `updateMany` có điều kiện NGAY TRONG transaction tạo đơn để chống race condition hết lượt dùng; `Order.couponCode`/`discountAmount` là snapshot (không phải FK sống), cùng triết lý `OrderItem.productName`; permission `promotions.manage` dùng LẠI (đã seed sẵn từ đầu dự án); xoá mã chặn khi `usedCount > 0` (409 `COUPON_IN_USE`, cùng mẫu `CATEGORY_HAS_CHILDREN`); UI `/admin/coupons` + tích hợp ô nhập mã ở `/thanh-toan` — xem [docs/modules/domain-coupons.md](docs/modules/domain-coupons.md))*
+- [x] **Blog + newsletter** *(12/09/2026 — Blog: `publishedAt` nullable DateTime thay cho cờ `isPublished` (null = draft, có giá trị = đã/sẽ xuất bản, cho phép LÊN LỊCH xuất bản tương lai miễn phí); tái sử dụng nguyên bản `RichTextEditor`/`useUploadFile`/`sanitizeDescriptionHtml` đã có cho Products; xoá = soft delete giống Product. Newsletter: form đăng ký ở footer, chỉ giai đoạn THU THẬP email (chưa gửi campaign hàng loạt); `unsubscribe` luôn trả thành công (không xác nhận/phủ nhận email tồn tại). Cả 2 dùng LẠI permission `blog.manage` có sẵn từ đầu dự án — xem [docs/modules/domain-blog.md](docs/modules/domain-blog.md))*
+- [x] **Nhắc lịch sinh nhật/kỷ niệm** *(12/09/2026 — bảng `special_dates` (label/date/remindDaysBefore), permission như `addresses`/`wishlist` (chỉ cần đăng nhập); `date` chỉ THÁNG-NGÀY có ý nghĩa (lặp lại hằng năm), năm nhập không quan trọng; job nền hằng ngày (`sendSpecialDateReminders.job.ts`) tính "ngày dịp lễ sắp tới" (năm nay/năm sau) rồi so với `remindDaysBefore`, gửi email best-effort; `lastRemindedYear` chống gửi trùng khi job chạy bù trong ngày; sửa ngày/số-ngày-nhắc tự reset `lastRemindedYear`; tab "Ngày đặc biệt" mới ở `/account` — xem [docs/modules/domain-special-dates.md](docs/modules/domain-special-dates.md))*
+- [x] **Realtime trạng thái đơn (Socket.io)** *(12/09/2026 — hạ tầng tách CORE (`modules/core/realtime/realtime.service.ts` — `initSocket()`/`getIO()`, không biết gì về đơn hàng) khỏi DOMAIN (`orders.realtime.ts` — room/event/kiểm tra quyền cụ thể); 2 loại room: `order:<id>` join KHÔNG cần đăng nhập (id đóng vai trò token, cùng mô hình bảo mật của `GET /orders/:id`) và `admin:orders` PHẢI xác thực cookie + đủ `orders.view_all`/`orders.view_delivery_queue` (Socket.io không đi qua Express middleware, tự đọc thẳng header Cookie lúc handshake); `orders.service.ts` phát `order:created`/`order:status_changed` NGAY SAU khi ghi DB (không gói trong transaction); trang xác nhận đơn công khai + `/admin/orders` + `/admin/orders/delivery-queue` tự cập nhật KHÔNG cần F5 — xem [docs/modules/domain-orders.md §10](docs/modules/domain-orders.md))*
+- [x] **Site Content — admin tự sửa banner Hero/hotline/Zalo/địa chỉ/giờ mở cửa** *(13/09/2026 — dùng chung bảng `system_settings` với core-settings (khác namespace key, không migration riêng); permission RIÊNG `site_content.manage` (khác `settings.manage` 🔒 chỉ super_admin) gán cho CẢ `admin` lẫn `super_admin`; route public `GET /site-content` dùng chung cho cả storefront lẫn trang quản trị đọc (không có `GET /admin/site-content` riêng); `hero_banner` theo đúng pattern `site_logo` (lưu fileId, đánh dấu `file_usages`, fallback ảnh tĩnh khi null); storefront đọc qua `getStorefrontSiteContent()` (Server Component, `revalidate: 60s`) truyền prop xuống — KHÔNG dùng React Context; UI `/admin/site-content` — xem [docs/modules/domain-site-content.md](docs/modules/domain-site-content.md))*
 
 ## Phase 6 — Quality 🟡
 
-- [x] **Backend: 602 test** (429 unit + 173 integration) — chạy **không cần database**
-- [x] **Frontend: 144 test** (unit + component + hook)
+- [x] **Backend: 860 test** (unit + integration) — chạy **không cần database**
+- [x] **Frontend: 147 test** (unit + component + hook)
 - [x] **E2E Playwright: ~30 kịch bản** (auth · superadmin · account · categories)
 - [x] Hạ tầng test: Prisma mock tự sinh, `loginAs()` helper
 - [x] `npm run typecheck` phủ cả `src/` lẫn `tests/`
-- [x] Tài liệu kỹ thuật đầy đủ — 13 doc chính + 7 module doc, 67 sơ đồ Mermaid
+- [x] Tài liệu kỹ thuật đầy đủ — 14 doc chính + 17 module doc, 54 sơ đồ Mermaid
 - [x] Script kiểm tra cú pháp Mermaid (`scripts/check-mermaid.mjs`)
 - [x] Tài liệu khách hàng (GitBook) — 7 trang + cấu hình sync
 - [ ] **CI/CD GitHub Actions** ⬜ *(2 ngày — ưu tiên cao, mẫu ở docs/10 §6)*
@@ -245,7 +247,7 @@ Chi tiết: [docs/07 · Bảo mật](docs/07-bao-mat.md).
 |---|---|:---:|
 | Sửa 6 điểm 🔴 nợ kỹ thuật (`BE-01` → `BE-06`) | 1.5 ngày | ✅ *(10/09/2026 — xem `docs/12-danh-gia-va-de-xuat.md` §2)* |
 | Thiết lập CI/CD GitHub Actions | 2 ngày | ⬜ |
-| **Module Products** (CRUD + nhiều ảnh, không tồn kho) | 6 ngày | ✅ *(10/09/2026 — chưa gồm biến thể/size riêng, xem `product_variants` ở Phase 5)* |
+| **Module Products** (CRUD + nhiều ảnh, không tồn kho) | 6 ngày | ✅ *(10/09/2026 — bao gồm `product_variants` (size/giá riêng), xem Phase 5)* |
 | **Cart + Orders (giai đoạn cơ bản)** — làm sớm hơn kế hoạch, ngoài phạm vi kỳ này ban đầu | — | ✅ *(10/09/2026 — guest checkout, COD, chưa thanh toán online, xem `docs/modules/domain-orders.md`)* |
 | Màn hình tra cứu Audit Log | 1 ngày | ✅ *(11/09/2026 — `/superadmin/audit-logs`)* |
 

@@ -57,7 +57,7 @@ describe('useCartStore', () => {
     productId: 'p1',
     name: 'Hoa hồng',
     slug: 'hoa-hong',
-    basePrice: 100000,
+    unitPrice: 100000,
     image: null,
   };
 
@@ -114,10 +114,42 @@ describe('useCartStore', () => {
   it('useCartTotal tính đúng tổng tiền (đơn giá × số lượng, cộng dồn nhiều sản phẩm)', () => {
     act(() => {
       useCartStore.getState().addItem(productA, 2); // 100.000 × 2
-      useCartStore.getState().addItem({ ...productA, productId: 'p2', basePrice: 50000 }, 1); // 50.000 × 1
+      useCartStore.getState().addItem({ ...productA, productId: 'p2', unitPrice: 50000 }, 1); // 50.000 × 1
     });
     const { result } = renderHook(() => useCartTotal());
     expect(result.current).toBe(250000);
+  });
+
+  it('addItem CÙNG productId nhưng KHÁC variantId tạo 2 dòng riêng (giá khác nhau)', () => {
+    act(() => {
+      useCartStore
+        .getState()
+        .addItem({ ...productA, variantId: 'v-nho', variantName: 'Nhỏ', unitPrice: 100000 });
+      useCartStore
+        .getState()
+        .addItem({ ...productA, variantId: 'v-lon', variantName: 'Lớn', unitPrice: 200000 });
+    });
+    expect(useCartStore.getState().items).toHaveLength(2);
+  });
+
+  it('addItem CÙNG productId và CÙNG variantId thì cộng dồn số lượng vào 1 dòng', () => {
+    act(() => {
+      useCartStore.getState().addItem({ ...productA, variantId: 'v-nho', variantName: 'Nhỏ' }, 2);
+      useCartStore.getState().addItem({ ...productA, variantId: 'v-nho', variantName: 'Nhỏ' }, 3);
+    });
+    expect(useCartStore.getState().items).toHaveLength(1);
+    expect(useCartStore.getState().items[0]!.quantity).toBe(5);
+  });
+
+  it('removeItem với variantId chỉ xoá đúng biến thể, không xoá biến thể khác của cùng sản phẩm', () => {
+    act(() => {
+      useCartStore.getState().addItem({ ...productA, variantId: 'v-nho' });
+      useCartStore.getState().addItem({ ...productA, variantId: 'v-lon' });
+    });
+    act(() => useCartStore.getState().removeItem('p1', 'v-nho'));
+    const remaining = useCartStore.getState().items;
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]!.variantId).toBe('v-lon');
   });
 });
 

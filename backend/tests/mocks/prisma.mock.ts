@@ -99,11 +99,22 @@ export interface PrismaMockClient {
   auditLog: ModelMock;
   emailLog: ModelMock;
   category: ModelMock;
+  occasion: ModelMock;
   product: ModelMock;
   productImage: ModelMock;
+  productVariant: ModelMock;
+  productOccasion: ModelMock;
   contactMessage: ModelMock;
   order: ModelMock;
   orderItem: ModelMock;
+  address: ModelMock;
+  wishlist: ModelMock;
+  review: ModelMock;
+  coupon: ModelMock;
+  couponUsage: ModelMock;
+  blogPost: ModelMock;
+  newsletterSubscriber: ModelMock;
+  specialDate: ModelMock;
   $transaction: AnyFn;
 }
 

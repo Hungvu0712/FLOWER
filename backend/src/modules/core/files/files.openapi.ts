@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { registerRoute } from "../../../openapi/components";
 import { fileSchema } from "../../../openapi/schemas/shared";
-import { presignSchema, createFileSchema, listFilesQuerySchema, fileIdParamSchema } from "./files.validation";
+import {
+  presignSchema,
+  createFileSchema,
+  listFilesQuerySchema,
+  fileIdParamSchema,
+} from "./files.validation";
 
 const TAGS = ["Files"];
 
@@ -33,7 +38,8 @@ registerRoute({
   path: "/api/v1/files",
   tags: TAGS,
   summary: "Lưu metadata sau khi upload xong",
-  description: "Server tự gọi Cloudinary Admin API lấy url/mimeType/sizeBytes THẬT, không tin client khai.",
+  description:
+    "Server tự gọi Cloudinary Admin API lấy url/mimeType/sizeBytes THẬT, không tin client khai.",
   auth: {},
   request: { body: createFileSchema },
   response: { status: 201, schema: fileSchema },
@@ -58,7 +64,8 @@ registerRoute({
   path: "/api/v1/files/{id}",
   tags: TAGS,
   summary: "Xoá mềm file",
-  description: "Cloudinary object bị purge thật ở lượt cron dọn file mồ côi sau (cửa sổ an toàn 24h).",
+  description:
+    "Cloudinary object bị purge thật ở lượt cron dọn file mồ côi sau (cửa sổ an toàn 24h).",
   auth: { permission: "files.manage" },
   request: { params: fileIdParamSchema },
   response: { schema: z.null() },

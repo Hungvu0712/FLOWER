@@ -323,3 +323,88 @@ export function IconX({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconCalendar({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+      <path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" />
+    </svg>
+  );
+}
+
+export function IconStar({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3.5l2.9 6 6.6.8-4.9 4.5 1.3 6.5-5.9-3.3-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.8z" />
+    </svg>
+  );
+}
+
+export function IconTicket({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.5 8.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v1.5a2 2 0 1 0 0 4V16a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-2a2 2 0 1 0 0-4z" />
+      <path d="M9.5 6.5v11" strokeDasharray="1.6 1.8" />
+    </svg>
+  );
+}
+
+export function IconNewspaper({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 5.5h12a2 2 0 0 1 2 2V19a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 19z" />
+      <path d="M18 8.5h1a1 1 0 0 1 1 1V18a1.5 1.5 0 0 1-1.5 1.5" />
+      <path d="M7 9h6M7 12h6M7 15h4" />
+    </svg>
+  );
+}
+
+export function IconEnvelopeOpen({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.5 9.5 12 15l8.5-5.5" />
+      <rect x="3.5" y="6.5" width="17" height="12" rx="2" />
+    </svg>
+  );
+}

@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation';
 
 const tabs = [
   { href: '/account/profile', label: 'Hồ sơ' },
+  { href: '/account/addresses', label: 'Sổ địa chỉ' },
+  { href: '/account/wishlist', label: 'Yêu thích' },
+  { href: '/account/special-dates', label: 'Ngày đặc biệt' },
   { href: '/account/devices', label: 'Thiết bị đăng nhập' },
 ];
 

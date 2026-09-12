@@ -34,7 +34,7 @@ registerRoute({
   summary: "Tạo Custom Role",
   description:
     "`isSystem = false`. Permission `isRestricted = true` (vd `users.manage`, `roles.manage`) " +
-    "LUÔN bị lọc bỏ khỏi `permissionIds` ở tầng service — chốt chặn \"shadow super_admin\".",
+    'LUÔN bị lọc bỏ khỏi `permissionIds` ở tầng service — chốt chặn "shadow super_admin".',
   auth: { permission: PERMISSION },
   request: { body: createRoleSchema },
   response: { status: 201, schema: roleSchema },

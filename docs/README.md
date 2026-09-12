@@ -51,8 +51,16 @@ Tài liệu **trao đổi với khách hàng** nằm riêng ở [`docs/gitbook/`
 | Settings (phương thức đăng nhập) | 🔧 Core | [modules/core-settings.md](modules/core-settings.md) |
 | Contact (form Liên hệ) | 🔧 Core | [modules/core-contact.md](modules/core-contact.md) |
 | Categories (danh mục) | 🌸 Domain | [modules/domain-categories.md](modules/domain-categories.md) |
+| Occasions (dịp lễ) | 🌸 Domain | [modules/domain-occasions.md](modules/domain-occasions.md) |
 | Products (sản phẩm) | 🌸 Domain | [modules/domain-products.md](modules/domain-products.md) |
 | Orders (giỏ hàng + đặt hàng) | 🌸 Domain | [modules/domain-orders.md](modules/domain-orders.md) |
+| Addresses (sổ địa chỉ) | 🌸 Domain | [modules/domain-addresses.md](modules/domain-addresses.md) |
+| Wishlist (yêu thích) | 🌸 Domain | [modules/domain-wishlist.md](modules/domain-wishlist.md) |
+| Reviews (đánh giá) | 🌸 Domain | [modules/domain-reviews.md](modules/domain-reviews.md) |
+| Coupons (mã giảm giá) | 🌸 Domain | [modules/domain-coupons.md](modules/domain-coupons.md) |
+| Blog + Newsletter | 🌸 Domain | [modules/domain-blog.md](modules/domain-blog.md) |
+| Special Dates (nhắc lịch sinh nhật/kỷ niệm) | 🌸 Domain | [modules/domain-special-dates.md](modules/domain-special-dates.md) |
+| Site Content (banner Hero, hotline, Zalo, địa chỉ, giờ mở cửa) | 🌸 Domain | [modules/domain-site-content.md](modules/domain-site-content.md) |
 
 ---
 

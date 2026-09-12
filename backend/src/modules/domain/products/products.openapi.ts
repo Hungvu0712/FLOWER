@@ -8,6 +8,20 @@ const productImageItemSchema = z.object({
   file: z.object({ id: z.string().uuid(), url: z.string().url() }),
 });
 
+// Mảng RỖNG = sản phẩm không có biến thể, dùng thẳng basePrice. Có biến thể thì basePrice chỉ còn ý
+// nghĩa "giá từ..." ở trang danh sách — xem docs/05 §3.4, schema.prisma (ProductVariant).
+const productVariantItemSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().openapi({ example: "Lớn" }),
+  price: z.number().int().openapi({ example: 450000 }),
+});
+
+const productOccasionItemSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().openapi({ example: "Sinh nhật" }),
+  slug: z.string().openapi({ example: "sinh-nhat" }),
+});
+
 // Dùng chung với products.admin.openapi.ts — export ở đây vì products.routes.ts (public) là bản
 // storefront, products.admin.routes.ts thêm isActive/categoryId/timestamps.
 export const publicProductSchema = z.object({
@@ -17,9 +31,14 @@ export const publicProductSchema = z.object({
   description: z.string().nullable().openapi({
     description: "HTML đã sanitize (rich text) — không phải văn bản thuần.",
   }),
-  basePrice: z.number().int().openapi({ description: "VND nguyên, không có đơn vị lẻ", example: 350000 }),
+  basePrice: z
+    .number()
+    .int()
+    .openapi({ description: "VND nguyên, không có đơn vị lẻ", example: 350000 }),
   category: z.object({ id: z.string().uuid(), name: z.string(), slug: z.string() }).nullable(),
   images: z.array(productImageItemSchema),
+  variants: z.array(productVariantItemSchema),
+  occasions: z.array(productOccasionItemSchema),
 });
 
 registerRoute({

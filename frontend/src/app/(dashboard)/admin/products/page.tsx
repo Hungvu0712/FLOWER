@@ -11,6 +11,8 @@ import {
 import type { Product } from '@/features/domain/products/products.service';
 import { useCategories } from '@/features/domain/categories/categories.hooks';
 import type { Category } from '@/features/domain/categories/categories.service';
+import { useOccasions } from '@/features/domain/occasions/occasions.hooks';
+import type { Occasion } from '@/features/domain/occasions/occasions.service';
 import { useUploadFile } from '@/features/core/files/files.hooks';
 import { formatVnd } from '@/lib/currency';
 import { stripHtml } from '@/lib/html';
@@ -23,6 +25,8 @@ import { FlowerIcon } from '@/components/ui/FlowerIcon';
 import { confirmDialog } from '@/store/useConfirmStore';
 
 type ImageDraft = { fileId: string; url: string };
+// `id` chỉ có khi SỬA biến thể đã tồn tại — bỏ trống = tạo mới, khớp ProductVariantInput.
+type VariantDraft = { id?: string; name: string; price: string };
 
 type FormState = {
   name: string;
@@ -32,6 +36,8 @@ type FormState = {
   categoryId: string;
   isActive: boolean;
   images: ImageDraft[];
+  variants: VariantDraft[];
+  occasionIds: string[];
 };
 
 const emptyForm: FormState = {
@@ -42,6 +48,8 @@ const emptyForm: FormState = {
   categoryId: '',
   isActive: true,
   images: [],
+  variants: [],
+  occasionIds: [],
 };
 
 function toInput(form: FormState) {
@@ -53,6 +61,15 @@ function toInput(form: FormState) {
     categoryId: form.categoryId || null,
     isActive: form.isActive,
     imageFileIds: form.images.map((img) => img.fileId),
+    // Bỏ qua dòng biến thể chưa điền tên — tránh gửi lên hàng rỗng do bấm "Thêm biến thể" rồi bỏ dở.
+    variants: form.variants
+      .filter((v) => v.name.trim())
+      .map((v) => ({
+        ...(v.id && { id: v.id }),
+        name: v.name.trim(),
+        price: Number(v.price) || 0,
+      })),
+    occasionIds: form.occasionIds,
   };
 }
 
@@ -90,6 +107,7 @@ function ProductForm({
   form,
   setForm,
   categoryList,
+  occasionList,
   uploading,
   onAddImages,
   onRemoveImage,
@@ -97,6 +115,7 @@ function ProductForm({
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
   categoryList: Category[];
+  occasionList: Occasion[];
   uploading: boolean;
   onAddImages: (files: File[]) => void;
   onRemoveImage: (fileId: string) => void;
@@ -176,6 +195,123 @@ function ProductForm({
       </div>
 
       <div className="mb-5">
+        <div className="mb-1.5 flex items-center justify-between">
+          <label className="block text-xs font-medium text-ink-muted">
+            Biến thể (size, tuỳ chọn)
+          </label>
+          <button
+            type="button"
+            onClick={() =>
+              setForm((f) => ({ ...f, variants: [...f.variants, { name: '', price: '' }] }))
+            }
+            className="text-xs font-medium text-rose hover:text-rose-dark"
+          >
+            + Thêm biến thể
+          </button>
+        </div>
+        {form.variants.length === 0 ? (
+          <p className="text-xs text-ink-muted">
+            Không có biến thể — dùng thẳng giá sản phẩm ở trên.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {form.variants.map((variant, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  value={variant.name}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      variants: f.variants.map((v, i) =>
+                        i === index ? { ...v, name: e.target.value } : v,
+                      ),
+                    }))
+                  }
+                  placeholder="Tên (vd: Nhỏ, Vừa, Lớn)"
+                  className="flex-1 rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  value={variant.price}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      variants: f.variants.map((v, i) =>
+                        i === index ? { ...v, price: e.target.value } : v,
+                      ),
+                    }))
+                  }
+                  placeholder="Giá (VND)"
+                  className="w-36 rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      variants: f.variants.filter((_, i) => i !== index),
+                    }))
+                  }
+                  aria-label={`Xoá biến thể ${variant.name || index + 1}`}
+                  className="text-ink-muted transition-colors hover:text-red-600"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  >
+                    <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-.8 12.1a2 2 0 0 1-2 1.9H9.8a2 2 0 0 1-2-1.9L7 7" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mb-5">
+        <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+          Dịp lễ (tuỳ chọn, chọn được nhiều)
+        </label>
+        {occasionList.length === 0 ? (
+          <p className="text-xs text-ink-muted">
+            Chưa có dịp lễ nào — tạo ở mục &quot;Dịp lễ&quot; trong menu bên trái.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {occasionList.map((occasion) => {
+              const checked = form.occasionIds.includes(occasion.id);
+              return (
+                <button
+                  key={occasion.id}
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      occasionIds: checked
+                        ? f.occasionIds.filter((id) => id !== occasion.id)
+                        : [...f.occasionIds, occasion.id],
+                    }))
+                  }
+                  aria-pressed={checked}
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                    checked
+                      ? 'border-rose bg-rose text-white'
+                      : 'border-border text-ink-soft hover:border-rose hover:text-rose'
+                  }`}
+                >
+                  {occasion.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mb-5">
         <label className="mb-1.5 block text-xs font-medium text-ink-muted">Mô tả (tuỳ chọn)</label>
         <RichTextEditor
           value={form.description}
@@ -199,15 +335,16 @@ function ProductForm({
   );
 }
 
-// Sản phẩm — giá quản lý trực tiếp trên sản phẩm, KHÔNG có tồn kho (hoa tươi làm theo đơn, chưa có
-// product_variants theo size, xem docs/05 §3.4). Ảnh là thư viện nhiều ảnh (product_images, khác
-// categories chỉ 1 ảnh đại diện) —
-// gửi lại toàn bộ danh sách imageFileIds ở update là THAY THẾ bộ ảnh cũ, không phải thêm vào (xem
-// products.service.ts). "products.manage" là permission domain gộp chung (view/create/update/delete),
-// khác thiết kế ban đầu tách 4 permission — admin/super_admin đều dùng được.
+// Sản phẩm — giá quản lý trực tiếp trên sản phẩm, KHÔNG có tồn kho (hoa tươi làm theo đơn). Biến thể
+// (size) là các mốc giá riêng theo product_variants, cũng KHÔNG có tồn kho — xem docs/05 §3.4. Ảnh là
+// thư viện nhiều ảnh (product_images, khác categories chỉ 1 ảnh đại diện) — gửi lại toàn bộ danh sách
+// imageFileIds/variants ở update là THAY THẾ bộ cũ, không phải thêm vào (xem products.service.ts).
+// "products.manage" là permission domain gộp chung (view/create/update/delete), khác thiết kế ban đầu
+// tách 4 permission — admin/super_admin đều dùng được.
 export default function ProductsPage() {
   const { data, isLoading } = useProducts({ includeInactive: true, limit: 100 });
   const { data: categories } = useCategories({ includeInactive: true });
+  const { data: occasions } = useOccasions({ includeInactive: true });
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -220,6 +357,7 @@ export default function ProductsPage() {
 
   const products = data?.data ?? [];
   const categoryList = categories ?? [];
+  const occasionList = occasions ?? [];
   const categoryNameById = new Map(categoryList.map((c) => [c.id, c.name]));
 
   function startEdit(product: Product) {
@@ -232,6 +370,12 @@ export default function ProductsPage() {
       categoryId: product.categoryId ?? '',
       isActive: product.isActive,
       images: product.images.map((img) => ({ fileId: img.file.id, url: img.file.url })),
+      variants: product.variants.map((v) => ({
+        id: v.id,
+        name: v.name,
+        price: String(v.price),
+      })),
+      occasionIds: product.occasions.map((o) => o.id),
     });
   }
 
@@ -286,6 +430,7 @@ export default function ProductsPage() {
             form={createForm}
             setForm={setCreateForm}
             categoryList={categoryList}
+            occasionList={occasionList}
             uploading={uploadFile.isPending}
             onAddImages={(files) => handleAddImages(files, 'create')}
             onRemoveImage={(fileId) => removeImage('create', fileId)}
@@ -336,6 +481,9 @@ export default function ProductsPage() {
                       {product.categoryId && (
                         <> · {categoryNameById.get(product.categoryId) ?? '—'}</>
                       )}
+                      {product.occasions.length > 0 && (
+                        <> · {product.occasions.map((o) => o.name).join(', ')}</>
+                      )}
                     </p>
                     {product.description && (
                       <p className="mt-1 text-xs text-ink-muted">
@@ -379,6 +527,7 @@ export default function ProductsPage() {
                     form={editForm}
                     setForm={setEditForm}
                     categoryList={categoryList}
+                    occasionList={occasionList}
                     uploading={uploadFile.isPending}
                     onAddImages={(files) => handleAddImages(files, 'edit')}
                     onRemoveImage={(fileId) => removeImage('edit', fileId)}

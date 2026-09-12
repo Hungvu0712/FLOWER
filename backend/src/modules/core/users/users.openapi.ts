@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { registerRoute } from "../../../openapi/components";
 import { fileSchema, safeUserSchema } from "../../../openapi/schemas/shared";
-import { updateProfileSchema, changePasswordSchema, sessionIdParamSchema } from "./users.validation";
+import {
+  updateProfileSchema,
+  changePasswordSchema,
+  sessionIdParamSchema,
+} from "./users.validation";
 
 const TAGS = ["Account"];
 

@@ -3,6 +3,7 @@ import { ok, created, paginated } from "../../../shared/response/ApiResponse";
 import * as service from "./orders.service";
 import type {
   CreateOrderInput,
+  ListDeliveryQueueQuery,
   ListOrdersQuery,
   ListOwnOrdersQuery,
   UpdateOrderStatusInput,
@@ -24,6 +25,11 @@ export const listOwn = asyncHandler(async (req, res) => {
     req.query as unknown as ListOwnOrdersQuery,
   );
   paginated(res, items, meta);
+});
+
+export const listDeliveryQueue = asyncHandler(async (req, res) => {
+  const orders = await service.listDeliveryQueue(req.query as unknown as ListDeliveryQueueQuery);
+  ok(res, orders);
 });
 
 export const listAdmin = asyncHandler(async (req, res) => {

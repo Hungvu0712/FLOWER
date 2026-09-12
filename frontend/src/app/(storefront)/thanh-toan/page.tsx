@@ -13,6 +13,26 @@ import {
   ORDER_TIME_SLOT_LABELS,
   type OrderTimeSlot,
 } from '@/features/domain/orders/orders.service';
+import { useMe } from '@/features/core/account/account.hooks';
+import { useAddresses } from '@/features/core/addresses/addresses.hooks';
+import type { Address } from '@/features/core/addresses/addresses.service';
+import { useValidateCoupon } from '@/features/domain/coupons/coupons.hooks';
+import type { CouponValidateResult } from '@/features/domain/coupons/coupons.service';
+import { getErrorMessage } from '@/lib/errors';
+
+// Xem trước số tiền giảm ngay khi cart thay đổi (không gọi lại API mỗi lần) — mirror ĐÚNG cách tính ở
+// backend coupons.service.ts#computeDiscount(). Chỉ là hiển thị tạm; backend LUÔN re-validate lại
+// THẬT (kể cả minOrderValue, hết hạn, hết lượt) trong transaction tạo đơn — xem orders.service.ts.
+function previewDiscount(coupon: CouponValidateResult, subtotal: number): number {
+  if (coupon.type === 'percent') return Math.floor((subtotal * coupon.value) / 100);
+  return Math.min(coupon.value, subtotal);
+}
+
+function formatAddressLine(address: Address): string {
+  return [address.addressLine, address.ward, address.district, address.city]
+    .filter(Boolean)
+    .join(', ');
+}
 
 type FormState = {
   recipientName: string;
@@ -50,9 +70,52 @@ export default function CheckoutPage() {
   const total = useCartTotal();
   const router = useRouter();
   const createOrder = useCreateOrder();
+  const { data: me } = useMe();
+  // Chỉ gọi khi ĐÃ XÁC NHẬN đăng nhập (me tồn tại) — trang thanh toán công khai, khách vãng lai
+  // (chiếm đa số) không đăng nhập thì không cần gọi API sổ địa chỉ, tránh 401 thừa cho mọi lượt ghé.
+  const { data: addresses } = useAddresses(!!me);
 
   const [form, setForm] = useState<FormState>(emptyForm);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [selectedAddressId, setSelectedAddressId] = useState('');
+
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidateResult | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const validateCoupon = useValidateCoupon();
+  const discountAmount = appliedCoupon ? previewDiscount(appliedCoupon, total) : 0;
+
+  function handleApplyCoupon() {
+    setCouponError('');
+    validateCoupon.mutate(
+      { code: couponCode, subtotal: total },
+      {
+        onSuccess: (result) => setAppliedCoupon(result),
+        onError: (error) => {
+          setAppliedCoupon(null);
+          setCouponError(getErrorMessage(error, 'Mã giảm giá không hợp lệ'));
+        },
+      },
+    );
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  }
+
+  function applyAddress(id: string) {
+    setSelectedAddressId(id);
+    const address = addresses?.find((a) => a.id === id);
+    if (!address) return;
+    setForm((f) => ({
+      ...f,
+      recipientName: address.recipientName,
+      recipientPhone: address.recipientPhone,
+      deliveryAddress: formatAddressLine(address),
+    }));
+  }
   // Đặt hàng thành công thì `clear()` cũng làm items rỗng — nếu không đánh dấu lại, effect bên dưới
   // (phản ứng theo items.length) sẽ tưởng nhầm "giỏ trống do vào thẳng URL" và redirect NGƯỢC VỀ
   // /gio-hang, giành với điều hướng sang trang xác nhận đơn (router.push) — bug THẬT đã gặp khi test.
@@ -71,13 +134,18 @@ export default function CheckoutPage() {
     setFieldErrors({});
     createOrder.mutate(
       {
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: items.map((i) => ({
+          productId: i.productId,
+          ...(i.variantId && { variantId: i.variantId }),
+          quantity: i.quantity,
+        })),
         recipientName: form.recipientName,
         recipientPhone: form.recipientPhone,
         deliveryAddress: form.deliveryAddress,
         deliveryDate: form.deliveryDate,
         deliveryTimeSlot: form.deliveryTimeSlot,
         note: form.note.trim() || undefined,
+        ...(appliedCoupon && { couponCode: appliedCoupon.code }),
         website: form.website,
       },
       {
@@ -111,6 +179,27 @@ export default function CheckoutPage() {
             value={form.website}
             onChange={(website) => setForm((f) => ({ ...f, website }))}
           />
+
+          {!!me && addresses && addresses.length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                Chọn từ sổ địa chỉ (tuỳ chọn)
+              </label>
+              <select
+                value={selectedAddressId}
+                onChange={(e) => applyAddress(e.target.value)}
+                className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-rose focus:ring-1 focus:ring-rose"
+              >
+                <option value="">— Nhập thông tin mới —</option>
+                {addresses.map((address) => (
+                  <option key={address.id} value={address.id}>
+                    {address.recipientName} · {address.recipientPhone} —{' '}
+                    {formatAddressLine(address)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
@@ -212,7 +301,10 @@ export default function CheckoutPage() {
 
           {createOrder.isError && !Object.keys(fieldErrors).length && (
             <p className="text-xs text-red-600">
-              Đặt hàng không thành công, vui lòng thử lại sau ít phút.
+              {getErrorMessage(
+                createOrder.error,
+                'Đặt hàng không thành công, vui lòng thử lại sau ít phút.',
+              )}
             </p>
           )}
 
@@ -229,19 +321,77 @@ export default function CheckoutPage() {
           <h2 className="text-sm font-semibold text-ink">Đơn hàng của bạn</h2>
           <div className="mt-4 flex flex-col gap-3">
             {items.map((item) => (
-              <div key={item.productId} className="flex items-center justify-between text-sm">
+              <div
+                key={`${item.productId}::${item.variantId ?? ''}`}
+                className="flex items-center justify-between text-sm"
+              >
                 <span className="text-ink-soft">
-                  {item.name} × {item.quantity}
+                  {item.name}
+                  {item.variantName && ` (${item.variantName})`} × {item.quantity}
                 </span>
                 <span className="font-medium text-ink">
-                  {formatVnd(item.basePrice * item.quantity)}
+                  {formatVnd(item.unitPrice * item.quantity)}
                 </span>
               </div>
             ))}
           </div>
-          <div className="mt-4 flex items-center justify-between border-t border-border-soft pt-4 text-sm font-semibold">
-            <span className="text-ink">Tổng cộng</span>
-            <span className="text-rose">{formatVnd(total)}</span>
+          <div className="mt-4 border-t border-border-soft pt-4">
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between gap-2 rounded-xl bg-rose-light px-3 py-2">
+                <span className="text-xs font-medium text-rose-dark">
+                  Đã áp dụng mã <span className="font-mono">{appliedCoupon.code}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="text-xs font-medium text-rose-dark underline"
+                >
+                  Gỡ mã
+                </button>
+              </div>
+            ) : (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                  Mã giảm giá (tuỳ chọn)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="Nhập mã..."
+                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink outline-none focus:border-rose focus:ring-1 focus:ring-rose"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={validateCoupon.isPending}
+                    disabled={!couponCode.trim()}
+                    onClick={handleApplyCoupon}
+                  >
+                    Áp dụng
+                  </Button>
+                </div>
+                {couponError && <p className="mt-1 text-xs text-red-600">{couponError}</p>}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-1.5 border-t border-border-soft pt-4 text-sm">
+            <div className="flex items-center justify-between text-ink-soft">
+              <span>Tạm tính</span>
+              <span>{formatVnd(total)}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex items-center justify-between text-ink-soft">
+                <span>Giảm giá</span>
+                <span>-{formatVnd(discountAmount)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span className="text-ink">Tổng cộng</span>
+              <span className="text-rose">{formatVnd(total - discountAmount)}</span>
+            </div>
           </div>
         </div>
       </div>
