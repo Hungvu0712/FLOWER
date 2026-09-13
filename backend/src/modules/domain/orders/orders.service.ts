@@ -9,6 +9,7 @@ import type {
   ListDeliveryQueueQuery,
   ListOrdersQuery,
   ListOwnOrdersQuery,
+  LogCallInput,
   UpdateOrderStatusInput,
 } from "./orders.validation";
 
@@ -33,6 +34,9 @@ const ORDER_SELECT = {
   deliveryDate: true,
   deliveryTimeSlot: true,
   note: true,
+  callConfirmedAt: true,
+  lastCallAt: true,
+  lastCallNote: true,
   createdAt: true,
   updatedAt: true,
   items: {
@@ -347,6 +351,16 @@ export async function updateStatus(
     throw new AppError("Bạn không có quyền cập nhật trạng thái đơn", 403, "FORBIDDEN");
   }
 
+  // Chặn "Đã xác nhận" nếu chưa ghi nhận đã gọi điện xác minh — trước đây admin đổi sang confirmed
+  // hoàn toàn dựa trên "niềm tin" là đã gọi, không có gì bắt buộc thật (xem logCall() bên dưới).
+  if (newStatus === "confirmed" && !order.callConfirmedAt) {
+    throw new AppError(
+      "Cần ghi nhận đã gọi xác nhận qua điện thoại trước khi chuyển đơn sang Đã xác nhận",
+      409,
+      "ORDER_CALL_NOT_CONFIRMED",
+    );
+  }
+
   const updated = await prisma.order.update({
     where: { id },
     data: { status: newStatus },
@@ -364,6 +378,41 @@ export async function updateStatus(
   });
 
   emitOrderStatusChanged(updated);
+
+  return updated;
+}
+
+// Ghi nhận 1 lần gọi điện xác minh đơn — KHÔNG đổi `status`, chỉ cập nhật 3 field "mới nhất" để hiển
+// thị nhanh ở /admin/orders. Lịch sử đầy đủ (nhiều lần gọi, kể cả không bắt máy) nằm ở AuditLog
+// (action "order.call_logged"), xem qua /superadmin/audit-logs — không tạo bảng riêng cho việc này.
+export async function logCall(
+  actorId: string,
+  id: string,
+  input: LogCallInput,
+  ipAddress?: string,
+) {
+  const order = await prisma.order.findUnique({ where: { id } });
+  if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
+
+  const now = new Date();
+  const updated = await prisma.order.update({
+    where: { id },
+    data: {
+      lastCallAt: now,
+      lastCallNote: input.note ?? null,
+      ...(input.confirmed && { callConfirmedAt: now }),
+    },
+    select: ORDER_SELECT,
+  });
+
+  await auditLog.record({
+    actorId,
+    action: "order.call_logged",
+    entityType: "order",
+    entityId: id,
+    after: { confirmed: input.confirmed, note: input.note ?? null },
+    ...(ipAddress && { ipAddress }),
+  });
 
   return updated;
 }

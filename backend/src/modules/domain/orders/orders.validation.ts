@@ -62,6 +62,14 @@ export const ORDER_STATUSES = [
 export const updateOrderStatusSchema = z.object({ status: z.enum(ORDER_STATUSES) });
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 
+// Ghi nhận 1 lần gọi điện xác minh đơn — `confirmed: true` mới đủ điều kiện chuyển status sang
+// 'confirmed' (xem orders.service.ts#updateStatus), `note` tự do (vd "không bắt máy, thử lại chiều").
+export const logCallSchema = z.object({
+  confirmed: z.boolean(),
+  note: z.string().trim().max(500).optional(),
+});
+export type LogCallInput = z.infer<typeof logCallSchema>;
+
 export const listOrdersQuerySchema = z.object({
   status: z.enum(ORDER_STATUSES).optional(),
   page: z.coerce.number().int().min(1).default(1),

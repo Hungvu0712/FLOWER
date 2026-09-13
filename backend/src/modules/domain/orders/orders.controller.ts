@@ -6,6 +6,7 @@ import type {
   ListDeliveryQueueQuery,
   ListOrdersQuery,
   ListOwnOrdersQuery,
+  LogCallInput,
   UpdateOrderStatusInput,
 } from "./orders.validation";
 
@@ -44,6 +45,16 @@ export const updateStatus = asyncHandler(async (req, res) => {
     req.params.id as string,
     status,
     req.user!.permissions,
+    req.ip,
+  );
+  ok(res, order);
+});
+
+export const logCall = asyncHandler(async (req, res) => {
+  const order = await service.logCall(
+    req.user!.id,
+    req.params.id as string,
+    req.body as LogCallInput,
     req.ip,
   );
   ok(res, order);

@@ -431,6 +431,14 @@ model Order {
   deliveryTimeSlot String   @map("delivery_time_slot") // 'sang'|'chieu'|'toi'
   note             String?
 
+  // Xác minh đơn qua cuộc gọi điện thoại (docs/07 nợ bảo mật "SĐT giả") — chỉ giữ trạng thái MỚI
+  // NHẤT để hiển thị nhanh; lịch sử đầy đủ nhiều lần gọi nằm ở AuditLog (action "order.call_logged"),
+  // KHÔNG có bảng riêng — xem docs/modules/domain-orders.md §2. callConfirmedAt null = chưa xác nhận
+  // qua điện thoại lần nào → chặn chuyển status sang 'confirmed' (orders.service.ts#updateStatus).
+  callConfirmedAt DateTime? @map("call_confirmed_at")
+  lastCallAt      DateTime? @map("last_call_at")
+  lastCallNote    String?   @map("last_call_note")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
