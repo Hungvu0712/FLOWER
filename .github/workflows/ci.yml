@@ -43,6 +43,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      # BUG THẬT phát hiện lúc chạy CI thật lần đầu (14/09/2026): `layout.tsx` dùng kiểu `LayoutProps`
+      # do Next.js TỰ SINH lúc build/dev (tính năng typed routes, ghi vào .next/types/, không có sẵn
+      # trong mã nguồn) — máy dev đã chạy `next dev`/`next build` nhiều lần nên có sẵn, checkout MỚI
+      # trên CI thì không, khiến `tsc --noEmit` báo "Cannot find name 'LayoutProps'". `next typegen`
+      # sinh riêng phần type này (nhẹ hơn build toàn bộ), phải chạy TRƯỚC typecheck.
+      - run: npx next typegen
       - run: npm run typecheck
       - run: npm run format:check
       - run: npm test

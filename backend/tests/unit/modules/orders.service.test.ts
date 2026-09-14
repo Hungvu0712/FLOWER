@@ -562,9 +562,9 @@ describe("updateStatus", () => {
 describe("logCall — ghi nhận 1 lần gọi điện xác minh đơn", () => {
   it("404 khi đơn không tồn tại", async () => {
     db.order.findUnique.mockResolvedValue(null);
-    await expect(
-      service.logCall("staff-1", "khong-co", { confirmed: true }),
-    ).rejects.toMatchObject({ statusCode: 404, code: "NOT_FOUND" });
+    await expect(service.logCall("staff-1", "khong-co", { confirmed: true })).rejects.toMatchObject(
+      { statusCode: 404, code: "NOT_FOUND" },
+    );
   });
 
   it("confirmed: true → set callConfirmedAt VÀ lastCallAt/lastCallNote", async () => {

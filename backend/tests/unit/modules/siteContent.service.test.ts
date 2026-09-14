@@ -79,7 +79,9 @@ describe("update — validate value ĐÚNG KIỂU theo từng key", () => {
       value: JSON.stringify(null),
       updatedAt: new Date(),
     });
-    await expect(service.update(ACTOR, "hero_banner", null)).resolves.toMatchObject({ value: null });
+    await expect(service.update(ACTOR, "hero_banner", null)).resolves.toMatchObject({
+      value: null,
+    });
   });
 
   it("hero_banner hợp lệ → đánh dấu file_usages (entityType site_content) VÀ trả kèm url đã join", async () => {

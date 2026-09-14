@@ -20,7 +20,8 @@ registerRoute({
   path: "/api/v1/site-content",
   tags: TAGS,
   summary: "Nội dung storefront (banner Hero, hotline, Zalo, địa chỉ, giờ mở cửa)",
-  description: "Công khai — dùng cho Hero, Footer, trang Liên hệ... Sửa xem PATCH /admin/site-content/{key}.",
+  description:
+    "Công khai — dùng cho Hero, Footer, trang Liên hệ... Sửa xem PATCH /admin/site-content/{key}.",
   auth: false,
   response: { schema: z.array(siteContentSchema) },
 });

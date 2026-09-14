@@ -18,7 +18,8 @@ const TAGS = ["Admin · Orders"];
 // dùng `orderSchema` gốc vì 2 route đó tái dùng CHUNG hàm service với route công khai.
 const adminOrderSchema = orderSchema.extend({
   callConfirmedAt: z.string().datetime().nullable().openapi({
-    description: "Set khi 1 lần gọi được ghi nhận confirmed:true — null = chưa xác nhận qua điện thoại.",
+    description:
+      "Set khi 1 lần gọi được ghi nhận confirmed:true — null = chưa xác nhận qua điện thoại.",
   }),
   lastCallAt: z.string().datetime().nullable(),
   lastCallNote: z.string().nullable(),
