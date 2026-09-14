@@ -5,6 +5,13 @@
 # --- Giai đoạn build ---
 FROM node:22-alpine AS builder
 WORKDIR /app
+# BUG THẬT gặp lúc triển khai VPS thật (14/09/2026): thiếu gói `openssl` trên Alpine khiến Prisma
+# KHÔNG nhận diện đúng phiên bản libssl, tự "đoán" sai (defaulting to openssl-1.1.x) rồi cố tải lại
+# engine đúng lúc CONTAINER CHẠY THẬT (không phải lúc build) — ở giai đoạn chạy container dùng user
+# không phải root (`USER node` bên dưới) nên không có quyền ghi vào node_modules, backend crash-loop
+# liên tục. Cài `openssl` để Prisma nhận diện đúng ngay từ lúc `prisma generate`, không cần tải lại gì
+# nữa lúc runtime.
+RUN apk add --no-cache openssl
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci
@@ -15,8 +22,8 @@ RUN npm run build
 # --- Giai đoạn chạy ---
 FROM node:22-alpine
 WORKDIR /app
-# pg_dump cho job backup (src/jobs/backupDatabase.job.ts) — thiếu là backup luôn thất bại lúc chạy.
-RUN apk add --no-cache postgresql-client
+# openssl — xem giải thích ở giai đoạn build phía trên. postgresql-client cho pg_dump (job backup).
+RUN apk add --no-cache openssl postgresql-client
 ENV NODE_ENV=production
 COPY package*.json ./
 COPY prisma ./prisma

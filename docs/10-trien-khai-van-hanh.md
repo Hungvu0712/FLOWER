@@ -352,6 +352,16 @@ docker compose exec backend npx tsx prisma/seed/domain.seed.ts
 > "command not found" trên VPS thật. Đã chuyển `prisma`/`tsx` sang `dependencies` thật trong
 > `backend/package.json` — không dùng `npx <gói-chưa-cài>` (sẽ tự tải bản MỚI NHẤT từ registry lúc
 > chạy, không khớp version đã pin, và cần mạng ổn định lúc container khởi động).
+>
+> **Bug thật thứ 2 — phát hiện lúc `docker compose up` thật trên VPS (14/09/2026)**: base image
+> `node:22-alpine` thiếu gói `openssl`, khiến Prisma KHÔNG nhận diện đúng phiên bản `libssl` (log
+> `Prisma failed to detect the libssl/openssl version... Defaulting to "openssl-1.1.x"`), rồi cố tải
+> lại engine đúng NGAY LÚC CONTAINER CHẠY THẬT (không phải lúc build) — nhưng container chạy bằng user
+> không phải root (`USER node`) nên không ghi được vào `node_modules/@prisma/engines`
+> (`Error: Can't write to ...`), backend crash-loop liên tục dù `docker compose build` không hề báo
+> lỗi. Đã thêm `RUN apk add --no-cache openssl` ở CẢ 2 giai đoạn build/runtime của
+> `backend/Dockerfile` — Prisma nhận diện đúng ngay từ lúc `prisma generate` (lúc build, chạy bằng
+> root), không cần tải/ghi gì thêm lúc container thật sự khởi động.
 
 ### 5.6. Lần đầu triển khai lên VPS Ubuntu 22.04
 
