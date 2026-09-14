@@ -11,48 +11,54 @@ nếu sai** — xác thực, phân quyền, chống leo thang quyền, không l�
 
 ```mermaid
 flowchart TD
-    subgraph E2E["🔺 E2E · Playwright — e2e/"]
-        E["~30 kịch bản<br/>Cần: BE + FE + DB thật đang chạy<br/>Chậm (phút) · Chạy trước khi release"]
+    subgraph E2E["🔺 E2E · Playwright — frontend/e2e/"]
+        E["32 kịch bản<br/>Cần: BE + FE + DB thật đang chạy<br/>Chậm (phút) · Chạy khi vào main"]
+    end
+    subgraph DBINT["🟣 DB thật · Vitest + Testcontainers — backend/tests/db/"]
+        D["Migration sạch + ràng buộc DB thật (P2002, cascade...)<br/>Cần Docker · Chậm hơn (chục giây) · Chạy khi vào main"]
     end
     subgraph INT["🔷 Integration · Supertest — backend/tests/integration/"]
-        I["174 test<br/>App Express thật + Prisma mock<br/>Nhanh (giây) · Chạy mỗi lần commit"]
+        I["296 test<br/>App Express thật + Prisma mock<br/>Nhanh (giây) · Chạy mỗi lần commit"]
     end
     subgraph UNIT["🟩 Unit · Vitest — backend/tests/unit · frontend/tests/"]
-        U["433 + 144 test<br/>Không I/O · Rất nhanh (ms)<br/>Chạy liên tục khi code"]
+        U["604 + 147 test<br/>Không I/O · Rất nhanh (ms)<br/>Chạy liên tục khi code"]
     end
 
-    UNIT --> INT --> E2E
+    UNIT --> INT --> DBINT --> E2E
 
     style E2E fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
+    style DBINT fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
     style INT fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
     style UNIT fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
 ```
 
 | Tầng | Công cụ | Ở đâu | Cần gì để chạy | Số test |
 |---|---|---|---|---|
-| **Unit — backend** | Vitest | `backend/tests/unit/` | Không cần gì | 433 |
-| **Integration — backend** | Vitest + Supertest | `backend/tests/integration/` | Không cần gì (Prisma được mock) | 174 |
-| **Unit/Component — frontend** | Vitest + Testing Library | `frontend/tests/` | Không cần gì | 144 |
-| **E2E** | Playwright | `frontend/e2e/` | Backend + frontend + PostgreSQL **thật** | ~30 kịch bản |
+| **Unit — backend** | Vitest | `backend/tests/unit/` | Không cần gì | 604 |
+| **Integration — backend** | Vitest + Supertest | `backend/tests/integration/` | Không cần gì (Prisma được mock) | 296 |
+| **Unit/Component — frontend** | Vitest + Testing Library | `frontend/tests/` | Không cần gì | 147 |
+| **DB thật — backend** | Vitest + Testcontainers | `backend/tests/db/` | Docker (tự dựng Postgres, xem §3.4) | 5 test |
+| **E2E** | Playwright | `frontend/e2e/` | Backend + frontend + PostgreSQL **thật** | 32 kịch bản |
 
 > **Toàn bộ test unit + integration chạy được mà KHÔNG cần database.** Đây là lựa chọn có chủ đích:
-> mọi người trong nhóm và CI đều chạy được ngay sau `npm install`, không phải dựng Postgres.
-> Việc kiểm chứng với DB thật thuộc về tầng E2E.
+> mọi người trong nhóm và CI đều chạy được ngay sau `npm install`, không phải dựng Postgres. Tầng
+> **DB thật** (§3.4, script riêng `npm run test:db`, cần Docker) và **E2E** mới thật sự chạm database.
 
 ---
 
 ## 2. Chạy test
 
 ```bash
-# Backend — 607 test, khoảng 5 giây
+# Backend — 900 test (unit + integration), khoảng 10 giây
 cd backend
 npm test                  # toàn bộ unit + integration
 npm run test:unit         # chỉ unit
 npm run test:integration  # chỉ integration
 npm run test:watch        # chế độ theo dõi khi đang code
 npm run test:coverage     # kèm báo cáo độ phủ (coverage/index.html)
+npm run test:db           # DB thật (Testcontainers) — CẦN Docker đang chạy, xem §3.4
 
-# Frontend — 144 test, khoảng 2 giây
+# Frontend — 147 test, khoảng 2 giây
 cd frontend
 npm test
 npm run test:watch
@@ -136,6 +142,39 @@ const res = await request(app).get("/api/v1/superadmin/users").set("Cookie", coo
 
 Vì `app.ts` **không gọi `listen()`** (xem [03 · Backend §8](03-backend.md)), Supertest dùng trực tiếp
 `app` mà không phải mở cổng thật.
+
+### 3.4. DB thật — Testcontainers (`backend/tests/db/`)
+
+Tầng test RIÊNG, tách biệt hoàn toàn khỏi `tests/integration/` — bắt lỗi migration/ràng buộc mà mock
+bỏ sót (mock chỉ trả về đúng thứ test tự `mockResolvedValue`, không bao giờ tự throw lỗi trùng khoá hay
+tự cascade xoá như Postgres thật).
+
+```mermaid
+flowchart LR
+    R["npm run test:db"] --> GS["globalSetup.ts<br/>dựng 1 container Postgres<br/>(Testcontainers, 1 lần/run)"]
+    GS --> MD["npx prisma migrate deploy<br/>lên container"]
+    MD --> INJ["provide('dbUrl', ...)"]
+    INJ --> T["tests/db/*.test.ts<br/>PrismaClient THẬT<br/>(không alias sang mock)"]
+    T --> TD["teardown: dừng container"]
+
+    style GS fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
+    style T fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
+```
+
+- **Cần Docker đang chạy** — `npm run test:db` tự dựng + tự dọn container, không cần cấu hình gì
+  thêm. Trên CI: job `backend` ở `.github/workflows/ci.yml`, **chỉ chạy khi push vào `main`** (chậm
+  hơn hẳn unit/integration — kéo image + migrate deploy), giống cách `e2e` chỉ chạy khi vào `main`.
+- `vitest.config.db.ts` là config RIÊNG (không phải `vitest.config.ts` gốc) — không có alias
+  `config/prisma` sang mock, nên `@/config/prisma` trong tầng này là `PrismaClient` thật.
+  `vitest.config.ts` gốc có `exclude: ["tests/db/**"]` tường minh để KHÔNG bao giờ tự nhặt nhầm các
+  file này vào chạy với mock (đã từng xảy ra lúc thêm tầng test này — mock trả `undefined` cho mọi
+  field, assertion fail hết).
+- Nội dung hiện có: `migrations.test.ts` (migrate deploy sạch + chạy thật `seed:core`/`seed:domain` —
+  xác nhận seed script không hỏng theo thời gian) và `constraints.test.ts` (unique constraint thật
+  `P2002`, `onDelete: Cascade` thật, composite unique thật) — vài ví dụ đại diện, **không** cố phủ mọi
+  ràng buộc trong `schema.prisma`.
+- **Không** nằm trong `npm test` mặc định hay bước "Kiểm tra tổng thể trước khi commit" ở §2 — cần
+  Docker, không phải máy nào cũng có sẵn lúc code thường ngày.
 
 ---
 
@@ -306,10 +345,10 @@ await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
 | Hạng mục | Ưu tiên | Ghi chú |
 |---|---|---|
-| **CI chạy test tự động** trên mỗi PR | 🔴 Cao | Mẫu workflow ở [10 · Triển khai §6](10-trien-khai-van-hanh.md) |
+| **CI chạy test tự động** trên mỗi PR | ✅ | *(14/09/2026 — `.github/workflows/ci.yml` thật, chạy xanh trên GitHub Actions. Chi tiết + các bug thật phát hiện lúc thêm CI: `CHECKLIST.md` Phase 6)* |
 | Test cho `jobs/` (backup, dọn file mồ côi) | 🟡 Vừa | Cần mock `child_process.spawn` và client Cloudinary |
-| Test cho seed (`core.seed.ts`, `domain.seed.ts`) | 🟡 Vừa | Chạy trên DB thật ở CI với Postgres service container |
-| Integration test **với PostgreSQL thật** (Testcontainers) | 🟡 Vừa | Bắt được lỗi ràng buộc/migration mà mock bỏ sót |
+| Test cho seed (`core.seed.ts`, `domain.seed.ts`) | ✅ | *(14/09/2026 — chạy THẬT trên DB thật ở `tests/db/migrations.test.ts`, xem §3.4)* |
+| Integration test **với PostgreSQL thật** (Testcontainers) | ✅ | *(14/09/2026 — `backend/tests/db/`, xem §3.4. Bắt được lỗi ràng buộc/migration mà mock bỏ sót)* |
 | Test truy cập (a11y) tự động | 🟢 Thấp | `@axe-core/playwright` |
 | Test hiệu năng / tải cao điểm dịp lễ | 🟢 Thấp | k6 hoặc Artillery, làm trước 14/2 và 8/3 |
 | Visual regression | 🟢 Thấp | Playwright `toHaveScreenshot()` |

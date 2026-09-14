@@ -25,7 +25,8 @@
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:db": "vitest run --config vitest.config.db.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",
@@ -43,15 +44,16 @@
     "node-cron": "^4.1.0",
     "nodemailer": "^10.0.0",
     "pino": "^10.3.1",
+    "prisma": "^5.22.0",
     "resend": "^4.0.1",
     "sanitize-html": "^2.17.7",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
-    "zod": "^3.23.8",
-    "prisma": "^5.22.0",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^12.1.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.7",
     "@types/cors": "^2.8.17",

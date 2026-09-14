@@ -1,7 +1,9 @@
 # CI — xem docs/10-trien-khai-van-hanh.md §6. `backend`/`frontend`/`docs` chạy mỗi PR + mỗi push vào
 # main, không cần database thật (test suite dùng Prisma mock — xem backend/vitest.config.ts +
 # backend/tests/setup.ts). `e2e` CHỈ chạy khi vào main (chậm hơn nhiều — cần Postgres thật + cài
-# trình duyệt Playwright), tránh làm chậm vòng lặp review PR thường ngày.
+# trình duyệt Playwright), tránh làm chậm vòng lặp review PR thường ngày. Bước `test:db` trong job
+# `backend` (docs/08 §3.4) cũng CHỈ chạy khi vào main, cùng lý do — dựng Postgres thật qua
+# Testcontainers (Docker có sẵn trên runner ubuntu-latest, không cần cấu hình thêm).
 name: CI
 
 on:
@@ -28,6 +30,12 @@ jobs:
       - run: npm run typecheck
       - run: npm run format:check
       - run: npm test
+      # Chỉ chạy khi vào main — dựng Postgres thật qua Testcontainers (kéo image + migrate deploy +
+      # chạy seed thật), chậm hơn nhiều so với các bước trên, không nên làm chậm vòng lặp review PR.
+      # Xem docs/08-kiem-thu.md §3.4.
+      - name: Integration test với PostgreSQL thật (Testcontainers)
+        if: github.ref == 'refs/heads/main'
+        run: npm run test:db
 
   frontend:
     runs-on: ubuntu-latest
