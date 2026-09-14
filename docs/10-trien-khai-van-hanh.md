@@ -358,9 +358,9 @@ docker compose exec backend npx tsx prisma/seed/domain.seed.ts
 Thứ tự làm — mỗi bước xong mới sang bước sau, đừng nhảy cóc:
 
 1. **Trỏ DNS trước** (cần thời gian lan truyền, làm sớm nhất): tạo 2 bản ghi `A` tại nhà cung cấp
-   domain — `your-domain.com` và `api.your-domain.com` — cùng trỏ về **IP public của VPS**. Đợi tới
-   khi `dig your-domain.com` (hoặc `nslookup`) trả đúng IP mới sang bước 4 (Caddy cần domain đã trỏ
-   đúng để xin chứng chỉ TLS tự động).
+   domain — `thuymaiflower.click` và `api.thuymaiflower.click` — cùng trỏ về **IP public của VPS**.
+   Đợi tới khi `dig thuymaiflower.click` (hoặc `nslookup`) trả đúng IP mới chạy tới bước 6 (Caddy cần
+   domain đã trỏ đúng lúc `docker compose up` để xin chứng chỉ TLS tự động).
 
 2. **SSH vào VPS**, cài Docker Engine + Compose plugin theo đúng hướng dẫn chính thức Docker cho
    Ubuntu (https://docs.docker.com/engine/install/ubuntu/ — không dùng bản `docker.io` trong kho Ubuntu
@@ -376,7 +376,8 @@ Thứ tự làm — mỗi bước xong mới sang bước sau, đừng nhảy c�
    git clone https://github.com/<tài-khoản>/<repo>.git flower && cd flower
    ```
 
-4. **Sửa `Caddyfile`** (gốc repo) — đổi `your-domain.com`/`api.your-domain.com` thành domain THẬT.
+4. **`Caddyfile` đã sẵn domain thật** (`thuymaiflower.click`/`api.thuymaiflower.click`) — không cần
+   sửa gì thêm, trừ khi domain đổi khác sau này.
 
 5. **Tạo 2 file `.env`** (KHÔNG commit, chỉ tồn tại trên VPS):
    ```bash
@@ -384,11 +385,13 @@ Thứ tự làm — mỗi bước xong mới sang bước sau, đừng nhảy c�
    cp backend/.env.example backend/.env      # biến runtime backend/worker
    ```
    Sửa cả 2 file bằng giá trị THẬT:
-   - `.env` (gốc): `POSTGRES_USER`/`POSTGRES_PASSWORD` (chuỗi mạnh, tự đặt) · `NEXT_PUBLIC_API_URL=https://api.your-domain.com`.
+   - `.env` (gốc): `POSTGRES_USER`/`POSTGRES_PASSWORD` (chuỗi mạnh, tự đặt) — `NEXT_PUBLIC_API_URL`
+     đã sẵn `https://api.thuymaiflower.click` trong `.env.example`, chỉ cần copy sang không cần sửa.
    - `backend/.env`: `DATABASE_URL=postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>`
      (host là **`postgres`** — tên service trong `docker-compose.yml`, không phải `localhost`) ·
      `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`/`COOKIE_SECRET` sinh mới, KHÁC NHAU, đủ dài
-     (`openssl rand -base64 48`) · `NODE_ENV=production` · `FRONTEND_URL=https://your-domain.com` ·
+     (`openssl rand -base64 48`) · `NODE_ENV=production` ·
+     `FRONTEND_URL=https://thuymaiflower.click` ·
      `SUPER_ADMIN_EMAIL`/`SUPER_ADMIN_PASSWORD` đặt giá trị thật trước khi seed · thông tin Cloudinary/
      Resend thật — xem đầy đủ từng biến + cách lấy ở `backend/.env.example`.
 
@@ -401,7 +404,7 @@ Thứ tự làm — mỗi bước xong mới sang bước sau, đừng nhảy c�
 
 7. **Seed lần đầu** (đúng 2 lệnh ở §5.5 ngay phía trên).
 
-8. **Kiểm tra**: mở `https://your-domain.com` — xác nhận có khoá HTTPS (Caddy tự xin chứng chỉ, có thể
+8. **Kiểm tra**: mở `https://thuymaiflower.click` — xác nhận có khoá HTTPS (Caddy tự xin chứng chỉ, có thể
    mất 10–30 giây lần đầu). Đăng nhập bằng `SUPER_ADMIN_EMAIL`/`SUPER_ADMIN_PASSWORD` vừa seed, **đổi
    mật khẩu ngay** (mục checklist §3 đã nhắc).
 
