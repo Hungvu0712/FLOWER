@@ -440,7 +440,19 @@ Các bước còn lại của checklist §3 (HTTPS/HSTS đã có sẵn qua Caddy
 >
 > Sau khi thêm biến này và deploy lại, **cookie CŨ trong trình duyệt** (set trước khi sửa, không có
 > domain) vẫn còn — phải đăng xuất rồi đăng nhập lại (hoặc xoá cookie site) để nhận cookie MỚI đã có
-> đúng `domain`, không tự khắc phục chỉ bằng việc deploy lại backend.
+> đúng `domain`, không tự khắc phục chỉ bằng việc deploy lại backend. Lưu ý thêm: nếu chỉ bấm "Đăng
+> xuất" (không xoá cookie thủ công), cookie CŨ (host-only, không domain) KHÔNG bị lệnh xoá mới (có kèm
+> domain) dọn sạch — 2 cookie cùng tên có thể tồn tại song song, trình duyệt gửi cả 2 lên server. An
+> toàn nhất là xoá cookie site thủ công (DevTools → Application → Cookies) rồi mới đăng nhập lại.
+
+> **Bug thật thứ 4 — phát hiện lúc kiểm tra upload ảnh Cloudinary trên VPS thật (14/09/2026)**: ảnh
+> upload thành công (bản ghi file lưu đúng), nhưng thumbnail vỡ, lỗi `/_next/image?... 400
+> "url" parameter is not allowed`. Nguyên nhân: `next start` đọc `next.config.ts` **lúc server khởi
+> động** (không chỉ lúc `next build`) để biết domain ảnh nào được phép qua `/_next/image` — Dockerfile
+> giai đoạn chạy (§5.2) chỉ copy `.next`/`public`/`node_modules`, THIẾU `next.config.ts`, nên Next.js
+> coi như không có `images.remotePatterns` nào, chặn hết ảnh Cloudinary dù file cấu hình ở giai đoạn
+> build hoàn toàn đúng. Đã thêm `COPY --from=builder /app/next.config.ts ./next.config.ts` vào giai
+> đoạn chạy của `frontend/Dockerfile`.
 
 ---
 

@@ -17,6 +17,12 @@ RUN npm run build
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+# BUG THẬT phát hiện lúc kiểm tra ảnh Cloudinary trên VPS thật (14/09/2026): `next start` đọc
+# next.config.ts LÚC SERVER KHỞI ĐỘNG (không chỉ lúc build) để biết domain ảnh nào được phép qua
+# /_next/image — thiếu file này ở giai đoạn chạy khiến Next.js coi như KHÔNG có `images.remotePatterns`
+# nào cả, mọi ảnh Cloudinary bị chặn với lỗi `"url" parameter is not allowed`, dù file build (.next)
+# và next.config.ts ở giai đoạn build đều đúng.
+COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
