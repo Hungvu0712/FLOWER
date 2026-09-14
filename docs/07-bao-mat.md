@@ -32,11 +32,13 @@ flowchart TB
         D17["trust proxy đúng số hop<br/>rate limit/audit IP đúng sau proxy (10/09/2026)"]
         D18["Backup DB nén + mã hoá RSA/AES-256-GCM<br/>khoá riêng không ở server (11/09/2026)"]
         D19["Rate limit theo IP+email · khoá tạm sau 5<br/>lần sai, cooldown tăng dần (11/09/2026)"]
+        D20["Rà soát bảo mật độc lập lần đầu<br/>đối chiếu code thật, npm audit fix (14/09/2026)"]
     end
 
     subgraph PARTIAL["🟡 Một phần"]
         P1["Backup DB chung tài khoản Cloudinary<br/>với ảnh công khai — chưa tách bucket riêng"]
         P2["Logging<br/>chưa tập trung, chưa cảnh báo"]
+        P3["Dependency scanning<br/>đã audit tay 1 lần, CHƯA tự động trong CI"]
     end
 
     subgraph TODO["⬜ Chưa có"]
@@ -44,7 +46,6 @@ flowchart TB
         T2["Captcha sau vài lần thất bại"]
         T3["CSRF token"]
         T5["Xác thực email<br/>trước khi đặt hàng"]
-        T6["Dependency scanning trong CI"]
         T7["HSTS · redirect HTTPS"]
     end
 
@@ -68,7 +69,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 |---|---|
 | Mật khẩu yếu / lộ mật khẩu | ✅ Hash bằng **bcrypt** (cost ≥ 12) hoặc **argon2**; bắt buộc độ dài tối thiểu 8 ký tự khi đăng ký |
 | Brute-force đăng nhập | 🟡 ✅ Rate limit theo IP + email (`express-rate-limit`, 2 limiter chồng nhau — docs/12 BE-16) + khoá tạm tài khoản sau 5 lần sai, cooldown tăng dần 1→30 phút (docs/12 BE-17, cả 2 xong 11/09/2026); **chưa có** captcha sau vài lần thất bại |
-| Đánh cắp session/token | ✅ Access token JWT **thời gian sống ngắn** (5 phút), refresh token lưu ở **httpOnly, Secure, SameSite=Strict cookie** (không lưu localStorage — tránh XSS đánh cắp token) |
+| Đánh cắp session/token | ✅ Access token JWT **thời gian sống ngắn** (5 phút), refresh token lưu ở **httpOnly, Secure, SameSite=Lax cookie** (không lưu localStorage — tránh XSS đánh cắp token). *(Sửa 14/09/2026 — trước đây ghi nhầm "Strict", code thật ở `cookie.util.ts` luôn là `Lax`, xem `docs/12 BE-22`.)* |
 | Refresh token bị lộ | ✅ Refresh token **rotation**: mỗi lần dùng để cấp access token mới thì phát hành refresh token mới, thu hồi token cũ (set `sessions.revoked_at`); chỉ lưu `refresh_token_hash`, không lưu token thô. **Reuse detection**: token đã bị thu hồi mà vẫn được gửi lên lại → thu hồi TOÀN BỘ session của user + ghi audit log (`auth.refresh_reuse_detected`) + gửi email cảnh báo — xem [12 · BE-03](12-danh-gia-va-de-xuat.md) |
 | Đổi mật khẩu không đuổi được thiết bị đang bị chiếm | ✅ Cả 3 luồng đổi mật khẩu (tự đổi, quên mật khẩu, superadmin reset hộ) đều thu hồi session liên quan sau khi đổi — tự đổi thì chừa lại đúng phiên hiện tại, 2 luồng còn lại thu hồi tất cả. Xem [12 · BE-01](12-danh-gia-va-de-xuat.md) |
 | **Magic link bị lộ/đoán được** | ✅ Token magic link sinh ngẫu nhiên đủ dài (≥ 32 byte), chỉ lưu `token_hash` (sha256) trong DB, **hết hạn ngắn** (~15 phút), **dùng 1 lần NGUYÊN TỬ** (kiểm tra hợp lệ + đánh dấu đã dùng trong CÙNG 1 câu lệnh `updateMany`, chặn cả trường hợp 2 request gửi đồng thời cùng token — xem [12 · BE-05](12-danh-gia-va-de-xuat.md)), gửi qua Resend với rate limit theo email (chống spam yêu cầu magic link liên tục). Cùng cơ chế áp dụng cho token đặt lại mật khẩu |
@@ -226,8 +227,9 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 
 **Giai đoạn 4 — Mở rộng**
 - [ ] 2FA cho tài khoản `super_admin`/`admin`
-- [ ] Dependency scanning tự động trong CI
-- [ ] Penetration test / security review trước khi scale lớn
+- [ ] Dependency scanning **tự động trong CI** (Dependabot/Snyk) — mới có `npm audit` chạy **tay** 1 lần (14/09/2026, `docs/12 BE-22`), chưa tự động hoá
+- [x] Rà soát bảo mật **độc lập nội bộ** lần đầu *(14/09/2026 — đối chiếu từng mục ✅ ở tài liệu này với code thật, không chỉ tin tài liệu; xem `docs/12 BE-22` cho chi tiết + danh sách đã/chưa sửa. Đây KHÔNG thay thế penetration test bên thứ 3 độc lập thật sự — dòng dưới vẫn ⬜)*
+- [ ] Penetration test bởi bên thứ 3 độc lập trước khi scale lớn
 - [ ] Khi chuyển DB sang VPS tự quản lý: harden Postgres (user riêng, không public port), cấu hình firewall
 
 ---

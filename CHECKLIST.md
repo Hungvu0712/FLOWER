@@ -23,10 +23,10 @@
 | 3 | RBAC — users, roles, permissions, audit log | ✅ | ██████████ 100% |
 | 4 | Infrastructure — Cloudinary, email, jobs, settings | ✅ | ██████████ 100% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██████████ 96% |
-| 6 | Quality — testing, OpenAPI, logging | 🟡 | █████████░ 93% |
+| 6 | Quality — testing, OpenAPI, logging | ✅ | ██████████ 100% |
 | 7 | Production — Docker, CI/CD, monitoring | 🟡 | █████░░░░░ 55% |
 
-**Tổng thể: ~52%** · Số test đang chạy: **1047** (BE 900 · FE 147) + ~30 kịch bản E2E
+**Tổng thể: ~52%** · Số test đang chạy: **1047** (BE 900 · FE 147) + 32 kịch bản E2E + 5 test DB thật
 
 ---
 
@@ -142,7 +142,7 @@
 - [x] Test cho `jobs/` *(cleanupOrphanFiles, cleanupExpiredTokens, backupDatabase/cleanupOldBackups, backupEncryption)*
 - [x] **Integration test với PostgreSQL thật (Testcontainers)** *(14/09/2026 — `backend/tests/db/` (5 test), config riêng `vitest.config.db.ts` không alias Prisma sang mock, `globalSetup.ts` tự dựng Postgres qua `@testcontainers/postgresql` + chạy thật `prisma migrate deploy`. Bắt lỗi migration sạch, unique constraint thật (`P2002`), `onDelete: Cascade` thật, composite unique thật, và seed script (`seed:core`/`seed:domain`) chạy sạch trên schema hiện tại. Script riêng `npm run test:db` — KHÔNG nằm trong `npm test` mặc định (cần Docker). CI: step mới trong job `backend`, chỉ chạy khi vào `main` (giống `e2e`). Xác nhận CHẠY XANH THẬT trên GitHub Actions sau khi sửa 2 bug thật do chính CI phát hiện (máy dev không có Docker nên không tự chạy được cục bộ trước khi push): (1) `vitest.config.ts` gốc dùng `include: ["tests/**/*.test.ts"]` — glob rộng tự nhặt nhầm cả `tests/db/` vào chạy chung với mock, phải thêm `exclude` tường minh; (2) `vitest.config.db.ts` quên hẳn alias `@/` → `src/` (chỉ copy phần loại trừ Prisma), khiến mọi import `@/config/prisma` lỗi resolve ngay từ đầu. Xem docs/08-kiem-thu.md §3.4)*
 - [x] Logger `pino` (JSON có cấu trúc) *(`BE-18`)*
-- [ ] Rà soát bảo mật độc lập ⬜
+- [x] **Rà soát bảo mật độc lập** *(14/09/2026 — đối chiếu ĐỘC LẬP từng khẳng định ✅ trong `docs/07-bao-mat.md` với code thật (không chỉ tin tài liệu): xác nhận đúng self-protection admin (`assertNotSelf`), chặn shadow super_admin qua Custom Role, cờ `DISABLE_RATE_LIMIT` không rò rỉ production, 2 tính năng mới (order call verification, site content) đều chặn đúng ở backend. Tìm + sửa: 2 lỗ hổng `npm audit` moderate ở dependency production (`qs`/`express`, đã fix + 900 test backend vẫn pass), tài liệu `docs/07` §1 ghi sai cookie dùng `SameSite=Strict` trong khi code thật là `Lax`. Tìm nhưng CHƯA sửa (để việc riêng, cần nâng major breaking): `uuid`/`gaxios` đòi nâng `google-auth-library` 9→11, `@vitest/mocker` đòi nâng `vitest` 3→5 (dev-only, không vào production). Không thay thế penetration test bên thứ 3 thật sự — xem docs/12 BE-22, docs/07 §0/§9)*
 
 ## Phase 7 — Production 🟡
 

@@ -752,6 +752,48 @@ tắt, chặn tài khoản bị khoá, chặn tài khoản đã xoá mềm) + 1 
 với 1 email hoàn toàn mới, xác nhận có bản ghi `magic_link_tokens` với `userId = null` được tạo —
 đúng như thiết kế.
 
+---
+
+### BE-22 · Rà soát bảo mật độc lập lần đầu — 🟡 ĐÃ XỬ LÝ PHẦN LỚN (14/09/2026)
+
+Đối chiếu ĐỘC LẬP từng khẳng định "✅" trong [docs/07-bao-mat.md](07-bao-mat.md) với code thật (không
+chỉ tin tài liệu) — ưu tiên các phần rủi ro cao nhất và các tính năng mới thêm gần đây (order call
+verification, site content, cờ `DISABLE_RATE_LIMIT`) vì chưa qua rà soát bảo mật lần nào.
+
+**Đã kiểm chứng ĐÚNG với code thật** (không cần sửa gì): `assertNotSelf()` chặn tự khoá/xoá/đổi role ở
+cả 3 hàm (`setBlocked`/`softDeleteUser`/`updateRole` trong `users.admin.service.ts`); chặn cứng gán
+`super_admin` qua `updateRole` (`403 CANNOT_GRANT_SUPER_ADMIN`); `stripRestrictedPermissionIds()` lọc
+`isRestricted: true` ở TẦNG SERVICE cho cả create/update Custom Role (không tin payload client); cờ
+`DISABLE_RATE_LIMIT` (`BE-21`) không rò rỉ vào `docker-compose.yml`/Dockerfile/`.env.example` gốc —
+chỉ có ở `.github/workflows/ci.yml`; `errorHandler` không bao giờ trả stack trace dù lỗi lạ; `.env`
+đúng trong `.gitignore`, không có secret nào bị commit nhầm (quét regex toàn repo); Docker chạy
+`USER node` (non-root) ở cả 2 image; `ORDER_CALL_NOT_CONFIRMED` (tính năng mới, chưa từng rà soát)
+chặn THẬT ở `orders.service.ts`, và Socket.io cố ý dùng `ORDER_SELECT` (không phải bản có
+`lastCallNote`) khi emit ra room công khai — tránh lộ ghi chú nội bộ; route
+`/admin/site-content` (tính năng mới) có đủ `authenticate` + `authorize("site_content.manage")`.
+
+**Bug thật tìm thấy — đã sửa**:
+- 2 lỗ hổng moderate trong dependency PRODUCTION (`npm audit`): `qs` (qua `body-parser`→`express`,
+  DoS bypass) và tương tự — đã `npm audit fix` (không breaking), xác nhận lại 900 test backend vẫn
+  pass sau khi sửa.
+- **Tài liệu sai lệch với code thật**: `docs/07-bao-mat.md` §1 (dòng cũ ghi cookie dùng
+  `SameSite=Strict`) — code thật ở `cookie.util.ts` dùng `sameSite: "lax"`, mâu thuẫn với chính §3
+  của CÙNG tài liệu (ghi đúng "lax"). Đã sửa §1 khớp code thật; `Lax` là lựa chọn hợp lý (chặn được
+  hầu hết CSRF qua POST cross-site, CSRF token đầy đủ vẫn còn ⬜ — đã ghi rõ ở §3, không phải lỗ hổng
+  mới phát hiện).
+
+**Bug thật tìm thấy — CHƯA sửa, để việc riêng** (rủi ro thấp hơn, cần thay đổi lớn hơn 1 PR nhỏ):
+- `uuid`/`gaxios` (moderate, qua `google-auth-library`): bản mới nhất không còn phụ thuộc `uuid` lỗi,
+  nhưng đòi nâng `google-auth-library` 9→11 (**breaking**) — cần test lại kỹ luồng Google OAuth trước
+  khi nâng, không tự ý làm trong lúc rà soát.
+- `@vitest/mocker` (moderate, cả backend lẫn frontend): đòi nâng `vitest` 3→5 (**breaking**) —
+  devDependency, KHÔNG vào production image (`npm ci --omit=dev`), rủi ro thật sự thấp; nâng cấp này
+  ảnh hưởng cả ~1050 test hiện có, cần làm riêng có kiểm chứng đầy đủ.
+
+**Chưa rà soát hết** (ngoài phạm vi 1 lần review, xem docs/07 §0 mục ⬜/🟡 cho danh sách đầy đủ còn
+thiếu): 2FA, CSRF token, HSTS/redirect HTTPS, rate limit `/api/v1/products`+`/api/v1/categories`
+(xác nhận vẫn đúng như tài liệu ghi — chưa có, chưa fix), penetration test bên thứ 3 độc lập thật sự.
+
 **Ước lượng**: ~1 giờ. **Thực tế**: ~40 phút.
 
 ---
