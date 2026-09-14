@@ -1,10 +1,17 @@
+import path from "node:path";
 import { defineConfig } from "vitest/config";
 
-// Config RIÊNG cho tests/db/ — khác hẳn vitest.config.ts gốc: KHÔNG alias "config/prisma" sang mock,
-// nên PrismaClient trong test này là THẬT, nói chuyện với Postgres thật do Testcontainers dựng (xem
+const srcDir = path.resolve(__dirname, "src");
+
+// Config RIÊNG cho tests/db/ — khác hẳn vitest.config.ts gốc: giữ nguyên alias "@/" → "src/" (để
+// import như "@/config/prisma" resolve được) nhưng KHÔNG alias riêng "config/prisma" sang mock, nên
+// PrismaClient trong test này là THẬT, nói chuyện với Postgres thật do Testcontainers dựng (xem
 // tests/db/globalSetup.ts). Chạy qua script riêng `npm run test:db`, KHÔNG nằm trong `npm test` mặc
 // định — cần Docker, không phải máy nào cũng có sẵn lúc code thường ngày. Xem docs/08-kiem-thu.md §3.4.
 export default defineConfig({
+  resolve: {
+    alias: [{ find: /^@\//, replacement: `${srcDir}/` }],
+  },
   test: {
     environment: "node",
     include: ["tests/db/**/*.test.ts"],
