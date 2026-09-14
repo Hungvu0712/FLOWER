@@ -51,6 +51,7 @@ thường. Ở `NODE_ENV=production` có thêm 2 kiểm tra riêng: `COOKIE_SECR
 | `DATABASE_URL` | ✅ | — | Chuỗi kết nối PostgreSQL |
 | `NODE_ENV` | | `development` | Chi phối cookie `secure`. Cron cần thêm `RUN_JOBS=true` (docs/12 OPS-01) |
 | `RUN_JOBS` | | `false` | Bật cron — chỉ có tác dụng khi `NODE_ENV=production`. Tách riêng để scale ngang nhiều instance API mà không trùng cron, xem §5 |
+| `DISABLE_RATE_LIMIT` | | `false` | Tắt hẳn rate limit ở `/api/v1/auth/*`. CHỈ đặt `true` ở job `e2e` trên CI ([docs/12 BE-21](12-danh-gia-va-de-xuat.md)) — không bao giờ ở dev/staging/production thật |
 | `PORT` | | `4000` | Cổng API |
 | `FRONTEND_URL` | | `http://localhost:3000` | CORS whitelist + link trong email reset password |
 | `LOG_LEVEL` | | `info` | `error` / `warn` / `info` / `debug` |

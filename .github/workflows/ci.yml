@@ -93,6 +93,9 @@ jobs:
       JWT_REFRESH_SECRET: ci-refresh-secret-khong-dung-that-du-32-ky-tu
       FRONTEND_URL: http://localhost:3000
       NEXT_PUBLIC_API_URL: http://localhost:4000
+      # docs/12 BE-21 — full suite (32 test, tuần tự + retry:2) gọi login/register liên tục từ 1 IP
+      # (runner), vượt ngưỡng authLimiter thật giữa suite. KHÔNG đặt biến này ở môi trường thật.
+      DISABLE_RATE_LIMIT: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

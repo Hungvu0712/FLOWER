@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
+import { env } from "../../../config/env";
 import { validate } from "../../../shared/middleware";
 import * as controller from "./auth.controller";
 import {
@@ -16,17 +17,21 @@ import {
 export const authRouter = Router();
 
 // Chống brute-force cho các endpoint nhạy cảm — xem docs/07 §1.
+// skip: env.disableRateLimit — CHỈ true ở job `e2e` trên CI (docs/12 BE-21), không bao giờ ở
+// dev/staging/production thật. Xem giải thích đầy đủ ở config/env.ts#DISABLE_RATE_LIMIT.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => env.disableRateLimit,
 });
 const magicLinkLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => env.disableRateLimit,
 });
 
 // docs/12 BE-16: rate limit trước đây CHỈ theo IP — kẻ tấn công đổi IP liên tục (botnet, proxy xoay
@@ -46,6 +51,7 @@ const perEmailLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: emailKeyGenerator,
+  skip: () => env.disableRateLimit,
 });
 
 authRouter.get("/login-methods", controller.getLoginMethods);

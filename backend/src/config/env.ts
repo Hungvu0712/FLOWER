@@ -19,6 +19,15 @@ const rawEnvSchema = z.object({
   // RUN_JOBS=true. Xem docs/09 và docs/10 §5.3.
   RUN_JOBS: z.enum(["true", "false"]).default("false"),
 
+  // docs/12 BE-21: bug thật phát hiện lúc chạy full E2E suite thật lần đầu trên CI (14/09/2026) —
+  // authLimiter (auth.routes.ts) giới hạn 20 request/15 phút/IP, CHUNG cho /register+/login+/google+
+  // /forgot-password+/reset-password. CI chạy hàng chục test tuần tự (workers:1) + retry:2 trong vài
+  // phút, TẤT CẢ từ 1 IP (runner) → vượt ngưỡng thật giữa suite, hàng loạt test sau đó fail dây chuyền
+  // vì login() không rời được /login. KHÔNG hạ rate limit thật (chống brute-force) — chỉ tắt hẳn khi cờ
+  // này bật, và cờ này CHỈ được đặt true ở job `e2e` trong .github/workflows/ci.yml, không bao giờ ở
+  // .env thật (dev/staging/production luôn để mặc định false).
+  DISABLE_RATE_LIMIT: z.enum(["true", "false"]).default("false"),
+
   DATABASE_URL: z.string().url("DATABASE_URL phải là connection string hợp lệ (postgresql://...)"),
 
   JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET phải ≥ 32 ký tự"),
@@ -111,6 +120,7 @@ export const env = {
   frontendUrl: raw.FRONTEND_URL,
   trustProxyHops: raw.TRUST_PROXY_HOPS,
   runJobs: raw.RUN_JOBS === "true",
+  disableRateLimit: raw.DISABLE_RATE_LIMIT === "true",
 
   databaseUrl: raw.DATABASE_URL,
 
