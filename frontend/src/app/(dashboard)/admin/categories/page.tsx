@@ -196,20 +196,28 @@ export default function CategoriesPage() {
 
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+              <label
+                htmlFor="category-create-name"
+                className="mb-1.5 block text-xs font-medium text-ink-muted"
+              >
                 Tên danh mục
               </label>
               <input
+                id="category-create-name"
                 value={createForm.name}
                 onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
                 className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+              <label
+                htmlFor="category-create-slug"
+                className="mb-1.5 block text-xs font-medium text-ink-muted"
+              >
                 Slug (tuỳ chọn — tự sinh từ tên)
               </label>
               <input
+                id="category-create-slug"
                 value={createForm.slug}
                 onChange={(e) => setCreateForm((f) => ({ ...f, slug: e.target.value }))}
                 className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
@@ -219,10 +227,14 @@ export default function CategoriesPage() {
 
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+              <label
+                htmlFor="category-create-parent"
+                className="mb-1.5 block text-xs font-medium text-ink-muted"
+              >
                 Danh mục cha (tuỳ chọn)
               </label>
               <select
+                id="category-create-parent"
                 value={createForm.parentId}
                 onChange={(e) => setCreateForm((f) => ({ ...f, parentId: e.target.value }))}
                 className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
@@ -236,10 +248,14 @@ export default function CategoriesPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+              <label
+                htmlFor="category-create-sort-order"
+                className="mb-1.5 block text-xs font-medium text-ink-muted"
+              >
                 Thứ tự hiển thị
               </label>
               <input
+                id="category-create-sort-order"
                 type="number"
                 value={createForm.sortOrder}
                 onChange={(e) => setCreateForm((f) => ({ ...f, sortOrder: e.target.value }))}
@@ -249,10 +265,14 @@ export default function CategoriesPage() {
           </div>
 
           <div className="mb-5">
-            <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+            <label
+              htmlFor="category-create-description"
+              className="mb-1.5 block text-xs font-medium text-ink-muted"
+            >
               Mô tả (tuỳ chọn)
             </label>
             <input
+              id="category-create-description"
               value={createForm.description}
               onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
               className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
@@ -375,20 +395,28 @@ export default function CategoriesPage() {
 
                   <div className="mb-4 grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                      <label
+                        htmlFor={`category-edit-name-${category.id}`}
+                        className="mb-1.5 block text-xs font-medium text-ink-muted"
+                      >
                         Tên danh mục
                       </label>
                       <input
+                        id={`category-edit-name-${category.id}`}
                         value={editForm.name}
                         onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                         className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                      <label
+                        htmlFor={`category-edit-slug-${category.id}`}
+                        className="mb-1.5 block text-xs font-medium text-ink-muted"
+                      >
                         Slug
                       </label>
                       <input
+                        id={`category-edit-slug-${category.id}`}
                         value={editForm.slug}
                         onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value }))}
                         className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
@@ -398,10 +426,14 @@ export default function CategoriesPage() {
 
                   <div className="mb-4 grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                      <label
+                        htmlFor={`category-edit-parent-${category.id}`}
+                        className="mb-1.5 block text-xs font-medium text-ink-muted"
+                      >
                         Danh mục cha
                       </label>
                       <select
+                        id={`category-edit-parent-${category.id}`}
                         value={editForm.parentId}
                         onChange={(e) => setEditForm((f) => ({ ...f, parentId: e.target.value }))}
                         className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"
@@ -417,10 +449,14 @@ export default function CategoriesPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-ink-muted">
+                      <label
+                        htmlFor={`category-edit-sort-order-${category.id}`}
+                        className="mb-1.5 block text-xs font-medium text-ink-muted"
+                      >
                         Thứ tự hiển thị
                       </label>
                       <input
+                        id={`category-edit-sort-order-${category.id}`}
                         type="number"
                         value={editForm.sortOrder}
                         onChange={(e) => setEditForm((f) => ({ ...f, sortOrder: e.target.value }))}
@@ -430,8 +466,14 @@ export default function CategoriesPage() {
                   </div>
 
                   <div className="mb-5">
-                    <label className="mb-1.5 block text-xs font-medium text-ink-muted">Mô tả</label>
+                    <label
+                      htmlFor={`category-edit-description-${category.id}`}
+                      className="mb-1.5 block text-xs font-medium text-ink-muted"
+                    >
+                      Mô tả
+                    </label>
                     <input
+                      id={`category-edit-description-${category.id}`}
                       value={editForm.description}
                       onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
                       className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-rose focus:ring-1 focus:ring-rose"

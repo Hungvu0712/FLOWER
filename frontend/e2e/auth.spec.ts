@@ -43,7 +43,8 @@ test.describe('Đăng nhập / đăng xuất', () => {
     await page.getByLabel(/họ tên/i).fill('Người Dùng E2E');
     await page.getByLabel(/email/i).fill(email);
     await page.getByLabel(/mật khẩu/i).fill('MatKhauE2E123');
-    await page.getByRole('button', { name: /đăng ký/i }).click();
+    // Nút submit thật là "Tạo tài khoản" (register/page.tsx) — không phải "Đăng ký" như tên test gợi ý.
+    await page.getByRole('button', { name: 'Tạo tài khoản' }).click();
 
     await expect(page).toHaveURL(/\/login/);
     const cookies = await page.context().cookies();
@@ -55,7 +56,7 @@ test.describe('Đăng nhập / đăng xuất', () => {
     await page.getByLabel(/họ tên/i).fill('A');
     await page.getByLabel(/email/i).fill('khong-phai-email');
     await page.getByLabel(/mật khẩu/i).fill('123');
-    await page.getByRole('button', { name: /đăng ký/i }).click();
+    await page.getByRole('button', { name: 'Tạo tài khoản' }).click();
 
     await expect(page.getByText('Email không hợp lệ')).toBeVisible();
     await expect(page.getByText('Mật khẩu tối thiểu 8 ký tự')).toBeVisible();
@@ -90,7 +91,9 @@ test.describe('Bảo vệ route', () => {
 
     await page.goto('/superadmin/users');
     await expect(page).toHaveURL(/\/403/);
-    await expect(page.getByText(/không có quyền truy cập/i)).toBeVisible();
+    // getByText khớp NHIỀU phần tử (h1 + p mô tả + div ẩn __next-route-announcer__ của Next.js đọc lại
+    // tiêu đề trang cho screen reader) — thu hẹp về đúng heading (403/page.tsx).
+    await expect(page.getByRole('heading', { name: /không có quyền truy cập/i })).toBeVisible();
   });
 
   test('API vẫn chặn độc lập với UI — member gọi thẳng API quản trị bị 403', async ({ page }) => {

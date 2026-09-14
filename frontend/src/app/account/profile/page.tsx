@@ -70,7 +70,12 @@ export default function ProfilePage() {
 
         <form
           className="flex flex-col gap-4"
-          onSubmit={profileForm.handleSubmit((values) => updateProfile.mutate(values))}
+          onSubmit={profileForm.handleSubmit((values) =>
+            // Backend chấp nhận phone null/vắng mặt nhưng KHÔNG chấp nhận chuỗi rỗng (min(1) nếu có
+            // mặt) — user chưa từng nhập SĐT thì field này luôn là '' (default của input), gửi thẳng
+            // '' làm update thất bại 422 mọi lần (bug thật, phát hiện lúc chạy E2E thật lần đầu).
+            updateProfile.mutate({ ...values, phone: values.phone || null }),
+          )}
         >
           <FormField label="Email" value={me.email} disabled />
           <FormField
