@@ -43,6 +43,12 @@ export default function RegisterPage() {
 
       <form
         className="flex flex-col gap-4"
+        // noValidate — input email dùng type="email", thiếu cờ này thì validate NGUYÊN SINH của trình
+        // duyệt chặn sự kiện submit TRƯỚC KHI react-hook-form chạy tới, hiện tooltip mặc định của trình
+        // duyệt (không tiếng Việt, không đồng bộ style) thay vì thông báo "Email không hợp lệ" từ zod —
+        // bug thật, lộ ra lần đầu khi test E2E thật sự bấm được nút submit (trước đó bấm nhầm nút do
+        // sai selector, chưa từng chạm tới luồng này).
+        noValidate
         onSubmit={handleSubmit((values) => registerMutation.mutate(values))}
       >
         <FormField label="Họ tên" {...register('fullName')} error={errors.fullName} />
