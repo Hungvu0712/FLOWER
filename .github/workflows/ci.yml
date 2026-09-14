@@ -1,0 +1,123 @@
+# CI — xem docs/10-trien-khai-van-hanh.md §6. `backend`/`frontend`/`docs` chạy mỗi PR + mỗi push vào
+# main, không cần database thật (test suite dùng Prisma mock — xem backend/vitest.config.ts +
+# backend/tests/setup.ts). `e2e` CHỈ chạy khi vào main (chậm hơn nhiều — cần Postgres thật + cài
+# trình duyệt Playwright), tránh làm chậm vòng lặp review PR thường ngày.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+        env:
+          # Chỉ cần CÓ MẶT lúc build (Next.js nhúng NEXT_PUBLIC_* vào bundle) — không cần backend thật
+          # chạy, build không gọi API nào cả.
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+
+  # Formalize đúng bước "Kiểm tra trước khi commit" đã ghi ở CLAUDE.md §2 thành 1 gate CI thật — chặn
+  # PR merge kèm sơ đồ Mermaid lỗi cú pháp (không parse được trên GitHub/GitBook).
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --no-save mermaid@11 jsdom@26
+      - run: node scripts/check-mermaid.mjs
+
+  # Chỉ chạy khi đã vào main (không phải mọi PR) — cần dựng Postgres thật + build/khởi động backend
+  # thật + cài trình duyệt Playwright, chậm hơn nhiều so với 3 job trên.
+  e2e:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: flower_test
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/flower_test
+      # Secret CHỈ dùng nội bộ job CI này, không phải secret thật — không cần khai ở GitHub Secrets.
+      JWT_ACCESS_SECRET: ci-access-secret-khong-dung-that-du-32-ky-tu
+      JWT_REFRESH_SECRET: ci-refresh-secret-khong-dung-that-du-32-ky-tu
+      FRONTEND_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Cài + migrate + seed backend
+        working-directory: backend
+        run: |
+          npm ci
+          npx prisma migrate deploy
+          npx tsx prisma/seed/core.seed.ts
+          npx tsx prisma/seed/domain.seed.ts
+      - name: Build + khởi động backend nền
+        working-directory: backend
+        run: |
+          npm run build
+          npm start &
+          npx --yes wait-on http://localhost:4000/health --timeout 30000
+      - name: Cài dependencies frontend
+        working-directory: frontend
+        run: npm ci
+      # KHÔNG tự build/start frontend ở đây — playwright.config.ts đã có sẵn `webServer` (chạy
+      # `npm run dev`, tự đợi $BASE_URL sẵn sàng) tự động khởi động lúc `npm run test:e2e`, tự start
+      # thủ công ở đây sẽ trùng port 3000 với server Playwright tự mở.
+      - name: Cài Playwright + chạy E2E
+        working-directory: frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/

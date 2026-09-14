@@ -457,100 +457,26 @@ Các bước còn lại của checklist §3 (HTTPS/HSTS đã có sẵn qua Caddy
 
 ---
 
-## 6. CI/CD — GitHub Actions (đề xuất)
+## 6. CI/CD — GitHub Actions (file thật, 14/09/2026)
 
-`.github/workflows/ci.yml`:
+`.github/workflows/ci.yml` — 4 job, chạy trên mọi PR + push vào `main` (riêng `e2e` chỉ chạy khi vào
+`main`, xem lý do trong chính file):
 
-```yaml
-name: CI
+| Job | Bước chính | Cần database thật? |
+|---|---|---|
+| `backend` | `npm ci` → `prisma generate` → `lint` → `typecheck` → `format:check` → `test` | Không — test suite dùng Prisma mock (`vitest.config.ts` alias sang `tests/mocks/prisma.mock.ts`), biến môi trường bắt buộc do `tests/setup.ts` tự set giả |
+| `frontend` | `lint` → `typecheck` → `format:check` → `test` → `build` (`NEXT_PUBLIC_API_URL` giả, chỉ cần CÓ MẶT lúc build) | Không |
+| `docs` | Cài `mermaid`+`jsdom`, chạy `scripts/check-mermaid.mjs` | Không — formalize đúng bước "kiểm tra trước khi commit" ở CLAUDE.md §2 thành gate CI thật |
+| `e2e` | Migrate + seed thật, build + chạy backend nền, Playwright tự khởi động frontend (`playwright.config.ts` đã có sẵn `webServer`), chạy `test:e2e` | **Có** — service `postgres:16`, JWT secret trong workflow là giá trị CI-only, không phải secret thật |
 
-on:
-  pull_request:
-  push:
-    branches: [main]
+Cả 2 job `backend`/`frontend` dùng `node-version-file: .nvmrc` (không hard-code số Node riêng, tránh
+lệch với `.nvmrc` gốc repo sau này).
 
-jobs:
-  backend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test          # 607 test, không cần database
+**Chặn merge** khi CI đỏ (chưa tự bật): GitHub → Settings → Branches → Branch protection rule cho
+`main` → *Require status checks to pass*.
 
-  frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test          # 120 test
-      - run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:4000
-```
-
-**E2E trong CI** (workflow riêng, chạy khi merge vào `main` — chậm hơn nên không chạy mỗi push):
-
-```yaml
-  e2e:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: flower_test
-        options: >-
-          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-        ports: ["5432:5432"]
-    env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/flower_test
-      JWT_ACCESS_SECRET: ci-access-secret-khong-dung-that
-      JWT_REFRESH_SECRET: ci-refresh-secret-khong-dung-that
-      FRONTEND_URL: http://localhost:3000
-      NEXT_PUBLIC_API_URL: http://localhost:4000
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22 }
-      - run: npm ci && npx prisma migrate deploy && npm run seed:core && npm run seed:domain
-        working-directory: backend
-      - run: npm run build && (npm start &) && npx wait-on http://localhost:4000/health
-        working-directory: backend
-      - run: npm ci && npx playwright install --with-deps chromium && npm run test:e2e
-        working-directory: frontend
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report
-          path: frontend/playwright-report/
-```
-
-**Chặn merge** khi CI đỏ: GitHub → Settings → Branches → Branch protection rule cho `main` →
-*Require status checks to pass*.
-
-**Quét secret bị commit nhầm** (khuyến nghị): thêm bước `gitleaks` hoặc `trufflehog` vào workflow —
-xem [07 · Bảo mật §8](07-bao-mat.md).
+**Quét secret bị commit nhầm** (chưa làm — mục riêng trong CHECKLIST, khác việc này): thêm bước
+`gitleaks` hoặc `trufflehog` vào workflow — xem [07 · Bảo mật §8](07-bao-mat.md).
 
 ---
 
