@@ -40,3 +40,18 @@ export function useDeliveryQueue(date: string) {
     queryFn: () => ordersService.listDeliveryQueue(date),
   });
 }
+
+export function useLogCall() {
+  const queryClient = useQueryClient();
+  const push = useToastStore((s) => s.push);
+  return useMutation({
+    mutationFn: ({ id, confirmed, note }: { id: string; confirmed: boolean; note?: string }) =>
+      ordersService.logCall(id, { confirmed, note }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'delivery-queue'] });
+      push('Đã ghi nhận cuộc gọi');
+    },
+    onError: (error) => push(getErrorMessage(error, 'Không ghi nhận được cuộc gọi'), 'error'),
+  });
+}

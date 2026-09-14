@@ -31,6 +31,12 @@ export type Order = {
   deliveryDate: string;
   deliveryTimeSlot: OrderTimeSlot;
   note: string | null;
+  // Chỉ có mặt ở response ADMIN (listAdmin/listDeliveryQueue/logCall) — KHÔNG có ở trang xác nhận đơn
+  // công khai (getById dùng chung cho cả 2, backend cố ý không trả 3 field này ra ngoài đó để tránh lộ
+  // ghi chú nội bộ, xem orders.service.ts#ADMIN_ORDER_SELECT). Optional vì có thể vắng mặt.
+  callConfirmedAt?: string | null;
+  lastCallAt?: string | null;
+  lastCallNote?: string | null;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
@@ -96,5 +102,12 @@ export const ordersService = {
   listDeliveryQueue: (date: string) =>
     api
       .get<{ data: Order[] }>('/api/v1/admin/orders/delivery-queue', { params: { date } })
+      .then((r) => r.data.data),
+
+  // Ghi nhận 1 lần gọi điện xác minh đơn — KHÔNG đổi status. `confirmed: true` là điều kiện bắt buộc
+  // trước khi updateStatus() cho phép chuyển sang 'confirmed' (backend chặn thật, đây chỉ là UX).
+  logCall: (id: string, input: { confirmed: boolean; note?: string }) =>
+    api
+      .post<{ data: Order }>(`/api/v1/admin/orders/${id}/log-call`, input)
       .then((r) => r.data.data),
 };

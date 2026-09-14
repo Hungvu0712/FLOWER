@@ -511,8 +511,12 @@ describe("updateStatus", () => {
     );
   });
 
-  it("cập nhật trạng thái thường thành công khi có orders.update_status", async () => {
-    db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending" });
+  it("cập nhật trạng thái thường thành công khi có orders.update_status VÀ đã ghi nhận cuộc gọi", async () => {
+    db.order.findUnique.mockResolvedValue({
+      id: "o1",
+      status: "pending",
+      callConfirmedAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
     db.order.update.mockResolvedValue({ id: "o1", status: "confirmed" });
 
     const result = await service.updateStatus("staff-1", "o1", "confirmed", [
@@ -522,13 +526,94 @@ describe("updateStatus", () => {
   });
 
   it("phát event realtime order:status_changed cho CẢ dashboard quản trị lẫn khách đang xem đơn", async () => {
-    db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending" });
+    db.order.findUnique.mockResolvedValue({
+      id: "o1",
+      status: "pending",
+      callConfirmedAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
     db.order.update.mockResolvedValue({ id: "o1", status: "confirmed" });
 
     await service.updateStatus("staff-1", "o1", "confirmed", ["orders.update_status"]);
 
     expect(ordersRealtime.emitOrderStatusChanged).toHaveBeenCalledWith(
       expect.objectContaining({ id: "o1", status: "confirmed" }),
+    );
+  });
+
+  it("409 ORDER_CALL_NOT_CONFIRMED khi chuyển sang confirmed nhưng CHƯA ghi nhận cuộc gọi nào", async () => {
+    db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending", callConfirmedAt: null });
+    await expect(
+      service.updateStatus("staff-1", "o1", "confirmed", ["orders.update_status"]),
+    ).rejects.toMatchObject({ statusCode: 409, code: "ORDER_CALL_NOT_CONFIRMED" });
+    expect(db.order.update).not.toHaveBeenCalled();
+  });
+
+  it("KHÔNG chặn chuyển sang trạng thái khác 'confirmed' dù chưa ghi nhận cuộc gọi (chỉ gate confirmed)", async () => {
+    db.order.findUnique.mockResolvedValue({ id: "o1", status: "preparing", callConfirmedAt: null });
+    db.order.update.mockResolvedValue({ id: "o1", status: "delivering" });
+
+    const result = await service.updateStatus("staff-1", "o1", "delivering", [
+      "orders.update_status",
+    ]);
+    expect(result.status).toBe("delivering");
+  });
+});
+
+describe("logCall — ghi nhận 1 lần gọi điện xác minh đơn", () => {
+  it("404 khi đơn không tồn tại", async () => {
+    db.order.findUnique.mockResolvedValue(null);
+    await expect(
+      service.logCall("staff-1", "khong-co", { confirmed: true }),
+    ).rejects.toMatchObject({ statusCode: 404, code: "NOT_FOUND" });
+  });
+
+  it("confirmed: true → set callConfirmedAt VÀ lastCallAt/lastCallNote", async () => {
+    db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending" });
+    db.order.update.mockResolvedValue({ id: "o1", callConfirmedAt: new Date() });
+
+    await service.logCall("staff-1", "o1", { confirmed: true, note: "Khách xác nhận đặt hoa" });
+
+    const data = db.order.update.mock.calls[0]![0].data;
+    expect(data.callConfirmedAt).toBeInstanceOf(Date);
+    expect(data.lastCallAt).toBeInstanceOf(Date);
+    expect(data.lastCallNote).toBe("Khách xác nhận đặt hoa");
+  });
+
+  it("confirmed: false → CHỈ set lastCallAt/lastCallNote, KHÔNG set callConfirmedAt", async () => {
+    db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending" });
+    db.order.update.mockResolvedValue({ id: "o1" });
+
+    await service.logCall("staff-1", "o1", { confirmed: false, note: "Không bắt máy" });
+
+    const data = db.order.update.mock.calls[0]![0].data;
+    expect(data).not.toHaveProperty("callConfirmedAt");
+    expect(data.lastCallNote).toBe("Không bắt máy");
+  });
+
+  it("bỏ trống note → lưu null (không phải chuỗi rỗng/undefined)", async () => {
+    db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending" });
+    db.order.update.mockResolvedValue({ id: "o1" });
+
+    await service.logCall("staff-1", "o1", { confirmed: false });
+
+    expect(db.order.update.mock.calls[0]![0].data.lastCallNote).toBeNull();
+  });
+
+  it("ghi audit log action order.call_logged kèm confirmed/note", async () => {
+    db.order.findUnique.mockResolvedValue({ id: "o1", status: "pending" });
+    db.order.update.mockResolvedValue({ id: "o1" });
+
+    await service.logCall("staff-1", "o1", { confirmed: true, note: "OK" }, "1.2.3.4");
+
+    expect(auditLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "staff-1",
+        action: "order.call_logged",
+        entityType: "order",
+        entityId: "o1",
+        after: { confirmed: true, note: "OK" },
+        ipAddress: "1.2.3.4",
+      }),
     );
   });
 });

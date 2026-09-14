@@ -260,4 +260,89 @@ describe("PATCH /api/v1/admin/orders/:id/status", () => {
       .send({ status: "confirmed" });
     expect(res.status).toBe(403);
   });
+
+  it("409 ORDER_CALL_NOT_CONFIRMED khi chuyển sang 'confirmed' mà chưa ghi nhận cuộc gọi nào", async () => {
+    const cookie = loginAs("staff-1", ["sales_staff"], ["orders.update_status"]);
+    db.order.findUnique.mockResolvedValue({ id, status: "pending", callConfirmedAt: null });
+
+    const res = await request(app)
+      .patch(`/api/v1/admin/orders/${id}/status`)
+      .set("Cookie", cookie)
+      .send({ status: "confirmed" });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("ORDER_CALL_NOT_CONFIRMED");
+    expect(db.order.update).not.toHaveBeenCalled();
+  });
+
+  it("chuyển sang 'confirmed' thành công khi đã ghi nhận cuộc gọi (callConfirmedAt có giá trị)", async () => {
+    const cookie = loginAs("staff-1", ["sales_staff"], ["orders.update_status"]);
+    db.order.findUnique.mockResolvedValue({
+      id,
+      status: "pending",
+      callConfirmedAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+    db.order.update.mockResolvedValue({ id, status: "confirmed" });
+
+    const res = await request(app)
+      .patch(`/api/v1/admin/orders/${id}/status`)
+      .set("Cookie", cookie)
+      .send({ status: "confirmed" });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("POST /api/v1/admin/orders/:id/log-call — ghi nhận cuộc gọi xác minh", () => {
+  const id = "55555555-5555-5555-5555-555555555555";
+
+  it("chưa đăng nhập → 401", async () => {
+    const res = await request(app).post(`/api/v1/admin/orders/${id}/log-call`).send({
+      confirmed: true,
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("thiếu orders.update_status → 403", async () => {
+    const cookie = loginAs("member-1", ["member"], []);
+    const res = await request(app)
+      .post(`/api/v1/admin/orders/${id}/log-call`)
+      .set("Cookie", cookie)
+      .send({ confirmed: true });
+    expect(res.status).toBe(403);
+  });
+
+  it("đơn không tồn tại → 404", async () => {
+    const cookie = loginAs("staff-1", ["sales_staff"], ["orders.update_status"]);
+    db.order.findUnique.mockResolvedValue(null);
+    const res = await request(app)
+      .post(`/api/v1/admin/orders/${id}/log-call`)
+      .set("Cookie", cookie)
+      .send({ confirmed: true });
+    expect(res.status).toBe(404);
+  });
+
+  it("ghi nhận thành công (confirmed: true) → 200, trả kèm callConfirmedAt", async () => {
+    const cookie = loginAs("staff-1", ["sales_staff"], ["orders.update_status"]);
+    db.order.findUnique.mockResolvedValue({ id, status: "pending" });
+    db.order.update.mockResolvedValue({
+      id,
+      status: "pending",
+      callConfirmedAt: new Date().toISOString(),
+    });
+
+    const res = await request(app)
+      .post(`/api/v1/admin/orders/${id}/log-call`)
+      .set("Cookie", cookie)
+      .send({ confirmed: true, note: "Khách xác nhận đặt hoa" });
+    expect(res.status).toBe(200);
+    expect(res.body.data.callConfirmedAt).toBeTruthy();
+  });
+
+  it("note quá 500 ký tự → 422", async () => {
+    const cookie = loginAs("staff-1", ["sales_staff"], ["orders.update_status"]);
+    const res = await request(app)
+      .post(`/api/v1/admin/orders/${id}/log-call`)
+      .set("Cookie", cookie)
+      .send({ confirmed: false, note: "x".repeat(501) });
+    expect(res.status).toBe(422);
+  });
 });

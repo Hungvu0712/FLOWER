@@ -13,7 +13,7 @@ describe("openapi/generate — sinh document OpenAPI từ registry", () => {
     expect(doc.paths).toBeDefined();
   });
 
-  it("đăng ký đủ 104 endpoint thật trong *.routes.ts (104 = số route grep được ở 34 file .routes.ts)", () => {
+  it("đăng ký đủ 105 endpoint thật trong *.routes.ts (105 = số route grep được ở 34 file .routes.ts)", () => {
     const doc = generateOpenApiDocument();
     const operationCount = Object.values(doc.paths ?? {}).reduce(
       (sum, pathItem) => sum + Object.keys(pathItem as object).length,
@@ -21,7 +21,7 @@ describe("openapi/generate — sinh document OpenAPI từ registry", () => {
     );
     // Con số này PHẢI cập nhật khi thêm/bớt route thật — cố ý pin cứng để bắt được trường hợp quên
     // import module mới vào src/openapi/generate.ts (registry rỗng cho module đó, không throw lỗi gì).
-    expect(operationCount).toBe(104);
+    expect(operationCount).toBe(105);
   });
 
   it("route công khai (vd auth/login) có security: [] — không yêu cầu đăng nhập", () => {

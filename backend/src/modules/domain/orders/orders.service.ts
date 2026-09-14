@@ -34,9 +34,6 @@ const ORDER_SELECT = {
   deliveryDate: true,
   deliveryTimeSlot: true,
   note: true,
-  callConfirmedAt: true,
-  lastCallAt: true,
-  lastCallNote: true,
   createdAt: true,
   updatedAt: true,
   items: {
@@ -51,6 +48,17 @@ const ORDER_SELECT = {
       subtotal: true,
     },
   },
+} as const;
+
+// `getById` dùng CHUNG cho cả GET /orders/:id CÔNG KHAI (id = token tra cứu, ai có link cũng xem
+// được, không đăng nhập) lẫn GET /admin/orders/:id — vì vậy KHÔNG được đưa 3 field ghi chú cuộc gọi
+// nội bộ (lastCallNote...) vào ORDER_SELECT ở trên, tránh lộ ghi chú nội bộ admin ra trang tra cứu
+// đơn công khai. Chỉ những truy vấn CHẮC CHẮN chỉ admin gọi (list/status/log-call) mới dùng select này.
+const ADMIN_ORDER_SELECT = {
+  ...ORDER_SELECT,
+  callConfirmedAt: true,
+  lastCallAt: true,
+  lastCallNote: true,
 } as const;
 
 // 'completed'/'cancelled' — không cho đổi trạng thái tiếp sau 2 mốc này (state machine đơn giản cho
@@ -296,7 +304,7 @@ export async function listDeliveryQueue({ date }: ListDeliveryQueueQuery) {
   const orders = await prisma.order.findMany({
     where: { deliveryDate, status: { not: "cancelled" } },
     orderBy: { createdAt: "asc" },
-    select: ORDER_SELECT,
+    select: ADMIN_ORDER_SELECT,
   });
   return [...orders].sort(
     (a, b) => TIME_SLOT_ORDER[a.deliveryTimeSlot]! - TIME_SLOT_ORDER[b.deliveryTimeSlot]!,
@@ -311,7 +319,7 @@ export async function listAdmin({ status, page, limit }: ListOrdersQuery) {
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
-      select: ORDER_SELECT,
+      select: ADMIN_ORDER_SELECT,
     }),
     prisma.order.count({ where }),
   ]);
@@ -361,6 +369,10 @@ export async function updateStatus(
     );
   }
 
+  // CỐ Ý giữ ORDER_SELECT (không phải ADMIN_ORDER_SELECT) — `updated` được emit qua Socket.io tới
+  // CẢ room công khai `order:<id>` (emitOrderStatusChanged bên dưới), lộ field admin (lastCallNote...)
+  // vào đó là leak thật ra trang xác nhận đơn của khách, dù type param của emit chỉ khai {id,status}
+  // (TypeScript không tự lược field thừa lúc serialize JSON runtime).
   const updated = await prisma.order.update({
     where: { id },
     data: { status: newStatus },
@@ -402,7 +414,7 @@ export async function logCall(
       lastCallNote: input.note ?? null,
       ...(input.confirmed && { callConfirmedAt: now }),
     },
-    select: ORDER_SELECT,
+    select: ADMIN_ORDER_SELECT,
   });
 
   await auditLog.record({

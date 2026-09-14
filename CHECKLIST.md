@@ -26,7 +26,7 @@
 | 6 | Quality — testing, OpenAPI, logging | 🟡 | ███████░░░ 79% |
 | 7 | Production — Docker, CI/CD, monitoring | ⬜ | ░░░░░░░░░░ 0% |
 
-**Tổng thể: ~52%** · Số test đang chạy: **1007** (BE 860 · FE 147) + ~30 kịch bản E2E
+**Tổng thể: ~52%** · Số test đang chạy: **1047** (BE 900 · FE 147) + ~30 kịch bản E2E
 
 ---
 
@@ -129,7 +129,7 @@
 
 ## Phase 6 — Quality 🟡
 
-- [x] **Backend: 860 test** (unit + integration) — chạy **không cần database**
+- [x] **Backend: 900 test** (unit + integration) — chạy **không cần database**
 - [x] **Frontend: 147 test** (unit + component + hook)
 - [x] **E2E Playwright: ~30 kịch bản** (auth · superadmin · account · categories)
 - [x] Hạ tầng test: Prisma mock tự sinh, `loginAs()` helper
@@ -235,7 +235,8 @@ Chi tiết: [docs/07 · Bảo mật](docs/07-bao-mat.md).
 - [ ] 2FA (TOTP) cho `super_admin` / `admin` ⬜
 - [ ] Captcha sau vài lần đăng nhập sai ⬜
 - [ ] HTTPS + HSTS ở production ⬜
-- [ ] Xác thực email trước khi đặt hàng ⬜
+- [x] **Xác minh đơn qua cuộc gọi điện thoại (admin ghi nhận)** *(14/09/2026 — thay cho OTP SMS tự động (cần dịch vụ SMS gateway trả phí bên ngoài); admin gọi thật, hệ thống ghi nhận + CHẶN backend: chuyển đơn sang "Đã xác nhận" đòi `Order.callConfirmedAt` có giá trị (409 `ORDER_CALL_NOT_CONFIRMED` nếu chưa), dùng LẠI permission `orders.update_status`; lịch sử nhiều lần gọi qua AuditLog chung, không bảng riêng — xem [docs/modules/domain-orders.md §11](docs/modules/domain-orders.md))*
+- [ ] Xác thực email trước khi thanh toán ONLINE ⬜ *(chưa cần — hiện chỉ COD, xem docs/07 §1)*
 - [ ] Dependency scanning + gitleaks trong CI ⬜
 - [x] Nén + mã hoá backup (RSA/AES-256-GCM) `OPS-02`
 

@@ -590,6 +590,7 @@ client, xem [modules/domain-orders.md](modules/domain-orders.md)).
 | `GET` | `/api/v1/admin/orders/:id` | `orders.view_all` | Chi tiết 1 đơn |
 | `GET` | `/api/v1/admin/orders/delivery-queue?date=` | `orders.view_delivery_queue` | Lịch giao hoa theo ngày (dashboard florist) — xem dưới |
 | `PATCH` | `/api/v1/admin/orders/:id/status` | `orders.update_status` hoặc `orders.cancel` — xem dưới | Đổi trạng thái đơn |
+| `POST` | `/api/v1/admin/orders/:id/log-call` | `orders.update_status` | Ghi nhận 1 lần gọi điện xác minh đơn — xem dưới |
 
 ### `POST /api/v1/orders` (công khai)
 
@@ -664,8 +665,26 @@ không phải 1 permission cố định cho cả route:
 - Mọi giá trị khác → cần `orders.update_status`.
 
 Ràng buộc: `409 ORDER_STATUS_FINAL` khi đơn đã `completed`/`cancelled` (không đổi tiếp được) ·
-`409 ORDER_CANNOT_CANCEL` khi huỷ đơn đang `delivering` · `403 FORBIDDEN` khi thiếu đúng permission
-cho giá trị `status` đang gửi · `404 NOT_FOUND` khi đơn không tồn tại.
+`409 ORDER_CANNOT_CANCEL` khi huỷ đơn đang `delivering` · `409 ORDER_CALL_NOT_CONFIRMED` khi chuyển
+sang `confirmed` nhưng chưa ghi nhận cuộc gọi nào (xem `POST .../log-call` dưới) · `403 FORBIDDEN` khi
+thiếu đúng permission cho giá trị `status` đang gửi · `404 NOT_FOUND` khi đơn không tồn tại.
+
+### `POST /api/v1/admin/orders/:id/log-call`
+
+```jsonc
+{ "confirmed": true, "note": "Khách xác nhận đặt hoa" } // note tuỳ chọn, tối đa 500 ký tự
+```
+
+Ghi nhận **1 lần gọi điện xác minh đơn** (docs/07 nợ bảo mật "SĐT giả") — KHÔNG đổi `status`. Chỉ
+cập nhật 3 field "mới nhất" (`callConfirmedAt`/`lastCallAt`/`lastCallNote`) để hiển thị nhanh ở
+`/admin/orders`, và ghi `AuditLog` (`action: "order.call_logged"`) — lịch sử đầy đủ nhiều lần gọi (kể
+cả không bắt máy) xem qua `/superadmin/audit-logs`, không có endpoint danh sách riêng.
+`confirmed: true` là điều kiện **bắt buộc** trước khi `PATCH .../status` cho phép chuyển đơn sang
+`confirmed` — chặn thật ở tầng service, không chỉ ẩn nút UI. 3 field này **không xuất hiện** ở
+`GET /orders/:id` công khai hay `POST /orders` (route dùng chung hàm `getById`/`create` với `ORDER_SELECT`
+gốc, không có 3 field admin) — chỉ có ở response admin (`listAdmin`/`delivery-queue`/`log-call`, dùng
+`ADMIN_ORDER_SELECT`), tránh lộ ghi chú nội bộ ra trang khách xem. Xem
+[modules/domain-orders.md §11](modules/domain-orders.md#11-xác-minh-đơn-qua-cuộc-gọi-điện-thoại).
 
 ### Realtime (Socket.io) — cùng cổng HTTP, không phải REST
 

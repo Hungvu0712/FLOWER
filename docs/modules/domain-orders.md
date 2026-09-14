@@ -254,9 +254,9 @@ thanh toán... chỉ được cập nhật đơn đang ở trạng thái đang c
 
 | Tầng | File | Số test |
 |---|---|---|
-| Unit | `backend/tests/unit/modules/orders.service.test.ts` | 36 — snapshot giá, gộp trùng theo khoá `(productId, variantId)`, giá lấy từ biến thể khi có `variantId`, `409` khi `variantId` không tồn tại hoặc không thuộc `productId` gửi lên, sinh `orderCode` không trùng, ràng buộc trạng thái, quyền theo giá trị `status`, honeypot, lịch giao hoa theo ngày (§4b), áp dụng mã giảm giá + chống race condition hết lượt dùng (xem [domain-coupons.md](domain-coupons.md)) |
-| Integration | `backend/tests/integration/orders.routes.test.ts` | 21 — guest checkout công khai, tra cứu công khai, quyền admin theo permission cụ thể, honeypot, `/delivery-queue` không bị `/:id` nuốt mất |
-| RBAC chung | `backend/tests/integration/rbac.test.ts` | Thêm `GET /admin/orders` vào bảng `PROTECTED` dùng chung 3 tầng (401/403/200) |
+| Unit | `backend/tests/unit/modules/orders.service.test.ts` | 45 — snapshot giá, gộp trùng theo khoá `(productId, variantId)`, giá lấy từ biến thể khi có `variantId`, `409` khi `variantId` không tồn tại hoặc không thuộc `productId` gửi lên, sinh `orderCode` không trùng, ràng buộc trạng thái, quyền theo giá trị `status`, honeypot, lịch giao hoa theo ngày (§4b), áp dụng mã giảm giá + chống race condition hết lượt dùng (xem [domain-coupons.md](domain-coupons.md)), gate + ghi nhận cuộc gọi xác minh (§11) |
+| Integration | `backend/tests/integration/orders.routes.test.ts` | 32 — guest checkout công khai, tra cứu công khai, quyền admin theo permission cụ thể, honeypot, `/delivery-queue` không bị `/:id` nuốt mất, gate + route `log-call` (§11) |
+| RBAC chung | `backend/tests/integration/rbac.test.ts` | `GET /admin/orders` + `POST /admin/orders/:id/log-call` trong bảng `PROTECTED` dùng chung 3 tầng (401/403/200) |
 
 Kiểm chứng thủ công qua `curl` + trình duyệt thật (Playwright, không lưu trong repo): thêm giỏ → sửa
 số lượng → đặt hàng → trang xác nhận → đăng nhập `super_admin` → `/admin/orders` → mở rộng dòng → đổi
@@ -294,6 +294,8 @@ CUỐI và huỷ-khi-đang-giao. Nếu cần state machine chặt hơn (chỉ ch
 | Phí ship (`shipping_fee`) | 🟢 | Chưa có |
 | Giới hạn theo `recipientPhone` (không chỉ theo IP) | 🟡 | Chặn trường hợp bot đổi IP nhưng dùng lại số điện thoại — xem §9 |
 | CAPTCHA (Cloudflare Turnstile) | 🟢 | Chỉ cần khi honeypot + rate limit không đủ — thêm 1 bước cho khách thật nên để dự phòng |
+| ~~Xác minh đơn qua cuộc gọi điện thoại (admin ghi nhận)~~ | ✅ | Đã làm (14/09/2026) — xem §11 |
+| OTP SMS tự động khi đặt hàng | 🟢 | Cần dịch vụ SMS gateway trả phí bên ngoài — cố ý chưa làm, xem §11 |
 
 ---
 
@@ -408,6 +410,59 @@ test, không có `http.Server` thật) → phát event trở thành no-op, KHÔN
   realtime vào state client (tránh lệch với filter/phân trang hiện tại của từng trang).
 - 1 kết nối WebSocket duy nhất cho toàn app (`lib/socket.ts`, singleton) — nhiều hook cùng lúc chỉ
   thêm/gỡ listener trên CÙNG 1 socket, không mở nhiều kết nối trùng lặp.
+
+---
+
+## 11. Xác minh đơn qua cuộc gọi điện thoại (✅ 14/09/2026)
+
+Nợ bảo mật "SĐT giả" (`docs/07-bao-mat.md`) — trước đây "cửa hàng gọi điện xác nhận đơn" chỉ là quy
+trình ngoài đời, **không được số hoá**: admin chuyển `pending → confirmed` hoàn toàn dựa trên "niềm
+tin" là đã gọi, hệ thống không lưu vết đã gọi hay chưa. Đã cân nhắc OTP SMS tự động nhưng cần dịch vụ
+SMS gateway trả phí bên ngoài (vướng vấn đề "cần chuẩn bị" giống cổng thanh toán online, xem §8) —
+chọn hướng nhẹ hơn: **admin tự gọi, hệ thống chỉ hỗ trợ ghi nhận + chặn** thật ở backend.
+
+```mermaid
+flowchart TD
+    A["POST /admin/orders/:id/log-call<br/>{ confirmed, note? }"] --> B["Update lastCallAt/lastCallNote<br/>+ callConfirmedAt nếu confirmed:true"]
+    B --> C["AuditLog action='order.call_logged'<br/>(lịch sử đầy đủ nhiều lần gọi)"]
+
+    D["PATCH .../status<br/>{ status: 'confirmed' }"] --> E{"order.callConfirmedAt<br/>có giá trị?"}
+    E -->|Không| F["🚫 409 ORDER_CALL_NOT_CONFIRMED<br/>KHÔNG đổi status"]
+    E -->|Có| G["Đổi status bình thường"]
+
+    style F fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
+    style G fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
+```
+
+**Chỉ 3 field "mới nhất"** trên `Order` (`callConfirmedAt`/`lastCallAt`/`lastCallNote`) — KHÔNG có
+bảng lịch sử cuộc gọi riêng. Nhiều lần gọi (kể cả không bắt máy) đi qua `AuditLog` chung
+(`action: "order.call_logged"`), xem lại qua `/superadmin/audit-logs` — đúng quyết định đã chốt ở §2
+("order_status_history — dùng lại AuditLog").
+
+**Không dùng permission mới** — `POST .../log-call` dùng LẠI `orders.update_status` (ghi nhận cuộc
+gọi là 1 bước trong đúng nhóm "cập nhật tiến trình đơn"), tránh phình permission cho 1 hành động phụ.
+
+**Rò rỉ dữ liệu đã tránh được lúc code**: `getById()` (hàm service) dùng CHUNG cho cả
+`GET /orders/:id` công khai (id = token tra cứu, ai có link cũng xem được) lẫn
+`GET /admin/orders/:id`. Nếu đưa 3 field trên vào `ORDER_SELECT` gốc sẽ **lộ ghi chú nội bộ admin ra
+trang tra cứu đơn công khai**. Đã tách riêng `ADMIN_ORDER_SELECT` (mở rộng `ORDER_SELECT` +3 field),
+chỉ dùng cho những truy vấn CHẮC CHẮN chỉ admin gọi (`listAdmin`, `listDeliveryQueue`, `logCall`).
+`updateStatus()` **cố ý** vẫn giữ `ORDER_SELECT` gốc dù cũng là route admin — vì kết quả của nó còn
+được emit qua Socket.io tới room công khai `order:<id>` (§10.2), dùng `ADMIN_ORDER_SELECT` ở đây sẽ
+leak field admin ra thẳng trình duyệt khách qua realtime, dù type tham số của hàm emit chỉ khai
+`{id, status}` (TypeScript không tự lược field thừa lúc serialize JSON runtime).
+
+**Phạm vi cố ý KHÔNG làm**: không thêm field `email` vào checkout (không đụng guest checkout hiện
+có) · không gate các transition khác ngoài `pending → confirmed` · không tự động huỷ đơn khi
+`confirmed: false` nhiều lần (admin tự quyết định qua nút "Huỷ đơn" sẵn có, permission `orders.cancel`
+riêng) · không thêm Socket.io event mới cho việc ghi nhận cuộc gọi (thao tác nội bộ admin, không cần
+đồng bộ realtime giữa nhiều tab ngay lập tức).
+
+**Kiểm thử**: `orders.service.test.ts` (gate `ORDER_CALL_NOT_CONFIRMED` + `logCall()`) ·
+`orders.routes.test.ts` (401/403/404/200/409 qua HTTP thật) · thêm route vào `rbac.test.ts`. Đã kiểm
+chứng thật bằng Playwright: đăng nhập admin → mở đơn `pending` → nút "Chuyển sang Đã xác nhận" bị
+disable + hiện lý do → ghi nhận cuộc gọi → nút bật lại → chuyển trạng thái thành công; gọi thẳng API
+`PATCH .../status` khi chưa gọi → xác nhận `409 ORDER_CALL_NOT_CONFIRMED` thật.
 
 ### 10.4. Kiểm thử
 

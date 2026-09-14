@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useOrders, useUpdateOrderStatus } from '@/features/domain/orders/orders.hooks';
+import { useOrders, useUpdateOrderStatus, useLogCall } from '@/features/domain/orders/orders.hooks';
 import { useAdminOrdersRealtime } from '@/features/domain/orders/orders.realtime.hooks';
 import {
   ORDER_STATUS_LABELS,
@@ -51,9 +51,20 @@ function formatDateTime(iso: string): string {
 export default function AdminOrdersPage() {
   const [filter, setFilter] = useState<OrderStatus | undefined>(undefined);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Form ghi nhận cuộc gọi — chỉ 1 đơn mở form cùng lúc, giống pattern expandedId.
+  const [callFormOrderId, setCallFormOrderId] = useState<string | null>(null);
+  const [callConfirmedDraft, setCallConfirmedDraft] = useState(true);
+  const [callNoteDraft, setCallNoteDraft] = useState('');
   const { data, isLoading } = useOrders({ status: filter, limit: 50 });
   const updateStatus = useUpdateOrderStatus();
+  const logCall = useLogCall();
   useAdminOrdersRealtime(); // đơn mới/đổi trạng thái từ nơi khác (vd florist) tự cập nhật danh sách
+
+  function openCallForm(orderId: string) {
+    setCallFormOrderId(orderId);
+    setCallConfirmedDraft(true);
+    setCallNoteDraft('');
+  }
 
   const orders = data?.data ?? [];
 
@@ -127,6 +138,77 @@ export default function AdminOrdersPage() {
                       <p className="mt-1 text-xs text-ink-muted">Ghi chú: {order.note}</p>
                     )}
 
+                    {/* Xác minh qua điện thoại — admin tự gọi, hệ thống chỉ ghi nhận + chặn "Đã xác
+                        nhận" nếu chưa gọi (backend chặn thật ở orders.service.ts#updateStatus, đây chỉ
+                        là UX). Lịch sử đầy đủ nhiều lần gọi xem ở /superadmin/audit-logs. */}
+                    <div className="mt-3 rounded-2xl bg-ivory-50 p-3">
+                      {order.callConfirmedAt ? (
+                        <p className="text-xs font-medium text-green-700">
+                          ✓ Đã xác nhận qua điện thoại lúc {formatDateTime(order.callConfirmedAt)}
+                          {order.lastCallNote && ` — ${order.lastCallNote}`}
+                        </p>
+                      ) : order.lastCallAt ? (
+                        <p className="text-xs text-ink-muted">
+                          Gọi lúc {formatDateTime(order.lastCallAt)}
+                          {order.lastCallNote && `: ${order.lastCallNote}`} — chưa xác nhận được
+                        </p>
+                      ) : (
+                        <p className="text-xs text-ink-muted">Chưa gọi xác nhận đơn này.</p>
+                      )}
+
+                      {callFormOrderId === order.id ? (
+                        <div className="mt-2 flex flex-col gap-2">
+                          <label className="flex items-center gap-1.5 text-xs text-ink">
+                            <input
+                              type="checkbox"
+                              checked={callConfirmedDraft}
+                              onChange={(e) => setCallConfirmedDraft(e.target.checked)}
+                            />
+                            Đã xác nhận qua điện thoại
+                          </label>
+                          <input
+                            value={callNoteDraft}
+                            onChange={(e) => setCallNoteDraft(e.target.value)}
+                            placeholder="Ghi chú (tuỳ chọn) — vd: không bắt máy, khách đổi giờ giao..."
+                            className="rounded-xl border border-border px-3 py-1.5 text-xs outline-none focus:border-rose focus:ring-1 focus:ring-rose"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              loading={logCall.isPending}
+                              onClick={() =>
+                                logCall.mutate(
+                                  {
+                                    id: order.id,
+                                    confirmed: callConfirmedDraft,
+                                    note: callNoteDraft.trim() || undefined,
+                                  },
+                                  { onSuccess: () => setCallFormOrderId(null) },
+                                )
+                              }
+                            >
+                              Ghi nhận
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCallFormOrderId(null)}
+                            >
+                              Đóng
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openCallForm(order.id)}
+                          className="mt-1.5 text-xs font-medium text-rose hover:text-rose-dark"
+                        >
+                          Ghi nhận cuộc gọi
+                        </button>
+                      )}
+                    </div>
+
                     <div className="mt-3 flex flex-col gap-1.5">
                       {order.items.map((item) => (
                         <div key={item.id} className="flex items-center justify-between text-sm">
@@ -153,15 +235,23 @@ export default function AdminOrdersPage() {
                     </div>
 
                     {!isFinal && (
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
                         {next && (
-                          <Button
-                            size="sm"
-                            loading={updateStatus.isPending}
-                            onClick={() => updateStatus.mutate({ id: order.id, status: next })}
-                          >
-                            Chuyển sang &quot;{ORDER_STATUS_LABELS[next]}&quot;
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              loading={updateStatus.isPending}
+                              disabled={next === 'confirmed' && !order.callConfirmedAt}
+                              onClick={() => updateStatus.mutate({ id: order.id, status: next })}
+                            >
+                              Chuyển sang &quot;{ORDER_STATUS_LABELS[next]}&quot;
+                            </Button>
+                            {next === 'confirmed' && !order.callConfirmedAt && (
+                              <span className="text-xs text-ink-muted">
+                                Cần ghi nhận đã gọi xác nhận trước
+                              </span>
+                            )}
+                          </>
                         )}
                         <Button
                           variant="outline"

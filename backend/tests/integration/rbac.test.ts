@@ -52,6 +52,11 @@ const PROTECTED = [
     path: "/api/v1/admin/site-content/hotline",
     permission: "site_content.manage",
   },
+  {
+    method: "post" as const,
+    path: "/api/v1/admin/orders/44444444-4444-4444-4444-444444444444/log-call",
+    permission: "orders.update_status",
+  },
 ];
 
 beforeEach(() => resetPrismaMock());

@@ -4,6 +4,7 @@ import * as controller from "./orders.controller";
 import {
   listDeliveryQueueQuerySchema,
   listOrdersQuerySchema,
+  logCallSchema,
   orderIdParamSchema,
   updateOrderStatusSchema,
 } from "./orders.validation";
@@ -41,4 +42,12 @@ ordersAdminRouter.patch(
   "/:id/status",
   validate({ params: orderIdParamSchema, body: updateOrderStatusSchema }),
   controller.updateStatus,
+);
+// Ghi nhận 1 lần gọi điện xác minh đơn — dùng LẠI orders.update_status (không tạo permission riêng,
+// đây là 1 bước trong đúng nhóm "cập nhật tiến trình đơn"). Xem orders.service.ts#logCall.
+ordersAdminRouter.post(
+  "/:id/log-call",
+  authorize("orders.update_status"),
+  validate({ params: orderIdParamSchema, body: logCallSchema }),
+  controller.logCall,
 );
