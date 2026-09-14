@@ -1,0 +1,20 @@
+# Đổi 2 domain dưới đây thành domain THẬT của bạn trước khi chạy, và trỏ DNS (bản ghi A) của CẢ 2 domain
+# này về đúng IP VPS TRƯỚC KHI khởi động Caddy — Caddy cần domain đã trỏ đúng để xin chứng chỉ TLS tự
+# động từ Let's Encrypt (HTTP-01 challenge), không xin được thì site vẫn chạy HTTP thường, chưa có HTTPS.
+your-domain.com {
+    encode gzip zstd
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+    reverse_proxy frontend:3000
+}
+
+# Socket.io (đơn hàng realtime) chạy CHUNG cổng HTTP với REST API (backend:4000) — Caddy tự động nhận
+# diện header Connection: Upgrade và proxy WebSocket đúng, không cần cấu hình gì thêm ở đây.
+api.your-domain.com {
+    encode gzip zstd
+    header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    reverse_proxy backend:4000
+}

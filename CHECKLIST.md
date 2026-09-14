@@ -24,7 +24,7 @@
 | 4 | Infrastructure — Cloudinary, email, jobs, settings | ✅ | ██████████ 100% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██████████ 96% |
 | 6 | Quality — testing, OpenAPI, logging | 🟡 | ███████░░░ 79% |
-| 7 | Production — Docker, CI/CD, monitoring | ⬜ | ░░░░░░░░░░ 0% |
+| 7 | Production — Docker, CI/CD, monitoring | 🟡 | ███░░░░░░░ 30% |
 
 **Tổng thể: ~52%** · Số test đang chạy: **1047** (BE 900 · FE 147) + ~30 kịch bản E2E
 
@@ -144,14 +144,14 @@
 - [x] Logger `pino` (JSON có cấu trúc) *(`BE-18`)*
 - [ ] Rà soát bảo mật độc lập ⬜
 
-## Phase 7 — Production ⬜
+## Phase 7 — Production 🟡
 
-- [ ] `Dockerfile` backend (multi-stage, non-root, có `pg_dump`)
-- [ ] `Dockerfile` frontend (truyền `NEXT_PUBLIC_*` lúc build)
-- [ ] `docker-compose.yml` + reverse proxy (Caddy/Nginx) + TLS
-- [ ] Dựng container `worker` cho cron *(`OPS-01` — phần code `RUN_JOBS` đã xong 11/09/2026, chỉ còn dựng `Dockerfile`/`docker-compose.yml` thật)*
-- [ ] Secret riêng cho production (JWT, cookie, DB, Cloudinary)
-- [ ] HTTPS + HSTS + redirect HTTP→HTTPS
+- [x] **`Dockerfile` backend** (multi-stage, non-root, có `pg_dump`) *(14/09/2026 — file thật ở `backend/Dockerfile`, xem docs/10 §5.1; CHƯA build/chạy thử thật — máy dev không cài Docker, lần build đầu là lúc triển khai VPS thật)*
+- [x] **`Dockerfile` frontend** (truyền `NEXT_PUBLIC_*` lúc build) *(14/09/2026 — `frontend/Dockerfile`, xem docs/10 §5.2)*
+- [x] **`docker-compose.yml` + reverse proxy Caddy + TLS** *(14/09/2026 — gốc repo, Caddy tự xin TLS Let's Encrypt, tự proxy WebSocket cho Socket.io — xem docs/10 §5.3-§5.4)*
+- [x] **Container `worker` cho cron** *(`OPS-01`, 14/09/2026 — cùng image `backend`, `RUN_JOBS=true`, 1 replica cố định trong `docker-compose.yml`)*
+- [ ] Secret riêng cho production (JWT, cookie, DB, Cloudinary) *(hướng dẫn sinh secret có ở docs/10 §5.6 — chưa có secret THẬT nào tồn tại, chỉ làm lúc triển khai VPS thật)*
+- [ ] HTTPS + HSTS + redirect HTTP→HTTPS *(Caddy đã cấu hình sẵn, chỉ có hiệu lực khi chạy trên domain thật — xem docs/10 §5.6)*
 - [ ] Domain thật + Resend verify DKIM/SPF/DMARC
 - [ ] Uptime monitor trỏ vào `/health`
 - [ ] Log tập trung + cảnh báo bất thường

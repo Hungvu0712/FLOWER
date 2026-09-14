@@ -5,9 +5,11 @@ Từ máy dev tới production: các môi trường, cách triển khai, CI/CD, 
 Đọc kèm: [09 · Môi trường & biến cấu hình](09-moi-truong-va-bien-cau-hinh.md) ·
 [07 · Bảo mật §8](07-bao-mat.md).
 
-> **Trạng thái**: hiện dự án mới chạy ở **development**. Phần staging/production dưới đây là
-> **thiết kế đề xuất** kèm cấu hình mẫu đã kiểm chứng về mặt cú pháp, chưa triển khai thật.
-> Theo dõi tiến độ ở [`CHECKLIST.md`](../CHECKLIST.md) mục *Phase 7*.
+> **Trạng thái**: hiện dự án mới chạy ở **development**. `Dockerfile`/`docker-compose.yml`/`Caddyfile`
+> ở §5 **đã là file thật trong repo** (gốc repo + `backend/Dockerfile` + `frontend/Dockerfile`,
+> 14/09/2026) — nhưng **CHƯA build/chạy thử thật lần nào** (máy dev viết ra các file này không cài
+> Docker) — lần `docker compose up` đầu tiên sẽ là lúc triển khai thật lên VPS theo §5.6, có thể còn
+> phát sinh lỗi cần sửa tại chỗ. Theo dõi tiến độ ở [`CHECKLIST.md`](../CHECKLIST.md) mục *Phase 7*.
 
 ---
 
@@ -173,7 +175,7 @@ trường `RUN_JOBS` và việc `worker` không nhận traffic từ Caddy (chỉ
 `backend` lên bao nhiêu replica tuỳ ý (`docker compose up --scale backend=3`) mà cron vẫn chỉ chạy ở
 đúng 1 nơi — xem `OPS-01` ở [docs/12](12-danh-gia-va-de-xuat.md).
 
-### 5.1. `backend/Dockerfile` (đề xuất)
+### 5.1. `backend/Dockerfile` (file thật trong repo)
 
 ```dockerfile
 # --- Giai đoạn build ---
@@ -204,7 +206,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
 CMD ["node", "dist/server.js"]
 ```
 
-### 5.2. `frontend/Dockerfile` (đề xuất)
+### 5.2. `frontend/Dockerfile` (file thật trong repo)
 
 ```dockerfile
 FROM node:22-alpine AS builder
@@ -231,7 +233,7 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-### 5.3. `docker-compose.yml` (đề xuất, đặt ở thư mục gốc)
+### 5.3. `docker-compose.yml` (file thật, gốc repo)
 
 ```yaml
 services:
@@ -302,7 +304,7 @@ volumes:
   caddy_data:
 ```
 
-### 5.4. `Caddyfile` (đề xuất)
+### 5.4. `Caddyfile` (file thật, gốc repo — SỬA domain trước khi dùng)
 
 Caddy tự xin và gia hạn chứng chỉ TLS từ Let's Encrypt — không phải cấu hình certbot thủ công.
 
@@ -343,6 +345,68 @@ Seed **chỉ chạy một lần** khi khởi tạo hệ thống:
 docker compose exec backend npx tsx prisma/seed/core.seed.ts
 docker compose exec backend npx tsx prisma/seed/domain.seed.ts
 ```
+
+> **Bug thật đã sửa lúc viết file Docker thật (14/09/2026)**: `prisma` (CLI) và `tsx` vốn nằm ở
+> `devDependencies` — image production build bằng `npm ci --omit=dev` (§5.1) nên KHÔNG có 2 gói này,
+> khiến cả lệnh `migrate deploy` lúc container khởi động (§5.3) lẫn 2 lệnh seed ở trên đều lỗi
+> "command not found" trên VPS thật. Đã chuyển `prisma`/`tsx` sang `dependencies` thật trong
+> `backend/package.json` — không dùng `npx <gói-chưa-cài>` (sẽ tự tải bản MỚI NHẤT từ registry lúc
+> chạy, không khớp version đã pin, và cần mạng ổn định lúc container khởi động).
+
+### 5.6. Lần đầu triển khai lên VPS Ubuntu 22.04
+
+Thứ tự làm — mỗi bước xong mới sang bước sau, đừng nhảy cóc:
+
+1. **Trỏ DNS trước** (cần thời gian lan truyền, làm sớm nhất): tạo 2 bản ghi `A` tại nhà cung cấp
+   domain — `your-domain.com` và `api.your-domain.com` — cùng trỏ về **IP public của VPS**. Đợi tới
+   khi `dig your-domain.com` (hoặc `nslookup`) trả đúng IP mới sang bước 4 (Caddy cần domain đã trỏ
+   đúng để xin chứng chỉ TLS tự động).
+
+2. **SSH vào VPS**, cài Docker Engine + Compose plugin theo đúng hướng dẫn chính thức Docker cho
+   Ubuntu (https://docs.docker.com/engine/install/ubuntu/ — không dùng bản `docker.io` trong kho Ubuntu
+   mặc định, thường cũ và thiếu Compose plugin):
+   ```bash
+   curl -fsSL https://get.docker.com | sudo sh
+   sudo usermod -aG docker $USER   # đăng xuất/đăng nhập lại SSH để có hiệu lực
+   sudo apt install -y git
+   ```
+
+3. **Clone repo** vào VPS:
+   ```bash
+   git clone https://github.com/<tài-khoản>/<repo>.git flower && cd flower
+   ```
+
+4. **Sửa `Caddyfile`** (gốc repo) — đổi `your-domain.com`/`api.your-domain.com` thành domain THẬT.
+
+5. **Tạo 2 file `.env`** (KHÔNG commit, chỉ tồn tại trên VPS):
+   ```bash
+   cp .env.example .env                     # biến compose-level
+   cp backend/.env.example backend/.env      # biến runtime backend/worker
+   ```
+   Sửa cả 2 file bằng giá trị THẬT:
+   - `.env` (gốc): `POSTGRES_USER`/`POSTGRES_PASSWORD` (chuỗi mạnh, tự đặt) · `NEXT_PUBLIC_API_URL=https://api.your-domain.com`.
+   - `backend/.env`: `DATABASE_URL=postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>`
+     (host là **`postgres`** — tên service trong `docker-compose.yml`, không phải `localhost`) ·
+     `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`/`COOKIE_SECRET` sinh mới, KHÁC NHAU, đủ dài
+     (`openssl rand -base64 48`) · `NODE_ENV=production` · `FRONTEND_URL=https://your-domain.com` ·
+     `SUPER_ADMIN_EMAIL`/`SUPER_ADMIN_PASSWORD` đặt giá trị thật trước khi seed · thông tin Cloudinary/
+     Resend thật — xem đầy đủ từng biến + cách lấy ở `backend/.env.example`.
+
+6. **Build + chạy**:
+   ```bash
+   docker compose build
+   docker compose up -d
+   docker compose logs -f backend    # Ctrl+C khi thấy server đã listen + migrate deploy chạy xong
+   ```
+
+7. **Seed lần đầu** (đúng 2 lệnh ở §5.5 ngay phía trên).
+
+8. **Kiểm tra**: mở `https://your-domain.com` — xác nhận có khoá HTTPS (Caddy tự xin chứng chỉ, có thể
+   mất 10–30 giây lần đầu). Đăng nhập bằng `SUPER_ADMIN_EMAIL`/`SUPER_ADMIN_PASSWORD` vừa seed, **đổi
+   mật khẩu ngay** (mục checklist §3 đã nhắc).
+
+Các bước còn lại của checklist §3 (HTTPS/HSTS đã có sẵn qua Caddy, còn thiếu: uptime monitor cho
+`/health`, thử khôi phục backup) làm sau khi site đã chạy ổn định — xem CHECKLIST.md Phase 7.
 
 ---
 
