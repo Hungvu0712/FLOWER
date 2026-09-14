@@ -457,6 +457,62 @@ Các bước còn lại của checklist §3 (HTTPS/HSTS đã có sẵn qua Caddy
 
 ---
 
+### 5.7. Log tập trung — Grafana Cloud (Loki) — file thật, 14/09/2026
+
+`docker-compose.yml` gắn `logging: driver: loki` cho `backend`/`worker`/`caddy` (docs/12 BE-23) —
+đẩy log JSON có cấu trúc ra Grafana Cloud để tra cứu qua nhiều lần restart container và cảnh báo được
+khi có bất thường (nhiều lỗi 401/403, đăng nhập sai liên tiếp...), thay vì chỉ nằm trong
+`docker compose logs` (mất khi container restart, không lọc/tra cứu được).
+
+> ⚠️ **Thứ tự BẮT BUỘC** — làm sai thứ tự khiến `backend`/`worker`/`caddy` KHÔNG khởi động được
+> (Docker báo lỗi "unknown logging driver"), gây gián đoạn dịch vụ đang chạy thật. Luôn cài driver
+> **TRƯỚC**, `docker compose up` **SAU**.
+
+**Bước 1 — Đăng ký Grafana Cloud** (free — 50GB log/tháng, giữ 14 ngày, đủ cho quy mô dự án này):
+
+1. https://grafana.com → đăng ký.
+2. Vào **My Account** → **Stacks** → chọn stack mặc định đã tạo sẵn (hoặc tạo mới).
+3. Bấm vào ô **Loki** → **Send Logs** → trang hiện **URL** (dạng
+   `https://logs-prod-XXX.grafana.net/loki/api/v1/push`) và mục tạo **API key**.
+4. Bấm **Generate now** để tạo API key → copy lại (chỉ hiện 1 lần).
+5. Ghép thành 1 chuỗi URL có xác thực theo đúng định dạng driver Loki yêu cầu:
+   `https://<User, là 1 dãy số>:<API key>@<phần host, bỏ https://>/loki/api/v1/push`
+
+**Bước 2 — Cài driver Loki cho Docker trên VPS** (chạy 1 lần):
+
+```bash
+docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions
+docker plugin ls   # xác nhận "loki" hiện ENABLED true
+```
+
+**Bước 3 — Cập nhật `.env` gốc + deploy**:
+
+```bash
+cd /root/flower   # hoặc đúng thư mục dự án trên VPS
+# Sửa .env (KHÔNG phải backend/.env) — thêm/sửa dòng GRAFANA_LOKI_URL bằng chuỗi ở Bước 1.5
+nano .env
+git pull
+docker compose up -d
+docker compose logs backend --tail=20   # xác nhận backend khởi động bình thường, không lỗi driver
+```
+
+**Bước 4 — Xác nhận log THẬT lên tới Grafana Cloud**: gọi thử 1 request lỗi (vd request không có
+cookie tới route cần đăng nhập) → vào Grafana Cloud → **Explore** → chọn nguồn dữ liệu Loki → query
+`{service="backend"}` → xác nhận dòng log `"Request lỗi nghiệp vụ"` xuất hiện kèm field
+`detail.statusCode`/`detail.code` (field lồng trong `detail` — xem `backend/src/shared/logger/logger.ts`).
+
+**Bước 5 — Tạo Alert rule mẫu** (Grafana Cloud → **Alerting** → **Alert rules** → **New alert rule**),
+dùng LogQL:
+
+```
+sum(rate({service="backend"} | json | detail_code=~"UNAUTHENTICATED|INVALID_TOKEN|INVALID_CREDENTIALS" [5m]))
+```
+
+Đặt ngưỡng (vd `> 10` trong 5 phút), gắn kênh thông báo Email. Nên **hạ ngưỡng tạm thời** (vd `> 0`)
+để test bắn cảnh báo thật 1 lần, xác nhận nhận được email, rồi khôi phục ngưỡng thật.
+
+---
+
 ## 6. CI/CD — GitHub Actions (file thật, 14/09/2026)
 
 `.github/workflows/ci.yml` — 4 job, chạy trên mọi PR + push vào `main` (riêng `e2e` chỉ chạy khi vào

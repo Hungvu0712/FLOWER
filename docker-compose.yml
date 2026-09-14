@@ -1,6 +1,7 @@
 # Xem docs/10-trien-khai-van-hanh.md §5 cho giải thích đầy đủ từng service. Cần 2 file .env riêng
 # trước khi chạy `docker compose up`:
-#   - ./.env            — biến compose-level (POSTGRES_*, NEXT_PUBLIC_*), copy từ .env.example
+#   - ./.env            — biến compose-level (POSTGRES_*, NEXT_PUBLIC_*, GRAFANA_LOKI_URL), copy từ
+#                          .env.example. GRAFANA_LOKI_URL cần cài driver Loki TRƯỚC — xem §5.7.
 #   - ./backend/.env     — biến runtime CHO container backend/worker, copy từ backend/.env.example
 services:
   postgres:
@@ -29,6 +30,21 @@ services:
     command: sh -c "npx prisma migrate deploy && node dist/server.js"
     expose: ['4000']
     # Scale khi cần: docker compose up --scale backend=3 — an toàn vì cron chỉ chạy ở service `worker`.
+    # docs/12 BE-23 — đẩy log ra Grafana Cloud (Loki) để tra cứu/cảnh báo được, không chỉ nằm trong
+    # container (`docker compose logs`, mất khi restart). ⚠️ BẮT BUỘC cài driver Loki cho Docker TRƯỚC
+    # khi chạy `docker compose up` với cấu hình này — thiếu driver thì `backend`/`worker`/`caddy`
+    # KHÔNG khởi động được (Docker báo lỗi "unknown logging driver"), có thể gây gián đoạn dịch vụ
+    # đang chạy. Cài 1 lần trên VPS:
+    #   docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions
+    # Xem quy trình đầy đủ + thứ tự đúng ở docs/10 §5.7 — KHÔNG tự ý `docker compose up` sau khi pull
+    # thay đổi này mà chưa cài driver.
+    logging:
+      driver: loki
+      options:
+        loki-url: '${GRAFANA_LOKI_URL}'
+        loki-external-labels: 'service=backend'
+        loki-retries: '3'
+        loki-batch-size: '400'
 
   # docs/12 OPS-01 — CÙNG image với `backend`, tách riêng CHỈ để chạy cron (dọn token hết hạn, backup
   # DB, dọn file mồ côi, nhắc lịch sinh nhật/kỷ niệm). KHÔNG expose port, KHÔNG nhận traffic, và LUÔN
@@ -45,6 +61,14 @@ services:
     command: node dist/server.js
     deploy:
       replicas: 1
+    # docs/12 BE-23 — cùng lý do/yêu cầu với service `backend` phía trên, xem chú thích ở đó.
+    logging:
+      driver: loki
+      options:
+        loki-url: '${GRAFANA_LOKI_URL}'
+        loki-external-labels: 'service=worker'
+        loki-retries: '3'
+        loki-batch-size: '400'
 
   frontend:
     build:
@@ -64,6 +88,15 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
     depends_on: [frontend, backend]
+    # docs/12 BE-23 — cùng lý do/yêu cầu với service `backend` (xem chú thích ở đó); log Caddy hữu ích
+    # để đối chiếu request ở tầng reverse proxy (trước khi vào app) với log nghiệp vụ ở backend.
+    logging:
+      driver: loki
+      options:
+        loki-url: '${GRAFANA_LOKI_URL}'
+        loki-external-labels: 'service=caddy'
+        loki-retries: '3'
+        loki-batch-size: '400'
 
 volumes:
   pgdata:

@@ -19,12 +19,30 @@ const KNOWN_PRISMA_ERRORS: Record<string, [number, string, string]> = {
 export function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction): void {
   const log = logger.withRequestId(req.requestId);
 
+  // docs/12 BE-23: trước đây nhánh này (bao trùm MỌI lỗi nghiệp vụ đã lường trước — 401/403/404/
+  // 409/422, kể cả sai mật khẩu/chưa đăng nhập/không đủ quyền) không log gì cả, chỉ nhánh "lỗi lạ"
+  // bên dưới mới log. Không có log 401/403 thì log tổng hợp (Loki/Grafana) không có gì để cảnh báo
+  // "nhiều lỗi 401/403 bất thường" — đây là điều kiện tiên quyết trước khi gắn cảnh báo thật. Mức
+  // `warn` (không phải `error`) vì đây là lỗi ĐÃ LƯỜNG TRƯỚC, không phải bug. Chỉ log statusCode/code/
+  // path/method — KHÔNG log req.body/req.headers/cookie, đúng nguyên tắc ở nhánh lỗi lạ bên dưới.
   if (err instanceof ValidationError) {
+    log.warn("Request lỗi validate", {
+      statusCode: err.statusCode,
+      code: err.code,
+      path: req.path,
+      method: req.method,
+    });
     res.status(err.statusCode).json({ success: false, message: err.message, errors: err.errors });
     return;
   }
 
   if (err instanceof AppError) {
+    log.warn("Request lỗi nghiệp vụ", {
+      statusCode: err.statusCode,
+      code: err.code,
+      path: req.path,
+      method: req.method,
+    });
     res.status(err.statusCode).json({ success: false, message: err.message, code: err.code });
     return;
   }

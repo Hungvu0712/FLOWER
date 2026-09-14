@@ -33,11 +33,12 @@ flowchart TB
         D18["Backup DB nén + mã hoá RSA/AES-256-GCM<br/>khoá riêng không ở server (11/09/2026)"]
         D19["Rate limit theo IP+email · khoá tạm sau 5<br/>lần sai, cooldown tăng dần (11/09/2026)"]
         D20["Rà soát bảo mật độc lập lần đầu<br/>đối chiếu code thật, npm audit fix (14/09/2026)"]
+        D21["HTTPS + HSTS + redirect HTTP→HTTPS<br/>Caddy tự xin TLS, xác nhận thật qua curl (14/09/2026)"]
+        D22["Log tập trung + cảnh báo bất thường<br/>Grafana Cloud (Loki), log 401/403 có cấu trúc (14/09/2026)"]
     end
 
     subgraph PARTIAL["🟡 Một phần"]
         P1["Backup DB chung tài khoản Cloudinary<br/>với ảnh công khai — chưa tách bucket riêng"]
-        P2["Logging<br/>chưa tập trung, chưa cảnh báo"]
         P3["Dependency scanning<br/>đã audit tay 1 lần, CHƯA tự động trong CI"]
     end
 
@@ -46,7 +47,6 @@ flowchart TB
         T2["Captcha sau vài lần thất bại"]
         T3["CSRF token"]
         T5["Xác thực email<br/>trước khi đặt hàng"]
-        T7["HSTS · redirect HTTPS"]
     end
 
     style DONE fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
@@ -188,7 +188,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - **Dependency scanning**: chạy `npm audit` / Dependabot / Snyk định kỳ để phát hiện thư viện có lỗ hổng đã biết.
 - **Docker**: build image tối giản (alpine), chạy container với user non-root, không để `node_modules` chứa devDependencies ở production image.
 - **CI/CD**: chặn merge nếu có secret bị commit nhầm (dùng `gitleaks`/`trufflehog` trong pipeline).
-- **Giám sát & cảnh báo**: log tập trung (vd. cấu hình đơn giản với Winston + một dịch vụ log), cảnh báo khi có nhiều lỗi 401/403 bất thường, nhiều đăng nhập thất bại liên tiếp, hoặc lượng đơn hàng tăng đột biến bất thường (dấu hiệu bot).
+- **Giám sát & cảnh báo**: ✅ log tập trung *(14/09/2026 — `docs/12 BE-23`: `docker-compose.yml` đẩy log JSON có cấu trúc (pino) ra Grafana Cloud qua Docker Loki driver; `errorHandler.ts` giờ log CẢ lỗi nghiệp vụ 401/403/404/409/422 (`warn`, trước đây chỉ log lỗi 500), tạo dữ liệu thật để cảnh báo. Alert rule mẫu theo LogQL cho spike 401/403/đăng nhập sai — xem docs/10 §5.7)*. **Chưa làm**: cảnh báo riêng cho lượng đơn hàng tăng đột biến bất thường (dấu hiệu bot) — có thể thêm sau bằng cùng cơ chế (log 1 dòng mỗi đơn tạo mới, alert rule theo rate).
 
 ---
 
@@ -211,7 +211,7 @@ Hệ thống hỗ trợ 3 phương thức đăng nhập (email/password, Google 
 - [ ] Verify chữ ký webhook thanh toán
 - [ ] Idempotency xử lý webhook
 - [ ] Rate limit đăng nhập + captcha checkout
-- [ ] HTTPS + HSTS ở production
+- [x] HTTPS + HSTS ở production *(14/09/2026 — xác nhận thật qua `curl`, xem CHECKLIST.md/docs/12 BE-22)*
 - [x] API đăng xuất từ xa (`DELETE /api/v1/account/sessions/:id`) hoạt động đúng — không cho revoke session của user khác
 - [x] Validate luôn còn ≥ 1 `login_method` được bật khi SuperAdmin cập nhật cấu hình
 

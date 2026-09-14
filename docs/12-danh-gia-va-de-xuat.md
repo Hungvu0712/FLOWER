@@ -798,6 +798,34 @@ thiếu): 2FA, CSRF token, HSTS/redirect HTTPS, rate limit `/api/v1/products`+`/
 
 ---
 
+### BE-23 · `errorHandler` không log lỗi 401/403/404/409/422 — ✅ ĐÃ XỬ LÝ (14/09/2026)
+
+Phát hiện lúc khảo sát để làm mục "Log tập trung + cảnh báo bất thường" (`CHECKLIST.md` Phase 7,
+docs/07 §8): nhánh xử lý `ValidationError`/`AppError` trong `errorHandler.ts` (bao trùm MỌI lỗi
+nghiệp vụ đã lường trước — sai mật khẩu, chưa đăng nhập, không đủ quyền, không tìm thấy, trùng dữ
+liệu...) **hoàn toàn không gọi `logger`**, chỉ trả response. Chỉ nhánh "lỗi lạ" (500, bug thật) mới
+log. Hậu quả: dù gắn log tổng hợp (Loki/Grafana) ngay, cũng không có dữ liệu 401/403 nào để cảnh báo
+"nhiều lỗi bất thường" — phải sửa code trước khi phần hạ tầng có ý nghĩa.
+
+**Đã sửa**: thêm `log.warn(...)` (mức `warn`, không phải `error` — đây là lỗi ĐÃ LƯỜNG TRƯỚC, không
+phải bug) ở cả 2 nhánh, log CÓ CẤU TRÚC `{ statusCode, code, path, method }` — **không** log
+`req.body`/`req.headers`/cookie, đúng nguyên tắc đã có sẵn ở nhánh lỗi lạ trong cùng file. Không đổi
+status code/message/response trả về của bất kỳ lỗi nào — thuần additive.
+
+**Test**: `backend/tests/unit/shared/middleware.test.ts` (đã có sẵn `describe("errorHandler", ...)`
+từ trước — thêm 2 test vào đây thay vì tạo file mới) — xác nhận `AppError`/`ValidationError` đều log
+warn đúng field, và log KHÔNG chứa `req.body` (test cố tình gửi field nhạy cảm trong body, assert
+`JSON.stringify` của lời gọi log không chứa giá trị đó).
+
+**Đã kiểm chứng thật cục bộ**: chạy `npm run dev`, gọi `GET /api/v1/account/me` không kèm cookie →
+log thật xuất hiện `WARN: Request lỗi nghiệp vụ` kèm `detail: { statusCode: 401, code:
+"UNAUTHENTICATED", path: "/api/v1/account/me", method: "GET" }` — không lộ gì nhạy cảm.
+
+Là bước tiên quyết cho phần hạ tầng (đẩy log ra Grafana Cloud qua Docker Loki driver + alert rule) —
+xem `docs/10-trien-khai-van-hanh.md` §5.7.
+
+---
+
 ## 4. 🟢 Ưu tiên thấp
 
 | Mã | Vấn đề | Đề xuất | Ước lượng | Trạng thái |

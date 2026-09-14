@@ -23,13 +23,29 @@ function spyOnLoggerError() {
   return errorSpy;
 }
 
-function mockReqRes() {
+// docs/12 BE-23: errorHandler giờ cũng log (mức warn) cho lỗi nghiệp vụ đã lường trước
+// (ValidationError/AppError — 401/403/404/409/422) — trước đây nhánh này không log gì, khiến log tổng
+// hợp (Loki/Grafana) không có dữ liệu để cảnh báo "nhiều lỗi 401/403 bất thường".
+function spyOnLoggerWarn() {
+  const warnSpy = vi.fn();
+  vi.spyOn(logger, "withRequestId").mockReturnValue({
+    error: vi.fn(),
+    warn: warnSpy,
+    info: vi.fn(),
+    debug: vi.fn(),
+  });
+  return warnSpy;
+}
+
+function mockReqRes(overrides: { path?: string; method?: string; body?: unknown } = {}) {
   const req = {
     headers: {},
-    body: {},
+    body: overrides.body ?? {},
     query: {},
     params: {},
     requestId: "req-1",
+    path: overrides.path ?? "/",
+    method: overrides.method ?? "GET",
   } as unknown as Request;
   const res = {
     setHeader: vi.fn(),
@@ -209,6 +225,35 @@ describe("errorHandler", () => {
       success: false,
       message: "Không có quyền",
       code: "FORBIDDEN",
+    });
+  });
+
+  it("AppError → log warn CÓ CẤU TRÚC statusCode/code/path/method, KHÔNG log req.body (docs/12 BE-23)", () => {
+    const { req, res, next } = mockReqRes({
+      path: "/api/v1/superadmin/users",
+      method: "PATCH",
+      body: { password: "mat-khau-that-nhay-cam" },
+    });
+    const warnSpy = spyOnLoggerWarn();
+    errorHandler(new AppError("Không có quyền", 403, "FORBIDDEN"), req, res, next);
+    expect(warnSpy).toHaveBeenCalledWith("Request lỗi nghiệp vụ", {
+      statusCode: 403,
+      code: "FORBIDDEN",
+      path: "/api/v1/superadmin/users",
+      method: "PATCH",
+    });
+    expect(JSON.stringify(warnSpy.mock.calls[0])).not.toContain("mat-khau-that-nhay-cam");
+  });
+
+  it("ValidationError → cũng log warn có cấu trúc, không phải chỉ AppError", () => {
+    const { req, res, next } = mockReqRes({ path: "/api/v1/auth/register", method: "POST" });
+    const warnSpy = spyOnLoggerWarn();
+    errorHandler(new ValidationError({ email: "Email không hợp lệ" }), req, res, next);
+    expect(warnSpy).toHaveBeenCalledWith("Request lỗi validate", {
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      path: "/api/v1/auth/register",
+      method: "POST",
     });
   });
 
