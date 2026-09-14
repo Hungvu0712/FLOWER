@@ -23,7 +23,7 @@
 | 3 | RBAC — users, roles, permissions, audit log | ✅ | ██████████ 100% |
 | 4 | Infrastructure — Cloudinary, email, jobs, settings | ✅ | ██████████ 100% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██████████ 96% |
-| 6 | Quality — testing, OpenAPI, logging | 🟡 | ███████░░░ 79% |
+| 6 | Quality — testing, OpenAPI, logging | 🟡 | ████████░░ 86% |
 | 7 | Production — Docker, CI/CD, monitoring | 🟡 | █████░░░░░ 55% |
 
 **Tổng thể: ~52%** · Số test đang chạy: **1047** (BE 900 · FE 147) + ~30 kịch bản E2E
@@ -137,7 +137,7 @@
 - [x] Tài liệu kỹ thuật đầy đủ — 14 doc chính + 17 module doc, 54 sơ đồ Mermaid
 - [x] Script kiểm tra cú pháp Mermaid (`scripts/check-mermaid.mjs`)
 - [x] Tài liệu khách hàng (GitBook) — 7 trang + cấu hình sync
-- [ ] **CI/CD GitHub Actions** ⬜ *(2 ngày — ưu tiên cao, mẫu ở docs/10 §6)*
+- [x] **CI/CD GitHub Actions** *(14/09/2026 — `.github/workflows/ci.yml` thật, 4 job: `backend`/`frontend`/`docs` chạy mỗi PR + push `main`, `e2e` (Postgres thật + Playwright) chỉ chạy khi vào `main`. Xác nhận CHẠY XANH THẬT trên GitHub Actions (không phải suy đoán) sau khi sửa 6 bug thật do chính CI phát hiện: (1) 4 file backend chưa format Prettier; (2) `next typegen` phải chạy trước `tsc --noEmit` (kiểu `LayoutProps` Next.js tự sinh, máy dev có sẵn từ trước nên không lộ); (3) selector E2E `/đăng nhập/i` khớp nhầm nút magic-link; (4) `authLimiter` (20 req/15p/IP) làm cả suite fail dây chuyền — thêm cờ `DISABLE_RATE_LIMIT` chỉ bật ở CI (`BE-21`); (5) 2 bug UI thật: trang Hồ sơ gửi `phone: ''` thay vì `null` khiến lưu luôn lỗi 422 với user chưa có SĐT, và toàn bộ trang quản lý Danh mục thiếu `htmlFor`/`id` nên label không gắn được với input (ảnh hưởng cả screen reader thật); (6) form Đăng ký thiếu `noValidate` nên validate nguyên sinh của trình duyệt chặn mất thông báo lỗi zod. Branch protection CHƯA bật — cần tự bật thủ công trên GitHub nếu muốn chặn merge khi CI đỏ)*
 - [x] **OpenAPI/Swagger sinh từ zod schema** *(`BE-12`, 11/09/2026 — `GET /docs` (Swagger UI) + `GET /openapi.json`, request sinh trực tiếp từ `*.validation.ts` (không thể lệch), 61/61 endpoint)*
 - [x] Test cho `jobs/` *(cleanupOrphanFiles, cleanupExpiredTokens, backupDatabase/cleanupOldBackups, backupEncryption)*
 - [ ] Integration test với PostgreSQL thật (Testcontainers) ⬜
@@ -248,7 +248,7 @@ Chi tiết: [docs/07 · Bảo mật](docs/07-bao-mat.md).
 | Việc | Ước lượng | Trạng thái |
 |---|---|:---:|
 | Sửa 6 điểm 🔴 nợ kỹ thuật (`BE-01` → `BE-06`) | 1.5 ngày | ✅ *(10/09/2026 — xem `docs/12-danh-gia-va-de-xuat.md` §2)* |
-| Thiết lập CI/CD GitHub Actions | 2 ngày | ⬜ |
+| Thiết lập CI/CD GitHub Actions | 2 ngày | ✅ *(14/09/2026 — chi tiết ở Phase 6)* |
 | **Module Products** (CRUD + nhiều ảnh, không tồn kho) | 6 ngày | ✅ *(10/09/2026 — bao gồm `product_variants` (size/giá riêng), xem Phase 5)* |
 | **Cart + Orders (giai đoạn cơ bản)** — làm sớm hơn kế hoạch, ngoài phạm vi kỳ này ban đầu | — | ✅ *(10/09/2026 — guest checkout, COD, chưa thanh toán online, xem `docs/modules/domain-orders.md`)* |
 | Màn hình tra cứu Audit Log | 1 ngày | ✅ *(11/09/2026 — `/superadmin/audit-logs`)* |
