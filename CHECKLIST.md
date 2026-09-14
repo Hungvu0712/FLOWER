@@ -235,7 +235,7 @@ Chi tiết: [docs/07 · Bảo mật](docs/07-bao-mat.md).
 - [x] Khoá tạm tài khoản sau 5 lần đăng nhập sai, cooldown tăng dần `BE-17`
 - [ ] 2FA (TOTP) cho `super_admin` / `admin` ⬜
 - [ ] Captcha sau vài lần đăng nhập sai ⬜
-- [ ] HTTPS + HSTS ở production ⬜
+- [x] **HTTPS + HSTS ở production** *(14/09/2026 — dòng này trước đó ghi nhầm ⬜, đã lệch với Phase 7 (ghi đã xong); xác minh THẬT bằng `curl` vào `thuymaiflower.click`/`api.thuymaiflower.click`: HTTP redirect 308 sang HTTPS + header `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` có mặt ở cả 2 domain. Phát hiện phụ (không phải lỗ hổng): `api.thuymaiflower.click` trả **2 header HSTS trùng lặp** — 1 từ Caddy, 1 từ `helmet()` ở backend (helmet mặc định tự thêm HSTS) — dư thừa vô hại, chưa dọn)*
 - [x] **Xác minh đơn qua cuộc gọi điện thoại (admin ghi nhận)** *(14/09/2026 — thay cho OTP SMS tự động (cần dịch vụ SMS gateway trả phí bên ngoài); admin gọi thật, hệ thống ghi nhận + CHẶN backend: chuyển đơn sang "Đã xác nhận" đòi `Order.callConfirmedAt` có giá trị (409 `ORDER_CALL_NOT_CONFIRMED` nếu chưa), dùng LẠI permission `orders.update_status`; lịch sử nhiều lần gọi qua AuditLog chung, không bảng riêng — xem [docs/modules/domain-orders.md §11](docs/modules/domain-orders.md))*
 - [ ] Xác thực email trước khi thanh toán ONLINE ⬜ *(chưa cần — hiện chỉ COD, xem docs/07 §1)*
 - [ ] Dependency scanning + gitleaks trong CI ⬜
