@@ -24,7 +24,7 @@
 | 4 | Infrastructure — Cloudinary, email, jobs, settings | ✅ | ██████████ 100% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██████████ 96% |
 | 6 | Quality — testing, OpenAPI, logging | 🟡 | ███████░░░ 79% |
-| 7 | Production — Docker, CI/CD, monitoring | 🟡 | ███░░░░░░░ 30% |
+| 7 | Production — Docker, CI/CD, monitoring | 🟡 | █████░░░░░ 55% |
 
 **Tổng thể: ~52%** · Số test đang chạy: **1047** (BE 900 · FE 147) + ~30 kịch bản E2E
 
@@ -146,13 +146,14 @@
 
 ## Phase 7 — Production 🟡
 
-- [x] **`Dockerfile` backend** (multi-stage, non-root, có `pg_dump`) *(14/09/2026 — file thật ở `backend/Dockerfile`, xem docs/10 §5.1; CHƯA build/chạy thử thật — máy dev không cài Docker, lần build đầu là lúc triển khai VPS thật)*
+- [x] **`Dockerfile` backend** (multi-stage, non-root, có `pg_dump`) *(14/09/2026 — `backend/Dockerfile`, xem docs/10 §5.1 — ĐÃ build/chạy thật, xem mục "Triển khai VPS lần đầu" bên dưới)*
 - [x] **`Dockerfile` frontend** (truyền `NEXT_PUBLIC_*` lúc build) *(14/09/2026 — `frontend/Dockerfile`, xem docs/10 §5.2)*
 - [x] **`docker-compose.yml` + reverse proxy Caddy + TLS** *(14/09/2026 — gốc repo, Caddy tự xin TLS Let's Encrypt, tự proxy WebSocket cho Socket.io — xem docs/10 §5.3-§5.4)*
 - [x] **Container `worker` cho cron** *(`OPS-01`, 14/09/2026 — cùng image `backend`, `RUN_JOBS=true`, 1 replica cố định trong `docker-compose.yml`)*
-- [ ] Secret riêng cho production (JWT, cookie, DB, Cloudinary) *(hướng dẫn sinh secret có ở docs/10 §5.6 — chưa có secret THẬT nào tồn tại, chỉ làm lúc triển khai VPS thật)*
-- [ ] HTTPS + HSTS + redirect HTTP→HTTPS *(Caddy đã cấu hình sẵn, chỉ có hiệu lực khi chạy trên domain thật — xem docs/10 §5.6)*
-- [ ] Domain thật + Resend verify DKIM/SPF/DMARC
+- [x] **Secret riêng cho production** (JWT, cookie, DB) *(14/09/2026 — sinh thật bằng `openssl rand`, khác hoàn toàn giá trị mẫu; Cloudinary/SMTP dùng lại tài khoản đã có sẵn từ trước)*
+- [x] **HTTPS + HSTS + redirect HTTP→HTTPS** *(14/09/2026 — Caddy tự xin chứng chỉ Let's Encrypt cho `thuymaiflower.click`/`api.thuymaiflower.click`, xác nhận thật qua trình duyệt)*
+- [x] **Triển khai VPS lần đầu — `thuymaiflower.click`** *(14/09/2026 — Ubuntu 22.04, xem docs/10 §5.6. Phát hiện + sửa 4 bug thật chỉ lộ ra lúc chạy thật (không phát hiện được lúc chỉ đọc/viết code): (1) quên seed dữ liệu ban đầu; (2) `prisma`/`tsx` nằm nhầm `devDependencies` khiến lệnh `migrate deploy`/seed lỗi "command not found" trong image production (`npm ci --omit=dev`); (3) Alpine thiếu gói `openssl` khiến Prisma nhận diện sai libssl, cố tải lại engine lúc container chạy bằng user non-root → crash-loop; (4) cookie đăng nhập thiếu `COOKIE_DOMAIN` nên Next.js middleware (chạy ở subdomain frontend) không đọc được cookie do backend set ở subdomain khác, đăng nhập xong vẫn bị đá về `/login`; (5) Dockerfile frontend quên copy `next.config.ts` vào giai đoạn chạy, khiến `/_next/image` chặn hết ảnh Cloudinary. Xem chi tiết từng bug ở docs/10 §5.5-§5.6)*
+- [ ] Resend verify DKIM/SPF/DMARC *(hiện tạm dùng Gmail SMTP cá nhân — hoạt động được nhưng giới hạn ~500 email/ngày, dễ vào spam hơn; nên chuyển Resend + verify domain riêng sau)*
 - [ ] Uptime monitor trỏ vào `/health`
 - [ ] Log tập trung + cảnh báo bất thường
 - [ ] Sentry (FE + BE)

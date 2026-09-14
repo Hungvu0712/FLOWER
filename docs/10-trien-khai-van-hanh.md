@@ -5,11 +5,12 @@ Từ máy dev tới production: các môi trường, cách triển khai, CI/CD, 
 Đọc kèm: [09 · Môi trường & biến cấu hình](09-moi-truong-va-bien-cau-hinh.md) ·
 [07 · Bảo mật §8](07-bao-mat.md).
 
-> **Trạng thái**: hiện dự án mới chạy ở **development**. `Dockerfile`/`docker-compose.yml`/`Caddyfile`
-> ở §5 **đã là file thật trong repo** (gốc repo + `backend/Dockerfile` + `frontend/Dockerfile`,
-> 14/09/2026) — nhưng **CHƯA build/chạy thử thật lần nào** (máy dev viết ra các file này không cài
-> Docker) — lần `docker compose up` đầu tiên sẽ là lúc triển khai thật lên VPS theo §5.6, có thể còn
-> phát sinh lỗi cần sửa tại chỗ. Theo dõi tiến độ ở [`CHECKLIST.md`](../CHECKLIST.md) mục *Phase 7*.
+> **Trạng thái**: **ĐÃ triển khai thật** lên VPS Ubuntu 22.04 + domain `thuymaiflower.click` (14/09/2026,
+> theo đúng §5.6) — Docker/Caddy/HTTPS chạy ổn định, đăng nhập + upload ảnh Cloudinary đã xác nhận hoạt
+> động đúng qua trình duyệt thật. Lúc triển khai lần đầu này phát sinh **4 bug thật** (đều đã sửa, xem
+> ghi chú "Bug thật" rải trong §5.5-§5.6) — không phát hiện được lúc chỉ viết/đọc code vì đều là hành vi
+> chỉ lộ ra khi chạy thật (2 subdomain khác nhau, Alpine thiếu gói hệ thống, `next start` đọc config lúc
+> runtime...). Theo dõi tiến độ ở [`CHECKLIST.md`](../CHECKLIST.md) mục *Phase 7*.
 
 ---
 
