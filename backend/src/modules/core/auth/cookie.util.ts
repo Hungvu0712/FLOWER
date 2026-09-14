@@ -5,6 +5,9 @@ const baseCookieOptions: CookieOptions = {
   httpOnly: true,
   secure: env.isProd, // bắt buộc HTTPS ở production
   sameSite: "lax",
+  // Xem giải thích đầy đủ ở config/env.ts#COOKIE_DOMAIN — không set (undefined) khi FE/BE cùng host
+  // (dev) hoặc chưa cấu hình, giữ đúng hành vi cũ (domain mặc định = host đã set cookie).
+  ...(env.cookieDomain && { domain: env.cookieDomain }),
 };
 
 const DURATION_UNIT_MS: Record<string, number> = {

@@ -60,6 +60,7 @@ thường. Ở `NODE_ENV=production` có thêm 2 kiểm tra riêng: `COOKIE_SECR
 | `JWT_ACCESS_EXPIRES_IN` | | `5m` | Hạn access token |
 | `JWT_REFRESH_EXPIRES_IN` | | `30d` | Hạn refresh token (đơn vị ngày, định dạng bắt buộc `<số>d`) — đọc thật từ env (docs/12 BE-15, trước đây hard-code 30) |
 | `COOKIE_SECRET` | | `dev-only-secret` | Khoá ký cookie — **bắt buộc đổi ở production** |
+| `COOKIE_DOMAIN` | tính năng | — (host đã set) | Chỉ cần khi FE/BE chạy ở 2 SUBDOMAIN khác nhau (vd `api.example.com` khác `example.com`) — giá trị dạng `.example.com`. Thiếu biến này thì cookie chỉ đọc được từ đúng host backend, Next.js middleware (chạy ở domain frontend) không bao giờ thấy — bug thật gặp lúc triển khai VPS đầu tiên (14/09/2026), không lộ ra ở dev vì cookie không phân biệt port |
 | `GOOGLE_CLIENT_ID` | tính năng | `""` | `audience` khi verify Google ID token |
 | `CLOUDINARY_CLOUD_NAME` | tính năng | `""` | Tên định danh tài khoản — dùng dựng URL upload/URL công khai file. **Không** phải secret |
 | `CLOUDINARY_API_KEY` | tính năng | `""` | Nửa còn lại của cặp khoá API (không tự đứng riêng là secret, nhưng đi kèm `API_SECRET`) |

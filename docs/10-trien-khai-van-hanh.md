@@ -402,6 +402,10 @@ Thứ tự làm — mỗi bước xong mới sang bước sau, đừng nhảy c�
      `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`/`COOKIE_SECRET` sinh mới, KHÁC NHAU, đủ dài
      (`openssl rand -base64 48`) · `NODE_ENV=production` ·
      `FRONTEND_URL=https://thuymaiflower.click` ·
+     **`COOKIE_DOMAIN=.thuymaiflower.click`** (BẮT BUỘC vì frontend/backend ở 2 subdomain khác nhau —
+     thiếu biến này thì đăng nhập "thành công" phía client nhưng mọi trang cần đăng nhập
+     (`/account/*`, `/admin/*`) bị đá về `/login` do Next.js middleware không đọc được cookie, xem bug
+     thật ở cuối §5.6) ·
      `SUPER_ADMIN_EMAIL`/`SUPER_ADMIN_PASSWORD` đặt giá trị thật trước khi seed · thông tin Cloudinary/
      Resend thật — xem đầy đủ từng biến + cách lấy ở `backend/.env.example`.
 
@@ -420,6 +424,23 @@ Thứ tự làm — mỗi bước xong mới sang bước sau, đừng nhảy c�
 
 Các bước còn lại của checklist §3 (HTTPS/HSTS đã có sẵn qua Caddy, còn thiếu: uptime monitor cho
 `/health`, thử khôi phục backup) làm sau khi site đã chạy ổn định — xem CHECKLIST.md Phase 7.
+
+> **Bug thật thứ 3 — phát hiện lúc kiểm tra đăng nhập thật trên VPS (14/09/2026)**: frontend
+> (`thuymaiflower.click`) và backend (`api.thuymaiflower.click`) là 2 SUBDOMAIN khác nhau. Cookie
+> `access_token`/`refresh_token` do backend set KHÔNG có thuộc tính `domain` mặc định chỉ áp dụng cho
+> ĐÚNG host đã set nó (`api.thuymaiflower.click`) — trong khi Next.js middleware (`proxy.ts`, kiểm
+> tra đăng nhập PHÍA SERVER cho `/account/*`, `/admin/*`) đọc cookie từ request tới
+> `thuymaiflower.click`, không bao giờ thấy được cookie đó. Triệu chứng: đăng nhập xong, header hiện
+> đúng tên tài khoản (client-side gọi thẳng API nên vẫn đúng), nhưng bấm vào `/account/profile` hay
+> bất kỳ trang cần đăng nhập nào đều bị đá ngược về `/login`. KHÔNG lộ ra lúc dev vì cookie không
+> phân biệt PORT, chỉ phân biệt HOST (`localhost:3000` và `localhost:4000` cùng là `localhost`).
+> Đã sửa bằng biến mới `COOKIE_DOMAIN` (`backend/src/config/env.ts` +
+> `backend/src/modules/core/auth/cookie.util.ts`) — set `.thuymaiflower.click` (có dấu chấm đầu) để
+> cookie dùng chung được cho mọi subdomain. Xem [docs/09](09-moi-truong-va-bien-cau-hinh.md).
+>
+> Sau khi thêm biến này và deploy lại, **cookie CŨ trong trình duyệt** (set trước khi sửa, không có
+> domain) vẫn còn — phải đăng xuất rồi đăng nhập lại (hoặc xoá cookie site) để nhận cookie MỚI đã có
+> đúng `domain`, không tự khắc phục chỉ bằng việc deploy lại backend.
 
 ---
 

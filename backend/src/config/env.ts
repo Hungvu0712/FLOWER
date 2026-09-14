@@ -32,6 +32,15 @@ const rawEnvSchema = z.object({
     .regex(/^\d+d$/, "JWT_REFRESH_EXPIRES_IN phải có dạng '<số>d', ví dụ '30d'")
     .default("30d"),
   COOKIE_SECRET: z.string().default("dev-only-secret"),
+  // BUG THẬT phát hiện lúc triển khai VPS thật (14/09/2026): frontend/backend chạy ở 2 SUBDOMAIN khác
+  // nhau (vd thuymaiflower.click / api.thuymaiflower.click). Cookie set KHÔNG có `domain` mặc định chỉ
+  // áp dụng cho ĐÚNG host đã set (api.thuymaiflower.click) — Next.js middleware (proxy.ts) đọc cookie ở
+  // phía FRONTEND domain nên không bao giờ thấy được, luôn coi là chưa đăng nhập dù client-side (gọi
+  // thẳng API) vẫn thấy đăng nhập bình thường. Không lộ ra ở dev vì cookie không phân biệt PORT, chỉ
+  // phân biệt HOST — localhost:3000/localhost:4000 cùng host "localhost" nên tự nhiên dùng chung được.
+  // Để trống (dev/1-domain) = giữ hành vi cũ (domain mặc định = host đã set). Set ở production dạng
+  // ".domain-goc.com" (có dấu chấm đầu) để áp dụng cho MỌI subdomain.
+  COOKIE_DOMAIN: z.string().optional(),
 
   GOOGLE_CLIENT_ID: z.string().default(""),
 
@@ -114,6 +123,7 @@ export const env = {
   },
 
   cookieSecret: raw.COOKIE_SECRET,
+  cookieDomain: raw.COOKIE_DOMAIN,
 
   google: {
     clientId: raw.GOOGLE_CLIENT_ID,
