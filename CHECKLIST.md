@@ -23,7 +23,7 @@
 | 3 | RBAC — users, roles, permissions, audit log | ✅ | ██████████ 100% |
 | 4 | Infrastructure — Cloudinary, email, jobs, settings | ✅ | ██████████ 100% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██████████ 96% |
-| 6 | Quality — testing, OpenAPI, logging | 🟡 | ████████░░ 86% |
+| 6 | Quality — testing, OpenAPI, logging | 🟡 | █████████░ 93% |
 | 7 | Production — Docker, CI/CD, monitoring | 🟡 | █████░░░░░ 55% |
 
 **Tổng thể: ~52%** · Số test đang chạy: **1047** (BE 900 · FE 147) + ~30 kịch bản E2E
@@ -131,7 +131,7 @@
 
 - [x] **Backend: 900 test** (unit + integration) — chạy **không cần database**
 - [x] **Frontend: 147 test** (unit + component + hook)
-- [x] **E2E Playwright: ~30 kịch bản** (auth · superadmin · account · categories)
+- [x] **E2E Playwright: 32 kịch bản** (auth · superadmin · account · categories)
 - [x] Hạ tầng test: Prisma mock tự sinh, `loginAs()` helper
 - [x] `npm run typecheck` phủ cả `src/` lẫn `tests/`
 - [x] Tài liệu kỹ thuật đầy đủ — 14 doc chính + 17 module doc, 54 sơ đồ Mermaid
@@ -140,7 +140,7 @@
 - [x] **CI/CD GitHub Actions** *(14/09/2026 — `.github/workflows/ci.yml` thật, 4 job: `backend`/`frontend`/`docs` chạy mỗi PR + push `main`, `e2e` (Postgres thật + Playwright) chỉ chạy khi vào `main`. Xác nhận CHẠY XANH THẬT trên GitHub Actions (không phải suy đoán) sau khi sửa 6 bug thật do chính CI phát hiện: (1) 4 file backend chưa format Prettier; (2) `next typegen` phải chạy trước `tsc --noEmit` (kiểu `LayoutProps` Next.js tự sinh, máy dev có sẵn từ trước nên không lộ); (3) selector E2E `/đăng nhập/i` khớp nhầm nút magic-link; (4) `authLimiter` (20 req/15p/IP) làm cả suite fail dây chuyền — thêm cờ `DISABLE_RATE_LIMIT` chỉ bật ở CI (`BE-21`); (5) 2 bug UI thật: trang Hồ sơ gửi `phone: ''` thay vì `null` khiến lưu luôn lỗi 422 với user chưa có SĐT, và toàn bộ trang quản lý Danh mục thiếu `htmlFor`/`id` nên label không gắn được với input (ảnh hưởng cả screen reader thật); (6) form Đăng ký thiếu `noValidate` nên validate nguyên sinh của trình duyệt chặn mất thông báo lỗi zod. Branch protection CHƯA bật — cần tự bật thủ công trên GitHub nếu muốn chặn merge khi CI đỏ)*
 - [x] **OpenAPI/Swagger sinh từ zod schema** *(`BE-12`, 11/09/2026 — `GET /docs` (Swagger UI) + `GET /openapi.json`, request sinh trực tiếp từ `*.validation.ts` (không thể lệch), 61/61 endpoint)*
 - [x] Test cho `jobs/` *(cleanupOrphanFiles, cleanupExpiredTokens, backupDatabase/cleanupOldBackups, backupEncryption)*
-- [ ] Integration test với PostgreSQL thật (Testcontainers) ⬜
+- [x] **Integration test với PostgreSQL thật (Testcontainers)** *(14/09/2026 — `backend/tests/db/` (5 test), config riêng `vitest.config.db.ts` không alias Prisma sang mock, `globalSetup.ts` tự dựng Postgres qua `@testcontainers/postgresql` + chạy thật `prisma migrate deploy`. Bắt lỗi migration sạch, unique constraint thật (`P2002`), `onDelete: Cascade` thật, composite unique thật, và seed script (`seed:core`/`seed:domain`) chạy sạch trên schema hiện tại. Script riêng `npm run test:db` — KHÔNG nằm trong `npm test` mặc định (cần Docker). CI: step mới trong job `backend`, chỉ chạy khi vào `main` (giống `e2e`). Xác nhận CHẠY XANH THẬT trên GitHub Actions sau khi sửa 2 bug thật do chính CI phát hiện (máy dev không có Docker nên không tự chạy được cục bộ trước khi push): (1) `vitest.config.ts` gốc dùng `include: ["tests/**/*.test.ts"]` — glob rộng tự nhặt nhầm cả `tests/db/` vào chạy chung với mock, phải thêm `exclude` tường minh; (2) `vitest.config.db.ts` quên hẳn alias `@/` → `src/` (chỉ copy phần loại trừ Prisma), khiến mọi import `@/config/prisma` lỗi resolve ngay từ đầu. Xem docs/08-kiem-thu.md §3.4)*
 - [x] Logger `pino` (JSON có cấu trúc) *(`BE-18`)*
 - [ ] Rà soát bảo mật độc lập ⬜
 
