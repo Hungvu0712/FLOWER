@@ -24,7 +24,7 @@
 | 4 | Infrastructure — Cloudinary, email, jobs, settings | ✅ | ██████████ 100% |
 | 5 | Domain — nghiệp vụ shop hoa | 🟡 | ██████████ 96% |
 | 6 | Quality — testing, OpenAPI, logging | ✅ | ██████████ 100% |
-| 7 | Production — Docker, CI/CD, monitoring | 🟡 | █████░░░░░ 55% |
+| 7 | Production — Docker, CI/CD, monitoring | 🟡 | ██████░░░░ 62% |
 
 **Tổng thể: ~52%** · Số test đang chạy: **1047** (BE 900 · FE 147) + 32 kịch bản E2E + 5 test DB thật
 
@@ -153,7 +153,7 @@
 - [x] **Secret riêng cho production** (JWT, cookie, DB) *(14/09/2026 — sinh thật bằng `openssl rand`, khác hoàn toàn giá trị mẫu; Cloudinary/SMTP dùng lại tài khoản đã có sẵn từ trước)*
 - [x] **HTTPS + HSTS + redirect HTTP→HTTPS** *(14/09/2026 — Caddy tự xin chứng chỉ Let's Encrypt cho `thuymaiflower.click`/`api.thuymaiflower.click`, xác nhận thật qua trình duyệt)*
 - [x] **Triển khai VPS lần đầu — `thuymaiflower.click`** *(14/09/2026 — Ubuntu 22.04, xem docs/10 §5.6. Phát hiện + sửa 4 bug thật chỉ lộ ra lúc chạy thật (không phát hiện được lúc chỉ đọc/viết code): (1) quên seed dữ liệu ban đầu; (2) `prisma`/`tsx` nằm nhầm `devDependencies` khiến lệnh `migrate deploy`/seed lỗi "command not found" trong image production (`npm ci --omit=dev`); (3) Alpine thiếu gói `openssl` khiến Prisma nhận diện sai libssl, cố tải lại engine lúc container chạy bằng user non-root → crash-loop; (4) cookie đăng nhập thiếu `COOKIE_DOMAIN` nên Next.js middleware (chạy ở subdomain frontend) không đọc được cookie do backend set ở subdomain khác, đăng nhập xong vẫn bị đá về `/login`; (5) Dockerfile frontend quên copy `next.config.ts` vào giai đoạn chạy, khiến `/_next/image` chặn hết ảnh Cloudinary. Xem chi tiết từng bug ở docs/10 §5.5-§5.6)*
-- [ ] Resend verify DKIM/SPF/DMARC *(hiện tạm dùng Gmail SMTP cá nhân — hoạt động được nhưng giới hạn ~500 email/ngày, dễ vào spam hơn; nên chuyển Resend + verify domain riêng sau)*
+- [x] **Resend verify DKIM/SPF/DMARC** *(14/09/2026 — domain `thuymaiflower.click` verify xong trên Resend (DKIM TXT + 2 CNAME SPF + DMARC TXT, lan truyền DNS ~7 phút); `backend/.env` đổi `EMAIL_PROVIDER=resend` + `RESEND_API_KEY` + `EMAIL_FROM="Hoa Xinh <no-reply@thuymaiflower.click>"`, `docker compose up -d` áp dụng không cần build lại. Xác nhận THẬT: gửi thử "Quên mật khẩu" từ trang production, email đến đúng **Hộp thư đến** (không vào Spam) với đúng người gửi/domain đã verify. Thay hẳn Gmail SMTP cá nhân (giới hạn ~500 email/ngày, dễ vào spam))*
 - [ ] Uptime monitor trỏ vào `/health`
 - [ ] Log tập trung + cảnh báo bất thường
 - [ ] Sentry (FE + BE)
