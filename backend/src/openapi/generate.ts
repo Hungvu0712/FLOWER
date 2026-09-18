@@ -38,6 +38,7 @@ import "../modules/domain/newsletter/newsletter.admin.openapi";
 import "../modules/domain/specialDates/specialDates.openapi";
 import "../modules/domain/siteContent/siteContent.openapi";
 import "../modules/domain/siteContent/siteContent.admin.openapi";
+import "../modules/domain/dashboard/dashboard.openapi";
 
 // Sinh lại document MỖI LẦN GỌI (không cache module-level) — rẻ (chạy < 100ms, đo lúc viết), và tránh
 // giữ 1 bản cũ trong bộ nhớ tiến trình chạy lâu dài; route mount ở app.ts tự cache theo response HTTP

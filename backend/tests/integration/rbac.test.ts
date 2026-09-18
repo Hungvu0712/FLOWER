@@ -57,6 +57,7 @@ const PROTECTED = [
     path: "/api/v1/admin/orders/44444444-4444-4444-4444-444444444444/log-call",
     permission: "orders.update_status",
   },
+  { method: "get" as const, path: "/api/v1/admin/dashboard/overview", permission: "reports.view" },
 ];
 
 beforeEach(() => resetPrismaMock());
@@ -145,6 +146,10 @@ describe("Tầng 3 — đủ quyền", () => {
       db.blogPost.count.mockResolvedValue(0);
       db.newsletterSubscriber.findMany.mockResolvedValue([]);
       db.newsletterSubscriber.count.mockResolvedValue(0);
+      db.order.aggregate.mockResolvedValue({ _sum: { total: 0 } });
+      db.order.groupBy.mockResolvedValue([]);
+      db.orderItem.groupBy.mockResolvedValue([]);
+      db.user.count.mockResolvedValue(0);
 
       const res = await request(app)[method](path).set("Cookie", cookie);
       expect([401, 403]).not.toContain(res.status);

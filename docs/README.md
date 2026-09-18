@@ -61,6 +61,7 @@ Tài liệu **trao đổi với khách hàng** nằm riêng ở [`docs/gitbook/`
 | Blog + Newsletter | 🌸 Domain | [modules/domain-blog.md](modules/domain-blog.md) |
 | Special Dates (nhắc lịch sinh nhật/kỷ niệm) | 🌸 Domain | [modules/domain-special-dates.md](modules/domain-special-dates.md) |
 | Site Content (banner Hero, hotline, Zalo, địa chỉ, giờ mở cửa) | 🌸 Domain | [modules/domain-site-content.md](modules/domain-site-content.md) |
+| Dashboard (trang Tổng quan admin) | 🌸 Domain | [modules/domain-dashboard.md](modules/domain-dashboard.md) |
 
 ---
 

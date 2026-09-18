@@ -33,6 +33,7 @@ export const SUPER_ADMIN_PERMISSIONS = [
   "promotions.manage",
   "blog.manage",
   "site_content.manage",
+  "reports.view",
 ];
 
 export { db };

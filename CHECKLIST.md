@@ -1,6 +1,6 @@
 # ✅ CHECKLIST — Theo dõi tiến độ dự án FLOWER
 
-> **Cập nhật lần cuối: 11/09/2026**
+> **Cập nhật lần cuối: 18/09/2026**
 > Cập nhật file này **mỗi lần merge PR**. Tiến độ dạng khách hàng đọc được: [docs/gitbook/03-tien-do.md](docs/gitbook/03-tien-do.md).
 
 | Ký hiệu | Nghĩa |
@@ -26,7 +26,7 @@
 | 6 | Quality — testing, OpenAPI, logging | ✅ | ██████████ 100% |
 | 7 | Production — Docker, CI/CD, monitoring | 🟡 | ██████░░░░ 69% |
 
-**Tổng thể: ~52%** · Số test đang chạy: **1047** (BE 900 · FE 147) + 32 kịch bản E2E + 5 test DB thật
+**Tổng thể: ~52%** · Số test đang chạy: **1076** (BE 929 · FE 147) + 32 kịch bản E2E + 5 test DB thật
 
 ---
 
@@ -118,6 +118,7 @@
 - [x] Trang giỏ hàng (`/gio-hang`) + checkout (`/thanh-toan`) + xác nhận đơn công khai (`/don-hang/[id]`, `id` UUID làm token tra cứu)
 - [x] UI `/admin/orders` — lọc theo trạng thái, mở rộng xem chi tiết, đổi trạng thái (quyền theo giá trị `status`, đúng ma trận docs/05 §2.4)
 - [x] **Sổ địa chỉ người nhận** *(12/09/2026 — thuần dữ liệu cá nhân, KHÔNG permission riêng (chỉ cần đăng nhập, giống `/account/profile`); địa chỉ đầu tiên tự động mặc định; mọi thao tác theo `id` chống IDOR (`where: {id, userId}`); tích hợp autofill ở trang thanh toán qua dropdown "Chọn từ sổ địa chỉ" — xem [docs/modules/domain-addresses.md](docs/modules/domain-addresses.md))*
+- [x] **Dashboard tổng quan admin lấy dữ liệu thật** *(18/09/2026 — thay hẳn placeholder tĩnh (3 ô `'—'` + dòng chữ nói về kiến trúc `features/domain` lộ ra UI); tái dùng permission `reports.view` đã seed sẵn nhưng chưa module nào dùng tới (phát hiện thiếu trong `SUPER_ADMIN_PERMISSIONS` ở test helper, đã bổ sung); 2 endpoint mới `GET /admin/dashboard/{overview,revenue-chart}`; `orders.byStatus` CỐ Ý không lọc theo `period` (ảnh chụp hàng đợi vận hành hiện tại, khác số liệu xu hướng còn lại) — xem [docs/modules/domain-dashboard.md §2](docs/modules/domain-dashboard.md); không có widget "sắp hết hàng" (hệ thống không có tồn kho theo thiết kế); biểu đồ doanh thu dùng Recharts (thêm mới); đối chiếu số liệu hiển thị với truy vấn Prisma trực tiếp trên DB dev — khớp chính xác từng con số; kiểm tra thật qua Playwright, không có lỗi console/network)*
 - [ ] Payments online (VNPay/Momo) ⬜ *(7 ngày — hiện chỉ COD)*
 - [x] **Lịch giao hoa theo ngày (dashboard riêng cho florist)** *(12/09/2026 — permission RIÊNG `orders.view_delivery_queue` (florist có, KHÔNG có `orders.view_all`); trang `/admin/orders/delivery-queue`, sidebar rút gọn còn đúng 1 link khi user chỉ có role florist (không kiêm admin); không có nút "Huỷ đơn" (florist không có `orders.cancel`) — xem [docs/modules/domain-orders.md §4b](docs/modules/domain-orders.md))*
 - [x] **Reviews + wishlist** *(12/09/2026 — reviews cần duyệt (`isApproved` mặc định false, permission `reviews.moderate` riêng), mỗi user 1 đánh giá/sản phẩm; wishlist là bảng nối n-n thuần, idempotent thêm/xoá; phát hiện và sửa 1 bug hydration mismatch thật khi build (`ProductReviews.tsx` — xem [docs/modules/domain-reviews.md §4](docs/modules/domain-reviews.md)) — xem thêm [docs/modules/domain-wishlist.md](docs/modules/domain-wishlist.md))*

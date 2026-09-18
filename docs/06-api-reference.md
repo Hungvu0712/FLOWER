@@ -95,6 +95,7 @@ flowchart LR
     ADM --> AD6["/admin/coupons<br/>promotions.manage"]
     ADM --> AD7["/admin/blog · /admin/newsletter<br/>blog.manage"]
     ADM --> AD8["/admin/site-content<br/>site_content.manage (KHÁC settings.manage 🔒)"]
+    ADM --> AD9["/admin/dashboard<br/>reports.view"]
     SA --> S1["/users → users.manage 🔒"]
     SA --> S2["/roles → roles.manage 🔒"]
     SA --> S3["/permissions → permissions.manage 🔒"]
@@ -811,6 +812,23 @@ Banner Hero, hotline, Zalo, địa chỉ, giờ mở cửa — nội dung storef
   migration riêng.
 - `hero_banner` lưu dạng `fileId` (tham chiếu `files.id`), response trả kèm `{ fileId, url }` — đúng
   pattern `site_logo` ở `/superadmin/settings`. `null` → storefront tự fallback ảnh tĩnh có sẵn.
+
+## 9h. Dashboard tổng quan 🌸
+
+Số liệu trang `/admin` (Tổng quan) — tái dùng permission `reports.view` đã seed sẵn, xem
+[modules/domain-dashboard.md](modules/domain-dashboard.md).
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| `GET` | `/api/v1/admin/dashboard/overview?period=7d\|30d\|3m` | `reports.view` | Doanh thu, đơn hàng, khách hàng, sản phẩm, đánh giá chờ duyệt, top 5 sản phẩm bán chạy |
+| `GET` | `/api/v1/admin/dashboard/revenue-chart?period=7d\|30d\|3m` | `reports.view` | Mảng `{ date, revenue }` đủ mọi ngày trong khoảng (ngày trống = 0) |
+
+- `revenue`/`customers.newInPeriod`/`topProducts`/biểu đồ tính theo `period`, so với kỳ liền trước
+  cùng độ dài (`changePercent`, `null` nếu kỳ trước không có doanh thu để so sánh).
+- `orders.byStatus` **KHÔNG lọc theo period** — là ảnh chụp hàng đợi vận hành hiện tại, khác số liệu
+  xu hướng ở trên.
+- Mọi tính toán loại trừ đơn `status: 'cancelled'` (trừ chính `orders.byStatus`, vốn cần đếm cả đơn
+  đã huỷ để hiển thị đúng).
 
 ---
 

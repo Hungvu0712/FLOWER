@@ -392,6 +392,23 @@ export function IconNewspaper({ className }: IconProps) {
   );
 }
 
+export function IconTrendUp({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.5 17 9.5 11l4 4 6.5-7.5" />
+      <path d="M15.5 7.5h4.5V12" />
+    </svg>
+  );
+}
+
 export function IconEnvelopeOpen({ className }: IconProps) {
   return (
     <svg

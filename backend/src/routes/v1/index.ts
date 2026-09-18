@@ -34,6 +34,7 @@ import { newsletterAdminRouter } from "../../modules/domain/newsletter/newslette
 import { specialDatesRouter } from "../../modules/domain/specialDates/specialDates.routes";
 import { siteContentRouter } from "../../modules/domain/siteContent/siteContent.routes";
 import { siteContentAdminRouter } from "../../modules/domain/siteContent/siteContent.admin.routes";
+import { dashboardRouter } from "../../modules/domain/dashboard/dashboard.routes";
 
 export const v1Router = Router();
 
@@ -91,6 +92,8 @@ v1Router.use("/admin/newsletter", authenticate, newsletterAdminRouter);
 // cửa hàng, không phải cấu hình hệ thống — xem docs/modules/domain-site-content.md.
 v1Router.use("/site-content", siteContentRouter); // công khai — storefront đọc
 v1Router.use("/admin/site-content", authenticate, siteContentAdminRouter);
+// Trang Tổng quan admin — permission reports.view (đã có sẵn từ trước, gán cho cả admin/super_admin).
+v1Router.use("/admin/dashboard", authenticate, dashboardRouter);
 // contact-messages nằm ở modules/core (tính năng chung mọi dự án), nhưng mount dưới /admin/* như
 // domain — quy ước /admin/* vs /superadmin/* phân theo MỨC TRUY CẬP (admin hay chỉ super_admin),
 // không phải theo code nằm ở core hay domain, xem docs/02 §14.1.
