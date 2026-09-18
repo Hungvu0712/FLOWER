@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -30,6 +30,14 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
+  // Chốt 1 LẦN DUY NHẤT lúc mount, KHÔNG gọi lại getRedirectTarget() ở effect bên dưới — nếu đọc lại
+  // window.location.search sau khi useLogin() (auth.hooks.ts) đã tự điều hướng đi thành công, query
+  // string ?redirectTo= đã biến mất khỏi URL, effect này đọc ra rỗng và bật nhầm về '/' (bug thật: sau
+  // khi đăng nhập lại từ trang bị đá về do hết hạn token, có lúc bị đẩy nhầm về trang chủ thay vì đúng
+  // trang đã định vào). 2 nơi cùng có thể điều hướng (mutation onSuccess VÀ effect theo dõi `me` dưới
+  // đây, cho luồng tự phục hồi qua refresh token) nay LUÔN nhắm cùng 1 đích đã chốt, gọi trùng vô hại.
+  const [redirectTarget] = useState(() => getRedirectTarget());
+
   // proxy.ts chặn theo token lúc điều hướng — nếu token đó vừa hết hạn thì bị đẩy về đây, nhưng ngay
   // sau đó có thể tự refresh ngầm thành công (vẫn còn refresh token hợp lệ). Không có effect này thì
   // người dùng bị kẹt ở trang login dù thực chất đã đăng nhập lại.
@@ -43,8 +51,8 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (me) router.replace(getRedirectTarget());
-  }, [me, router]);
+    if (me) router.replace(redirectTarget);
+  }, [me, router, redirectTarget]);
 
   return (
     <div className="flex flex-col gap-6">

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { authService } from './auth.service';
@@ -27,10 +28,16 @@ export function useLoginMethods() {
 function useAfterAuthSuccess() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  // Chốt 1 LẦN DUY NHẤT lúc mount (giống login/page.tsx) — trang gọi hook này (login/magic-link/
+  // Google) thường TỰ NÓ cũng có 1 effect điều hướng riêng theo dõi useMe() (luồng tự phục hồi qua
+  // refresh token). Nếu cả 2 nơi cùng gọi getRedirectTarget() TƯƠI mỗi lần, nơi chạy sau có thể đọc
+  // phải URL đã bị nơi chạy trước đổi (mất ?redirectTo=), bật nhầm về '/' — bug thật đã xảy ra: đăng
+  // nhập lại sau khi bị đá về do hết hạn token có lúc về nhầm trang chủ thay vì đúng trang đã định vào.
+  const [target] = useState(() => getRedirectTarget());
 
   return () => {
     queryClient.invalidateQueries({ queryKey: ['account', 'me'] });
-    router.push(getRedirectTarget());
+    router.push(target);
   };
 }
 

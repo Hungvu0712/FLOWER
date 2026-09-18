@@ -826,6 +826,52 @@ xem `docs/10-trien-khai-van-hanh.md` §5.7.
 
 ---
 
+### FE-08 · Đăng nhập lại sau khi hết hạn token có lúc bị đẩy nhầm về trang chủ — ✅ ĐÃ XỬ LÝ (18/09/2026)
+
+Phát hiện qua báo cáo người dùng thật: token hết hạn giữa phiên → `proxy.ts` đẩy về
+`/login?redirectTo=%2Fadmin` → đăng nhập lại → trang **đứng im** ở `/login` một lúc, F5 mới về được
+**trang chủ** (`/`) thay vì đúng `/admin` đã định vào.
+
+**Nguyên nhân**: `getRedirectTarget()` (`lib/redirect.ts`) đọc trực tiếp `window.location.search` mỗi
+lần gọi — không chốt giá trị. Có **2 nơi độc lập** cùng gọi hàm này sau khi đăng nhập thành công:
+`useAfterAuthSuccess()` (`auth.hooks.ts`, chạy trong `onSuccess` của mutation) và effect theo dõi
+`me` ở chính `login/page.tsx` (dành cho luồng tự phục hồi khi refresh token vẫn còn hợp lệ — không
+cần gõ lại mật khẩu). Nếu nơi thứ nhất đã điều hướng sang `/admin` xong (URL mất `?redirectTo=`)
+TRƯỚC KHI nơi thứ hai kịp chạy (vd do `invalidateQueries(['account','me'])` kích hoạt refetch nền
+xong sau đó, trong lúc trang `/login` cũ vẫn còn mounted một nhịp trong quá trình App Router chuyển
+trang), nơi thứ hai gọi lại `getRedirectTarget()` sẽ đọc ra rỗng → rơi về giá trị mặc định `'/'` →
+`router.replace('/')` đè lên đúng điều hướng trước đó.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant L as login/page.tsx
+    participant H as useAfterAuthSuccess()
+
+    U->>H: submit đăng nhập thành công
+    H->>H: getRedirectTarget() đọc URL LÚC NÀY (?redirectTo=/admin)
+    H-->>U: router.push("/admin")
+    Note over L: vẫn còn mounted 1 nhịp trong lúc chuyển trang
+    L->>L: me populated (invalidateQueries refetch xong)
+    L->>L: getRedirectTarget() đọc lại URL — ĐÃ đổi, mất query
+    L-->>U: router.replace("/") — SAI, đè lên điều hướng đúng
+```
+
+**Đã sửa**: chốt `redirectTo` **1 lần duy nhất lúc mount** bằng `useState(() =>
+getRedirectTarget())` ở cả 2 nơi (`useAfterAuthSuccess()` và `login/page.tsx`) — thay vì đọc lại
+`window.location.search` mỗi lần gọi. Cả 2 nơi nay luôn nhắm cùng 1 đích đã chốt ngay từ đầu, gọi
+trùng (push rồi replace cùng giá trị) vô hại thay vì ghi đè sai. `register/page.tsx` có cùng pattern
+nhưng chỉ 1 nơi gọi (đăng ký không tự đăng nhập nên mutation không tự điều hướng) — không có race,
+không cần sửa.
+
+**Kiểm chứng**: không tái hiện được race bằng Playwright tự động dù thử với độ trễ mạng giả lập
+(chạy nhanh + đồng bộ hơn thao tác người dùng thật, cửa sổ race quá hẹp để bắt được bằng cách này) —
+sửa dựa trên đọc code xác định đúng nguyên nhân gốc, không đoán. Đã chạy lại toàn bộ 12 test
+`e2e/auth.spec.ts` (gồm test "đăng nhập xong quay lại đúng trang đã định vào") — xanh, không có hồi
+quy.
+
+---
+
 ## 4. 🟢 Ưu tiên thấp
 
 | Mã | Vấn đề | Đề xuất | Ước lượng | Trạng thái |
