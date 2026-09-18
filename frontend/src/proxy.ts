@@ -20,6 +20,11 @@ export function proxy(request: NextRequest) {
   const isExpired = payload ? payload.exp * 1000 < Date.now() : true;
   const isAuthenticated = Boolean(payload) && !isExpired;
 
+  // eslint-disable-next-line no-console -- log chẩn đoán tạm thời, xoá sau khi tìm ra nguyên nhân
+  console.log(
+    `[proxy DEBUG] ${request.method} ${request.nextUrl.pathname}${request.nextUrl.search} — hasToken=${Boolean(token)} isAuthenticated=${isAuthenticated}`,
+  );
+
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register');
 
   // Bug thật: hardcode '/' bỏ qua luôn ?redirectTo= đang có sẵn trên CHÍNH request này. Ví dụ hay gặp
@@ -32,6 +37,8 @@ export function proxy(request: NextRequest) {
   if (isAuthPage && isAuthenticated) {
     const target = request.nextUrl.searchParams.get('redirectTo');
     const safeTarget = target && target.startsWith('/') && !target.startsWith('//') ? target : '/';
+    // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
+    console.log(`[proxy DEBUG] -> đá khỏi auth page, safeTarget=${safeTarget} (target thô=${target})`);
     return NextResponse.redirect(new URL(safeTarget, request.url));
   }
 
@@ -42,6 +49,8 @@ export function proxy(request: NextRequest) {
   if (needsAuth && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirectTo', pathname);
+    // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
+    console.log(`[proxy DEBUG] -> chưa đăng nhập, đá sang ${loginUrl.pathname}${loginUrl.search}`);
     return NextResponse.redirect(loginUrl);
   }
 

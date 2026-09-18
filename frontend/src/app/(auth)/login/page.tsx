@@ -37,6 +37,8 @@ export default function LoginPage() {
   // trang đã định vào). 2 nơi cùng có thể điều hướng (mutation onSuccess VÀ effect theo dõi `me` dưới
   // đây, cho luồng tự phục hồi qua refresh token) nay LUÔN nhắm cùng 1 đích đã chốt, gọi trùng vô hại.
   const [redirectTarget] = useState(() => getRedirectTarget());
+  // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
+  console.log(`[login DEBUG] render — redirectTarget chốt = "${redirectTarget}", me =`, me);
 
   // proxy.ts chặn theo token lúc điều hướng — nếu token đó vừa hết hạn thì bị đẩy về đây, nhưng ngay
   // sau đó có thể tự refresh ngầm thành công (vẫn còn refresh token hợp lệ). Không có effect này thì
@@ -51,7 +53,11 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (me) router.replace(redirectTarget);
+    if (me) {
+      // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
+      console.log(`[login DEBUG] effect: me có dữ liệu -> router.replace("${redirectTarget}")`);
+      router.replace(redirectTarget);
+    }
   }, [me, router, redirectTarget]);
 
   return (
