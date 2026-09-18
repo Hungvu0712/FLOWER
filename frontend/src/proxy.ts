@@ -22,8 +22,17 @@ export function proxy(request: NextRequest) {
 
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register');
 
+  // Bug thật: hardcode '/' bỏ qua luôn ?redirectTo= đang có sẵn trên CHÍNH request này. Ví dụ hay gặp
+  // — token hết hạn giữa phiên, bị đẩy sang /login?redirectTo=%2Fadmin; trang login tự âm thầm refresh
+  // token thành công (vẫn còn refresh token hợp lệ) rồi gọi router.replace('/admin') ở client — nhưng
+  // NGAY LÚC ĐÓ cookie đã hợp lệ, nên bất kỳ request nào khác chạm lại đúng URL /login?redirectTo=...
+  // (Next.js tự revalidate/prefetch route hiện tại trong lúc chuyển trang) đều rơi vào đúng nhánh này
+  // và bị đẩy cứng về '/' thay vì '/admin' — ghi đè lên điều hướng đúng. Chỉ dùng fallback '/' khi
+  // KHÔNG có redirectTo hợp lệ (vd người dùng tự gõ /login khi đã đăng nhập sẵn).
   if (isAuthPage && isAuthenticated) {
-    return NextResponse.redirect(new URL('/', request.url));
+    const target = request.nextUrl.searchParams.get('redirectTo');
+    const safeTarget = target && target.startsWith('/') && !target.startsWith('//') ? target : '/';
+    return NextResponse.redirect(new URL(safeTarget, request.url));
   }
 
   const needsAuth =

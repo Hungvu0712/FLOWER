@@ -52,11 +52,24 @@ describe('proxy — đã đăng nhập', () => {
     expect(proxy(req(pathname, valid)).headers.get('location')).toBeNull();
   });
 
-  it('đá khỏi /login và /register về trang chủ', () => {
+  it('đá khỏi /login và /register về trang chủ khi KHÔNG có redirectTo', () => {
     for (const path of ['/login', '/register']) {
       const res = proxy(req(path, valid));
       expect(new URL(res.headers.get('location')!).pathname).toBe('/');
     }
+  });
+
+  it('đá khỏi /login về ĐÚNG redirectTo thay vì hardcode trang chủ (bug thật — docs/12 FE-08)', () => {
+    // Kịch bản thật: token hết hạn giữa phiên bị đẩy sang /login?redirectTo=%2Fadmin, tự refresh
+    // ngầm thành công — bất kỳ request nào chạm lại đúng URL này lúc cookie đã hợp lệ phải quay về
+    // /admin, không phải bị đẩy cứng về '/' làm mất điều hướng đúng.
+    const res = proxy(req('/login?redirectTo=%2Fadmin', valid));
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/admin');
+  });
+
+  it('redirectTo trỏ ra domain khác (open redirect) → vẫn rơi về trang chủ, không tin theo', () => {
+    const res = proxy(req('/login?redirectTo=%2F%2Fevil.com', valid));
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/');
   });
 
   it('KHÔNG chặn theo role — vào /superadmin với token member vẫn qua được proxy', () => {

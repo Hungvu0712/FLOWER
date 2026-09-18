@@ -870,6 +870,47 @@ sửa dựa trên đọc code xác định đúng nguyên nhân gốc, không đ
 `e2e/auth.spec.ts` (gồm test "đăng nhập xong quay lại đúng trang đã định vào") — xanh, không có hồi
 quy.
 
+**Cập nhật (18/09/2026, cùng ngày) — bản sửa trên CHƯA đủ, còn 1 nguyên nhân thứ 2 nặng hơn**: người
+dùng test lại thật vẫn thấy bị đẩy về trang chủ, kể cả ở luồng **tự phục hồi** (không cần gõ lại mật
+khẩu) — tức là chỉ CÓ 1 nơi điều hướng (effect trong `login/page.tsx`), không phải race 2 nơi như
+phân tích ban đầu. Đọc lại `proxy.ts` phát hiện nguyên nhân thật sự nằm ở TẦNG MIDDLEWARE, không phải
+React:
+
+```ts
+// TRƯỚC — hardcode '/', bỏ qua luôn ?redirectTo= đang có sẵn trên CHÍNH request này
+if (isAuthPage && isAuthenticated) {
+  return NextResponse.redirect(new URL('/', request.url));
+}
+```
+
+Khi trang `/login?redirectTo=%2Fadmin` tự làm mới token ngầm thành công, **bất kỳ request nào khác
+chạm lại đúng URL `/login?redirectTo=...` này** trong lúc cookie đã hợp lệ (Next.js App Router tự
+revalidate/kiểm tra lại route hiện tại trong quá trình chuyển trang) đều rơi vào nhánh
+`isAuthPage && isAuthenticated`, bị đẩy cứng về `/` — ĐÈ LÊN điều hướng đúng `router.replace('/admin')`
+mà code React vừa gọi. Đây mới là nguyên nhân chính, xảy ra ở tầng edge/middleware nên không cách nào
+sửa được chỉ bằng code React.
+
+**Đã sửa**: đọc lại `redirectTo` của chính request đang xét, dùng nó thay vì hardcode `/` (vẫn validate
+path nội bộ giống `getRedirectTarget()` phía client — chặn open redirect):
+
+```ts
+if (isAuthPage && isAuthenticated) {
+  const target = request.nextUrl.searchParams.get('redirectTo');
+  const safeTarget = target && target.startsWith('/') && !target.startsWith('//') ? target : '/';
+  return NextResponse.redirect(new URL(safeTarget, request.url));
+}
+```
+
+**Test**: `tests/unit/proxy.test.ts` — thêm 2 test: đã đăng nhập + có `redirectTo` hợp lệ → về đúng
+đích đó (không phải `/`); `redirectTo` trỏ ra domain khác (`//evil.com`) → vẫn rơi về `/`, không tin
+theo (chống open redirect). 19/19 test proxy pass, toàn bộ 149 test frontend + 12 test
+`e2e/auth.spec.ts` vẫn xanh.
+
+**Bài học ghi lại**: bản sửa lần 1 (chỉ ở React) không sai nhưng KHÔNG ĐỦ — có 2 lớp cùng gây triệu
+chứng giống nhau (đều "bật về trang chủ thay vì đúng trang"), phải xác minh lại bằng test thật của
+người dùng (Network tab + Console thật) mới lộ ra lớp thứ 2, không dừng lại ở suy luận từ code một
+lần là xong.
+
 ---
 
 ## 4. 🟢 Ưu tiên thấp
