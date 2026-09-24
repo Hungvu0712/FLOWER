@@ -174,8 +174,12 @@ sequenceDiagram
     end
 
     alt Refresh thất bại
+        AX->>AX: reject TỪNG request trong pendingQueue
         AX-->>C: reject 401 (KHÔNG tự redirect)
-        Note over C: có thể chỉ là khách vãng lai<br/>ghé trang public — route cần đăng nhập<br/>đã bị proxy.ts chặn từ trước
+        opt refresh trả 401/403 — phiên chết chắc chắn
+            AX->>AX: onSessionExpired() → useSessionExpiredHandler()
+            Note over AX: setQueryData(['account','me'], null)<br/>đang ở route cần đăng nhập → /login?redirectTo=...
+        end
     end
 ```
 
@@ -185,8 +189,20 @@ Ba chi tiết dễ viết sai, đã xử lý sẵn trong code:
    `Authorization` header.
 2. **Request "chính" (request kích hoạt refresh) phải tự retry**, không đẩy vào `pendingQueue` —
    hàng đợi vừa bị xoá rỗng ngay trước đó, đẩy vào sẽ không ai resolve và promise treo vĩnh viễn.
-3. **Không tự redirect khi refresh thất bại** — 401 ở trang public là chuyện bình thường.
-   Bỏ qua `/api/v1/auth/*` để không lặp vô hạn.
+3. **Không tự redirect trong interceptor khi refresh thất bại** — 401 ở trang public là chuyện bình
+   thường. Bỏ qua `/api/v1/auth/*` để không lặp vô hạn. `lib/axios.ts` chỉ phát tín hiệu
+   `onSessionExpired()` (khi refresh trả **401/403**, không phải lỗi mạng/5xx); việc xoá user khỏi cache
+   và đưa về `/login` (chỉ khi đang ở route cần đăng nhập — danh sách ở `lib/auth-routes.ts`) là của
+   `useSessionExpiredHandler()` mount ở `Providers`.
+4. **Refresh thất bại phải reject từng request đang xếp hàng** — chỉ xoá rỗng `pendingQueue` thì các
+   promise đó treo vĩnh viễn, `useMe()` kẹt với user cũ (docs/12 FE-09).
+
+Sau khi **trạng thái đăng nhập đổi** (đăng nhập xong, hoặc trang login tự phục hồi phiên), điều hướng
+bằng `hardRedirect()` (`lib/navigation.ts` — tải lại trang), **không** dùng `router.push`: Client Cache
+của Next.js còn giữ kết quả "trang cần đăng nhập → redirect /login" từ lúc chưa đăng nhập, `router.push`
+dùng lại nó và người dùng đứng im ở `/login` (docs/12 FE-08). Đích quay về đọc qua
+`useRedirectTarget()` (`useSearchParams()`), không đọc `window.location` — lúc điều hướng phía client,
+trang mới render trước khi URL đổi.
 
 ---
 
@@ -290,5 +306,7 @@ react-hook-form để hiện lỗi ngay dưới từng ô nhập.
 | Tin `roles` từ JWT để ẩn/hiện chức năng nhạy cảm | Lấy từ `useMe()`; và backend luôn kiểm tra lại           |
 | Tạo `middleware.ts`                              | Next.js 16 dùng **`proxy.ts`**, export hàm `proxy`       |
 | Redirect ngay khi gặp 401 trong interceptor      | Để caller xử lý — `proxy.ts` đã chặn route cần đăng nhập |
+| Tin `useMe().data` ngay sau khi bị đá về `/login` | Cache giữ user cũ khi refetch lỗi — chờ kết quả MỚI (`isSuccess && isFetchedAfterMount`) |
+| `router.push(target)` ngay sau khi đăng nhập     | `hardRedirect(target)` — Client Cache còn giữ redirect cũ về `/login` |
 | Hard-code `#e11d48`                              | Dùng token `text-rose` / `var(--color-rose)`             |
 | Quên `queryClient.clear()` khi logout            | Xoá cache để không rò dữ liệu sang tài khoản khác        |

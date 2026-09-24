@@ -72,7 +72,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     refetchMe().then((result) => {
-      if (!cancelled) setVerified({ pathname, roles: result.data?.roles ?? [] });
+      // Chỉ tin lần fetch THÀNH CÔNG — refetch lỗi thì result.data vẫn là user CŨ trong cache (React
+      // Query giữ data khi lỗi), từng cho qua cổng bằng role cũ dù phiên đã chết. Lỗi thì giữ "chưa xác
+      // thực": phiên chết hẳn đã có useSessionExpiredHandler() đưa về /login (docs/12 FE-09).
+      if (!cancelled && result.isSuccess && result.data) {
+        setVerified({ pathname, roles: result.data.roles });
+      }
     });
     return () => {
       cancelled = true;

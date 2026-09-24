@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decodeAccessToken } from '@/lib/jwt';
+import { safeRedirectTarget } from '@/lib/redirect';
+import { isProtectedPath, loginUrlFor } from '@/lib/auth-routes';
 
 // proxy.ts CHỈ kiểm tra "đã đăng nhập hay chưa" (authentication — token còn hạn không) — KHÔNG dựa vào
 // role/permission để quyết định cho vào /admin hay /superadmin (authorization). JWT không còn nhúng
@@ -20,11 +22,6 @@ export function proxy(request: NextRequest) {
   const isExpired = payload ? payload.exp * 1000 < Date.now() : true;
   const isAuthenticated = Boolean(payload) && !isExpired;
 
-  // eslint-disable-next-line no-console -- log chẩn đoán tạm thời, xoá sau khi tìm ra nguyên nhân
-  console.log(
-    `[proxy DEBUG] ${request.method} ${request.nextUrl.pathname}${request.nextUrl.search} — hasToken=${Boolean(token)} isAuthenticated=${isAuthenticated}`,
-  );
-
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register');
 
   // Bug thật: hardcode '/' bỏ qua luôn ?redirectTo= đang có sẵn trên CHÍNH request này. Ví dụ hay gặp
@@ -35,23 +32,12 @@ export function proxy(request: NextRequest) {
   // và bị đẩy cứng về '/' thay vì '/admin' — ghi đè lên điều hướng đúng. Chỉ dùng fallback '/' khi
   // KHÔNG có redirectTo hợp lệ (vd người dùng tự gõ /login khi đã đăng nhập sẵn).
   if (isAuthPage && isAuthenticated) {
-    const target = request.nextUrl.searchParams.get('redirectTo');
-    const safeTarget = target && target.startsWith('/') && !target.startsWith('//') ? target : '/';
-    // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
-    console.log(`[proxy DEBUG] -> đá khỏi auth page, safeTarget=${safeTarget} (target thô=${target})`);
-    return NextResponse.redirect(new URL(safeTarget, request.url));
+    const target = safeRedirectTarget(request.nextUrl.searchParams.get('redirectTo'));
+    return NextResponse.redirect(new URL(target, request.url));
   }
 
-  const needsAuth =
-    pathname.startsWith('/account') ||
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/superadmin');
-  if (needsAuth && !isAuthenticated) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirectTo', pathname);
-    // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
-    console.log(`[proxy DEBUG] -> chưa đăng nhập, đá sang ${loginUrl.pathname}${loginUrl.search}`);
-    return NextResponse.redirect(loginUrl);
+  if (isProtectedPath(pathname) && !isAuthenticated) {
+    return NextResponse.redirect(new URL(loginUrlFor(pathname), request.url));
   }
 
   return NextResponse.next();

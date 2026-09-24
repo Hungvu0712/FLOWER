@@ -235,6 +235,7 @@ Biến môi trường điều chỉnh được:
 | `e2e/superadmin.spec.ts` | Danh sách user, **không tự khoá/xoá chính mình**, **không gán super_admin**, khoá/mở khoá, tài khoản bị khoá không đăng nhập được, **permission `is_restricted` bị lọc khi tạo Custom Role**, không sửa/xoá System Role, không đổi code permission hệ thống, **không tắt được phương thức đăng nhập cuối cùng** |
 | `e2e/account.spec.ts` | Sửa hồ sơ, đổi mật khẩu (mật khẩu cũ hết hiệu lực), danh sách thiết bị, **đăng xuất thiết bị khác không làm mất phiên hiện tại**, **chống IDOR khi thu hồi phiên** |
 | `e2e/categories.spec.ts` | CRUD danh mục qua UI, slug tự sinh bỏ dấu, không xoá khi còn con, không tạo vòng lặp, storefront đọc công khai không lộ trường nội bộ |
+| `e2e/session-expiry.spec.ts` | Access token hết hạn giữa chừng (giả lập tất định bằng cách xoá cookie `access_token`, điều hướng bằng **bấm Link**): refresh token đã bị thu hồi → về `/login`, **header không còn tên người dùng**; refresh token còn hạn → **tự quay về đúng trang vừa bấm**; đăng nhập lại → **không đứng im ở `/login`** (docs/12 FE-08, FE-09) |
 
 ---
 

@@ -1,40 +1,38 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { getRedirectTarget } from '@/lib/redirect';
+import { describe, expect, it } from 'vitest';
+import { safeRedirectTarget } from '@/lib/redirect';
 
-function setSearch(search: string) {
-  window.history.replaceState({}, '', `/login${search}`);
-}
-
-beforeEach(() => setSearch(''));
-
-describe('getRedirectTarget — chống open redirect', () => {
+describe('safeRedirectTarget — chống open redirect', () => {
   it('trả về path nội bộ hợp lệ', () => {
-    setSearch('?redirectTo=/superadmin/users');
-    expect(getRedirectTarget()).toBe('/superadmin/users');
+    expect(safeRedirectTarget('/superadmin/users')).toBe('/superadmin/users');
   });
 
   it('CHẶN redirect ra domain khác dạng //evil.com', () => {
-    setSearch('?redirectTo=//ke-tan-cong.example/phishing');
-    expect(getRedirectTarget()).toBe('/');
+    expect(safeRedirectTarget('//ke-tan-cong.example/phishing')).toBe('/');
   });
 
   it('CHẶN URL tuyệt đối http/https', () => {
-    setSearch('?redirectTo=https://ke-tan-cong.example');
-    expect(getRedirectTarget()).toBe('/');
+    expect(safeRedirectTarget('https://ke-tan-cong.example')).toBe('/');
   });
 
   it('CHẶN path không bắt đầu bằng /', () => {
-    setSearch('?redirectTo=superadmin/users');
-    expect(getRedirectTarget()).toBe('/');
+    expect(safeRedirectTarget('superadmin/users')).toBe('/');
   });
 
-  it('không có redirectTo → dùng fallback', () => {
-    expect(getRedirectTarget()).toBe('/');
-    expect(getRedirectTarget('/account/profile')).toBe('/account/profile');
+  it('không có redirectTo (null/undefined/rỗng) → dùng fallback', () => {
+    expect(safeRedirectTarget(null)).toBe('/');
+    expect(safeRedirectTarget(undefined)).toBe('/');
+    expect(safeRedirectTarget('')).toBe('/');
+    expect(safeRedirectTarget(null, '/account/profile')).toBe('/account/profile');
   });
 
   it('giữ nguyên query string trong path nội bộ', () => {
-    setSearch('?redirectTo=%2Fadmin%2Fcategories%3Fpage%3D2');
-    expect(getRedirectTarget()).toBe('/admin/categories?page=2');
+    expect(safeRedirectTarget('/admin/categories?page=2')).toBe('/admin/categories?page=2');
+  });
+
+  // docs/12 FE-08: bản cũ tự đọc window.location — khi điều hướng phía client, trang login render
+  // TRƯỚC khi URL đổi nên đọc ra URL trang cũ và bật nhầm về '/'. Hàm giờ chỉ xử lý giá trị được đưa vào.
+  it('KHÔNG tự đọc window.location — chỉ dựa vào giá trị caller truyền vào', () => {
+    window.history.replaceState({}, '', '/login?redirectTo=/admin');
+    expect(safeRedirectTarget(null)).toBe('/');
   });
 });

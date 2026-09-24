@@ -249,7 +249,10 @@ describe("POST /api/v1/auth/refresh", () => {
 
     expect(res.status).toBe(200);
     expect(db.session.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "sess-1" }, data: { revokedAt: expect.any(Date) } }),
+      expect.objectContaining({
+        where: { id: "sess-1" },
+        data: { revokedAt: expect.any(Date), rotatedAt: expect.any(Date) },
+      }),
     );
     expect(cookieString(res, "refresh_token")).not.toContain("cu-abc");
   });
@@ -262,11 +265,12 @@ describe("POST /api/v1/auth/refresh", () => {
     });
   });
 
-  it("token ĐÃ BỊ THU HỒI được gửi lại → 401 SESSION_EXPIRED (không tiết lộ đã bị phát hiện) + thu hồi toàn bộ session (docs/12 BE-03)", async () => {
+  it("token ĐÃ XOAY VÒNG được gửi lại → 401 SESSION_EXPIRED (không tiết lộ đã bị phát hiện) + thu hồi toàn bộ session (docs/12 BE-03)", async () => {
     db.session.findUnique.mockResolvedValue({
       id: "sess-1",
       userId: "user-1",
       revokedAt: new Date(),
+      rotatedAt: new Date(),
       expiresAt: new Date(Date.now() + 60_000),
     });
     db.user.findUnique.mockResolvedValue(ACTIVE_USER);
@@ -281,6 +285,76 @@ describe("POST /api/v1/auth/refresh", () => {
     expect(db.session.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ userId: "user-1" }) }),
     );
+  });
+
+  it("token bị thu hồi HỢP LỆ (đăng xuất thiết bị, không xoay vòng) → 401 nhưng KHÔNG thu hồi phiên khác (docs/12 BE-25)", async () => {
+    db.session.findUnique.mockResolvedValue({
+      id: "sess-b",
+      userId: "user-1",
+      revokedAt: new Date(),
+      rotatedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const res = await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", ["refresh_token=token-thiet-bi-b"]);
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe("SESSION_EXPIRED");
+    expect(db.session.updateMany).not.toHaveBeenCalled();
+    expect(emailService.sendEmail).not.toHaveBeenCalled();
+  });
+
+  // docs/12 BE-24: không xoá thì trình duyệt gửi lại refresh token chết ở MỌI lần tải trang sau đó.
+  describe("refresh thất bại → xoá cookie", () => {
+    function expectCookieCleared(res: request.Response, name: string, path: string) {
+      const cookie = cookieString(res, name);
+      expect(cookie).toBeDefined();
+      expect(cookie).toContain("Expires=Thu, 01 Jan 1970");
+      expect(cookie).toContain(`Path=${path}`);
+    }
+
+    it("401 SESSION_EXPIRED → xoá cả 2 cookie đúng Path đã set", async () => {
+      db.session.findUnique.mockResolvedValue(null);
+
+      const res = await request(app)
+        .post("/api/v1/auth/refresh")
+        .set("Cookie", ["refresh_token=khong-ton-tai"]);
+
+      expect(res.status).toBe(401);
+      expectCookieCleared(res, "access_token", "/");
+      expectCookieCleared(res, "refresh_token", "/api/v1");
+    });
+
+    it("403 ACCOUNT_BLOCKED → cũng xoá cookie (tài khoản bị khoá, phiên không dùng được nữa)", async () => {
+      db.session.findUnique.mockResolvedValue({
+        id: "sess-1",
+        userId: "user-1",
+        revokedAt: null,
+        rotatedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      db.user.findUnique.mockResolvedValue({ ...ACTIVE_USER, status: "blocked" });
+
+      const res = await request(app)
+        .post("/api/v1/auth/refresh")
+        .set("Cookie", ["refresh_token=cu-abc"]);
+
+      expect(res.status).toBe(403);
+      expectCookieCleared(res, "refresh_token", "/api/v1");
+    });
+
+    it("lỗi hệ thống (DB sập → 500) → GIỮ cookie, không đăng xuất nhầm phiên có thể vẫn hợp lệ", async () => {
+      db.session.findUnique.mockRejectedValue(new Error("DB connection lost"));
+
+      const res = await request(app)
+        .post("/api/v1/auth/refresh")
+        .set("Cookie", ["refresh_token=cu-abc"]);
+
+      expect(res.status).toBe(500);
+      expect(setCookies(res)).toEqual([]);
+    });
   });
 });
 

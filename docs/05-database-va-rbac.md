@@ -271,7 +271,7 @@ Hỗ trợ đủ 3 phương thức đăng nhập (Google OAuth, email/password, 
 | ✅ `auth_accounts`         | id, user_id, provider (`google`), provider_account_id, created_at                                                         | Liên kết tài khoản OAuth với `users`; `UNIQUE(provider, provider_account_id)`                                            |
 | ✅ `magic_link_tokens`     | id, email, user_id (nullable — email chưa có account thì tạo mới lúc verify), token_hash, expires_at, used_at, created_at | Token **dùng 1 lần**: set `used_at` ngay khi verify; hết hạn ngắn (~15 phút)                                             |
 | ✅ `password_reset_tokens` | id, user_id, token_hash, expires_at, used_at, created_at                                                                  | Dùng cho luồng "quên mật khẩu"; cũng dùng khi `super_admin` reset password hộ user                                       |
-| ✅ `sessions`              | id, user_id, refresh_token_hash, device_name, ip_address, user_agent, last_active_at, expires_at, revoked_at, created_at  | 1 dòng = 1 thiết bị/phiên đăng nhập → phục vụ màn "quản lý thiết bị" và "đăng xuất từ xa" (set `revoked_at`)             |
+| ✅ `sessions`              | id, user_id, refresh_token_hash, device_name, ip_address, user_agent, last_active_at, expires_at, revoked_at, rotated_at, created_at  | 1 dòng = 1 thiết bị/phiên đăng nhập → phục vụ màn "quản lý thiết bị" và "đăng xuất từ xa" (set `revoked_at`)             |
 | ✅ `login_method_settings` | id, method (`google_oauth` \| `email_password` \| `magic_link`), is_enabled, updated_by (user_id), updated_at             | Do `super_admin` cấu hình; **luôn phải còn ≥ 1 phương thức `is_enabled = true`** — validate ở service, không cho tắt hết |
 | ✅ `system_settings`       | key (PK, string), value (JSON-encode), updated_by (user_id), updated_at                                                   | Key-value tổng quát (Phase 4) — `site_name`/`site_logo`/`timezone`/`registration_enabled`, xem [docs/modules/core-settings.md §4](modules/core-settings.md) |
 
@@ -447,7 +447,8 @@ erDiagram
         string device_name
         string ip_address
         datetime expires_at
-        datetime revoked_at "đăng xuất từ xa"
+        datetime revoked_at "thu hồi — mọi lý do"
+        datetime rotated_at "chỉ set khi xoay vòng — reuse detection"
     }
     files {
         uuid id PK

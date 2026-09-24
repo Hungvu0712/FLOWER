@@ -1,14 +1,19 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { accountService } from './account.service';
+import { accountService, type Me } from './account.service';
 import { useToastStore } from '@/store/useToastStore';
 import { getErrorMessage } from '@/lib/errors';
 
 export function useMe() {
   // retry: false — 401 ở đây thường chỉ là "chưa đăng nhập" (vd khách ghé trang chủ), không phải lỗi
   // tạm thời cần thử lại; tránh gọi /api/v1/auth/refresh lặp lại vô ích cho khách vãng lai.
-  return useQuery({ queryKey: ['account', 'me'], queryFn: accountService.getMe, retry: false });
+  // `null` = đã biết chắc phiên đăng nhập chết hẳn — do useSessionExpiredHandler() ghi vào cache.
+  return useQuery<Me | null>({
+    queryKey: ['account', 'me'],
+    queryFn: accountService.getMe,
+    retry: false,
+  });
 }
 
 export function useUpdateProfile() {

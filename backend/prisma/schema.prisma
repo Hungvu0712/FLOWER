@@ -120,6 +120,10 @@ model Session {
   lastActiveAt     DateTime  @default(now()) @map("last_active_at")
   expiresAt        DateTime  @map("expires_at")
   revokedAt        DateTime? @map("revoked_at")
+  // Chỉ set khi bị thu hồi DO XOAY VÒNG ở /auth/refresh — phân biệt với thu hồi hợp lệ khác (đăng xuất
+  // thiết bị, đổi mật khẩu, superadmin khoá/reset) vốn chỉ set revokedAt. Reuse detection chỉ dựa vào
+  // cột này, xem auth.service.ts#refreshSession và docs/12 BE-25.
+  rotatedAt        DateTime? @map("rotated_at")
   createdAt        DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

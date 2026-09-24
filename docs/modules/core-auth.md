@@ -95,15 +95,15 @@ stateDiagram-v2
     KetThuc --> [*]
 
     note right of Refresh
-        Rotation: mỗi lần refresh
-        thu hồi token cũ, phát hành token mới.
-        ⚠️ CHƯA có reuse detection —
-        xem BE-03 ở docs/12
+        Rotation: mỗi lần refresh thu hồi token cũ
+        (set revoked_at + rotated_at), phát hành token mới.
+        Token ĐÃ XOAY VÒNG bị gửi lại → thu hồi
+        toàn bộ phiên + email (BE-03, BE-25)
     end note
 
     note right of KetThuc
-        ⚠️ Đổi mật khẩu hiện KHÔNG
-        thu hồi phiên cũ — xem BE-01
+        Đổi mật khẩu thu hồi phiên cũ (BE-01).
+        Refresh thất bại 401/403 → xoá cookie (BE-24)
     end note
 ```
 
@@ -177,18 +177,25 @@ cùng thông điệp.
 | File | Vai trò |
 |---|---|
 | `features/core/auth/auth.service.ts` | Gọi axios thuần |
-| `features/core/auth/auth.hooks.ts` | `useLogin`, `useRegister`, `useLogout`, `useLoginWithGoogle`, `useRequestMagicLink`, `useVerifyMagicLink`, `useForgotPassword`, `useResetPassword` |
+| `features/core/auth/auth.hooks.ts` | `useLogin`, `useRegister`, `useLogout`, `useLoginWithGoogle`, `useRequestMagicLink`, `useVerifyMagicLink`, `useForgotPassword`, `useResetPassword`, `useRedirectTarget`, `useSessionExpiredHandler` |
 | `features/core/auth/auth.schemas.ts` | Zod schema — **khớp thông điệp với backend** để trải nghiệm thống nhất |
 | `features/core/auth/GoogleLoginButton.tsx` | Tích hợp Google Identity Services |
 | `app/(auth)/*` | Trang login, register, magic-link, forgot/reset password |
 
-Sau khi đăng nhập thành công (`useAfterAuthSuccess`):
-1. `setUser(...)` vào Zustand (cho menu hiển thị ngay),
-2. `invalidateQueries(['account','me'])` để lấy role/permission tươi,
-3. `router.push(getRedirectTarget())` — quay lại đúng trang đã định vào.
+Sau khi đăng nhập thành công (`useAfterAuthSuccess`): **`hardRedirect(target)`** — tải lại trang tại
+đích lấy từ `?redirectTo=` (`useRedirectTarget()`, đọc qua `useSearchParams()`). Không dùng
+`router.push`: Client Cache của Next.js còn giữ kết quả "redirect về /login" từ lúc chưa đăng nhập,
+người dùng sẽ đứng im ở `/login` (docs/12 FE-08). Trang mới tự fetch `useMe()` từ đầu.
 
-Khi đăng xuất: `setUser(null)` + **`queryClient.clear()`** — xoá sạch cache để không rò dữ liệu sang
-tài khoản đăng nhập kế tiếp.
+Trang login/register chỉ tự rời trang khi có kết quả `/account/me` **mới** (`isSuccess &&
+isFetchedAfterMount`) — không tin user cũ còn trong cache.
+
+Khi đăng xuất: **`queryClient.clear()`** — xoá sạch cache để không rò dữ liệu sang tài khoản đăng nhập
+kế tiếp.
+
+Khi phiên chết (refresh trả 401/403): `useSessionExpiredHandler()` (mount ở `Providers`) đặt
+`['account','me']` = `null` để header về trạng thái chưa đăng nhập, và đưa về `/login?redirectTo=...`
+nếu đang ở route cần đăng nhập (docs/12 FE-09).
 
 ---
 
@@ -196,23 +203,22 @@ tài khoản đăng nhập kế tiếp.
 
 | Tầng | File | Bao phủ |
 |---|---|---|
-| Unit | `backend/tests/unit/modules/auth.service.test.ts` | 35 test — mọi luồng đăng nhập, rotation, chống dò email, token dùng 1 lần |
+| Unit | `backend/tests/unit/modules/auth.service.test.ts` | 67 test — mọi luồng đăng nhập, rotation, reuse detection (chỉ token đã xoay vòng), chống dò email, token dùng 1 lần |
 | Unit | `backend/tests/unit/modules/auth.utils.test.ts` | 16 test — cookie path/httpOnly/maxAge, tên thiết bị |
 | Unit | `backend/tests/unit/shared/authenticate.test.ts` | 8 test — cookie vs Bearer, tra DB, gộp permission |
-| Integration | `backend/tests/integration/auth.routes.test.ts` | 18 test — envelope, cookie, validate qua HTTP thật |
+| Integration | `backend/tests/integration/auth.routes.test.ts` | 25 test — envelope, cookie (kể cả xoá cookie khi refresh thất bại), validate qua HTTP thật |
+| Unit/Component | `frontend/tests/unit/axios.test.ts`, `frontend/tests/components/session-expiry.test.tsx` | Interceptor refresh (hàng đợi không treo, báo hết phiên), header khi phiên chết, trang login khi bị đá về |
 | E2E | `frontend/e2e/auth.spec.ts` | Đăng nhập/xuất, cookie httpOnly, redirectTo, 403 |
 
 ---
 
 ## 9. Việc còn lại
 
+`BE-01`, `BE-03`→`BE-05`, `BE-16`, `BE-17`, `BE-24`, `BE-25`, `FE-08`, `FE-09` đã xử lý — chi tiết ở
+[12 · Đánh giá](../12-danh-gia-va-de-xuat.md).
+
 | Việc | Ưu tiên | Mã |
 |---|:---:|---|
-| Thu hồi phiên khi đổi mật khẩu | 🔴 | `BE-01` |
-| Phát hiện dùng lại refresh token | 🔴 | `BE-03` |
-| Kiểm tra `email_verified` của Google | 🔴 | `BE-04` |
-| Token dùng-một-lần nguyên tử | 🔴 | `BE-05` |
-| Khoá tạm sau N lần đăng nhập sai | 🟢 | `BE-17` |
-| Rate limit theo email, không chỉ IP | 🟢 | `BE-16` |
+| Refresh đồng thời từ nhiều tab bị reuse detection báo nhầm (grace window) | 🟢 | `BE-26` |
 | 2FA (TOTP) cho `super_admin`/`admin` | 🟢 | [07 §1](../07-bao-mat.md) |
 | Xác thực email trước khi đặt hàng | 🟢 | [07 §1](../07-bao-mat.md) |

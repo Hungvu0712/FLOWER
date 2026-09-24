@@ -1,4 +1,5 @@
 import type { Response } from "express";
+import { AppError } from "../../../shared/errors";
 import { asyncHandler } from "../../../shared/middleware";
 import { ok } from "../../../shared/response/ApiResponse";
 import * as authService from "./auth.service";
@@ -53,8 +54,18 @@ export const googleLogin = asyncHandler(async (req, res) => {
 });
 
 export const refresh = asyncHandler(async (req, res) => {
-  const session = await authService.refreshSession(req.cookies?.refresh_token, requestMeta(req));
-  respondWithSession(res, session);
+  try {
+    const session = await authService.refreshSession(req.cookies?.refresh_token, requestMeta(req));
+    respondWithSession(res, session);
+  } catch (err) {
+    // Phiên đã chết hẳn (401 hết hạn/thu hồi, 403 tài khoản bị khoá) → xoá cookie để trình duyệt thôi
+    // gửi lại refresh token chết ở MỌI lần tải trang sau đó (docs/12 BE-24). Lỗi hệ thống (DB sập...)
+    // thì giữ nguyên cookie — phiên có thể vẫn còn hợp lệ, xoá đi là đăng xuất nhầm người dùng.
+    if (err instanceof AppError && (err.statusCode === 401 || err.statusCode === 403)) {
+      clearAuthCookies(res);
+    }
+    throw err;
+  }
 });
 
 export const logout = asyncHandler(async (req, res) => {

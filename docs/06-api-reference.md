@@ -203,7 +203,10 @@ Lỗi: `401 INVALID_GOOGLE_TOKEN` · `403 LOGIN_METHOD_DISABLED`.
 ### `POST /api/v1/auth/refresh`
 
 Không có body — đọc cookie `refresh_token`. Thu hồi token cũ, phát hành cặp mới (*rotation*).
-Lỗi: `401 UNAUTHENTICATED` (thiếu cookie) · `401 SESSION_EXPIRED`.
+Lỗi: `401 UNAUTHENTICATED` (thiếu cookie) · `401 SESSION_EXPIRED` (hết hạn / đã thu hồi / token đã xoay
+vòng bị dùng lại) · `403 ACCOUNT_BLOCKED`.
+Khi lỗi `401`/`403`, response **xoá cả 2 cookie** (`access_token`, `refresh_token`) để trình duyệt thôi
+gửi lại token chết; lỗi `500` giữ nguyên cookie (docs/12 BE-24).
 
 ### `POST /api/v1/auth/forgot-password` · `/reset-password`
 

@@ -103,6 +103,13 @@ export function revokeSession(id: string) {
   return prisma.session.update({ where: { id }, data: { revokedAt: new Date() } });
 }
 
+// Thu hồi DO XOAY VÒNG — tách khỏi revokeSession() vì chỉ token đã xoay vòng mà còn bị gửi lại mới là
+// dấu hiệu bị đánh cắp (xem refreshSession, docs/12 BE-25).
+export function rotateSession(id: string) {
+  const now = new Date();
+  return prisma.session.update({ where: { id }, data: { revokedAt: now, rotatedAt: now } });
+}
+
 export function createMagicLinkToken(input: {
   email: string;
   userId?: string;

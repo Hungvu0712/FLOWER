@@ -1,19 +1,11 @@
 // proxy.ts gắn ?redirectTo=<path gốc> khi chặn truy cập trang cần đăng nhập — đọc lại để quay đúng
 // chỗ sau khi đăng nhập thành công. Chỉ chấp nhận path nội bộ bắt đầu bằng "/" (không phải "//") để
 // tránh open-redirect nếu ai đó tự chế query string trỏ ra domain khác.
-export function getRedirectTarget(fallback = '/'): string {
-  if (typeof window === 'undefined') {
-    // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
-    console.log('[getRedirectTarget DEBUG] chạy trên SERVER (SSR) -> trả fallback', fallback);
-    return fallback;
-  }
-  const target = new URLSearchParams(window.location.search).get('redirectTo');
-  const result =
-    target && target.startsWith('/') && !target.startsWith('//') ? target : fallback;
-  // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
-  console.log(
-    `[getRedirectTarget DEBUG] window.location.search="${window.location.search}" target="${target}" -> result="${result}"`,
-    new Error('stack').stack,
-  );
-  return result;
+//
+// Nhận giá trị thô từ caller (useSearchParams() ở client, request.nextUrl ở proxy.ts) thay vì tự đọc
+// window.location: khi điều hướng phía client, trang mới render TRƯỚC khi URL trên thanh địa chỉ đổi —
+// đọc window.location lúc đó ra URL của trang CŨ (mất ?redirectTo=), bật nhầm về '/' (docs/12 FE-08).
+export function safeRedirectTarget(raw: string | null | undefined, fallback = '/'): string {
+  if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw;
+  return fallback;
 }

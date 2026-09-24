@@ -306,12 +306,16 @@ export async function refreshSession(
   const tokenHash = sha256(refreshToken);
   const session = await repo.findSessionByHash(tokenHash);
 
-  // Token ĐÃ BỊ THU HỒI (rotation ở lần refresh trước) nhưng vẫn được gửi lên lại — người dùng hợp lệ
-  // không bao giờ dùng lại token đã xoay vòng, đây gần như chắc chắn là dấu hiệu token bị đánh cắp.
+  // Token ĐÃ XOAY VÒNG ở lần refresh trước nhưng vẫn được gửi lên lại — người dùng hợp lệ không bao giờ
+  // dùng lại token đã xoay vòng, đây gần như chắc chắn là dấu hiệu token bị đánh cắp.
   // Phản hồi cho client GIỐNG HỆT nhánh "hết hạn" bên dưới (không tiết lộ đã bị phát hiện, tránh kẻ
   // tấn công biết mà đổi chiến thuật) — nhưng phía server thu hồi TOÀN BỘ phiên + ghi audit log + gửi
   // email cảnh báo. Xem docs/12 BE-03.
-  if (session?.revokedAt) {
+  // Dựa vào rotatedAt, KHÔNG phải revokedAt: phiên bị thu hồi hợp lệ (đăng xuất thiết bị, đổi mật khẩu,
+  // superadmin khoá/reset) mà trình duyệt cũ gửi lại cookie là chuyện bình thường. Từng dựa vào
+  // revokedAt — "Đăng xuất thiết bị B" từ máy A khiến lần sau B mở trang thì thu hồi LUÔN phiên của A
+  // kèm email "đăng nhập bất thường", lặp lại mỗi lần B tải trang (docs/12 BE-25).
+  if (session?.rotatedAt) {
     await revokeAllUserSessions(session.userId);
     await auditLog.record({
       actorId: session.userId,
@@ -341,7 +345,7 @@ export async function refreshSession(
   assertActive(user);
 
   // Rotation: thu hồi refresh token cũ, phát hành cặp token mới.
-  await repo.revokeSession(session.id);
+  await repo.rotateSession(session.id);
   return issueSession(user, meta);
 }
 

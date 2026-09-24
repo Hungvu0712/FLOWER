@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { api } from '@/lib/axios';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { api, onSessionExpired } from '@/lib/axios';
 
 // Không dùng thư viện mock adapter — thay thẳng `adapter` của axios instance để kiểm soát hoàn toàn
 // từng lượt request. Đây là cách kiểm thử interceptor mà không cần server thật.
@@ -121,5 +121,119 @@ describe('interceptor tự refresh khi gặp 401', () => {
     handler = (config) => respond(200, { success: true })(config);
     expect((await api.get('/api/v1/categories')).data).toEqual({ success: true });
     expect(calls).toHaveLength(1);
+  });
+});
+
+// Refresh trả lời chậm một nhịp — để các request 401 còn lại kịp vào hàng đợi trong lúc đang refresh,
+// đúng tình huống thật (Nav và trang login cùng gọi /account/me một lúc).
+function delayedRefresh(status: number) {
+  return (config: AxiosRequestConfig) =>
+    new Promise((resolve) => setTimeout(resolve, 10)).then(() => respond(status)(config));
+}
+
+// Promise treo vĩnh viễn không bao giờ fail test theo cách bình thường — chạy đua với timeout để biến
+// "treo" thành một giá trị kiểm tra được.
+function settleWithin(promise: Promise<unknown>, ms = 500) {
+  return Promise.race([
+    promise.then(
+      () => 'resolved',
+      (e) => `rejected ${e?.response?.status}`,
+    ),
+    new Promise((resolve) => setTimeout(() => resolve('TREO'), ms)),
+  ]);
+}
+
+describe('refresh thất bại — phiên đã chết (docs/12 FE-09)', () => {
+  it('MỌI request đang xếp hàng chờ refresh đều bị reject, không treo promise', async () => {
+    handler = (config) =>
+      config.url?.includes('/auth/refresh') ? delayedRefresh(401)(config) : respond(401)(config);
+
+    const outcomes = await Promise.all([
+      settleWithin(api.get('/api/v1/account/me')),
+      settleWithin(api.get('/api/v1/account/me')),
+      settleWithin(api.get('/api/v1/account/sessions')),
+    ]);
+
+    expect(outcomes).toEqual(['rejected 401', 'rejected 401', 'rejected 401']);
+    expect(calls.filter((c) => c.includes('/auth/refresh'))).toHaveLength(1);
+  });
+
+  it('refresh trả 401 → báo onSessionExpired đúng MỘT lần dù nhiều request cùng 401', async () => {
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+    handler = (config) =>
+      config.url?.includes('/auth/refresh') ? delayedRefresh(401)(config) : respond(401)(config);
+
+    await Promise.allSettled([api.get('/api/v1/account/me'), api.get('/api/v1/account/sessions')]);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it('refresh trả 403 (tài khoản bị khoá) → cũng là phiên chết', async () => {
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+    handler = (config) =>
+      config.url?.includes('/auth/refresh') ? respond(403)(config) : respond(401)(config);
+
+    await api.get('/api/v1/account/me').catch(() => {});
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it.each([500, 429])(
+    'refresh lỗi %i → KHÔNG báo hết phiên (phiên có thể vẫn còn, tránh đăng xuất nhầm)',
+    async (status) => {
+      const listener = vi.fn();
+      const unsubscribe = onSessionExpired(listener);
+      handler = (config) =>
+        config.url?.includes('/auth/refresh') ? respond(status)(config) : respond(401)(config);
+
+      await api.get('/api/v1/account/me').catch(() => {});
+
+      expect(listener).not.toHaveBeenCalled();
+      unsubscribe();
+    },
+  );
+
+  it('lỗi mạng khi refresh (không có response) → KHÔNG báo hết phiên', async () => {
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+    handler = (config) =>
+      config.url?.includes('/auth/refresh')
+        ? Promise.reject(Object.assign(new Error('Network Error'), { config, isAxiosError: true }))
+        : respond(401)(config);
+
+    await api.get('/api/v1/account/me').catch(() => {});
+
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('refresh thành công → KHÔNG báo hết phiên', async () => {
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+    let meCalls = 0;
+    handler = (config) => {
+      if (config.url?.includes('/auth/refresh')) return respond(200)(config);
+      meCalls += 1;
+      return meCalls === 1 ? respond(401)(config) : respond(200)(config);
+    };
+
+    await api.get('/api/v1/account/me');
+
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('huỷ đăng ký (hàm trả về từ onSessionExpired) → không nhận thông báo nữa', async () => {
+    const listener = vi.fn();
+    onSessionExpired(listener)();
+    handler = (config) => respond(401)(config);
+
+    await api.get('/api/v1/account/me').catch(() => {});
+
+    expect(listener).not.toHaveBeenCalled();
   });
 });

@@ -34,6 +34,7 @@ flowchart LR
         G14["✅ BE-12 đã xử lý (11/09/2026)<br/>OpenAPI/Swagger sinh từ zod schema thật<br/>GET /docs · GET /openapi.json"]
         G15["✅ Màn quản lý tài nguyên đã xây (11/09/2026)<br/>+ system_settings key-value tổng quát<br/>(site_name/logo/timezone/registration_enabled)"]
         G16["✅ BE-20 đã xử lý (11/09/2026)<br/>Nối lại đăng ký qua magic link<br/>khớp đúng tài liệu ban đầu"]
+        G17["✅ FE-08 (mở lại), FE-09, BE-24, BE-25 đã xử lý (24/09/2026)<br/>header xoá user khi phiên chết · hàng đợi refresh không treo<br/>quay về đúng trang sau đăng nhập · reuse detection<br/>chỉ bắt token đã xoay vòng"]
     end
 
     style GOOD fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
@@ -43,8 +44,8 @@ flowchart LR
 đúng, quy ước nhất quán, và — điều hiếm gặp — **các quyết định đánh đổi đều được ghi lại lý do
 ngay trong code**. Toàn bộ 6 lỗ hổng phiên đăng nhập mức 🔴 (BE-01 → BE-06, 10/09/2026), **toàn bộ
 14/14 khoản nợ 🟡** (§3, 10-11/09/2026), và **toàn bộ 10/10 khoản nợ 🟢** (§4, 11/09/2026) đã được xử
-lý — bao gồm `BE-20` (phát hiện VÀ xử lý cùng ngày 11/09/2026 khi làm `registration_enabled`). Không
-còn khoản nợ kỹ thuật nào đang mở trong danh sách rà soát này.
+lý — bao gồm `BE-20` (phát hiện VÀ xử lý cùng ngày 11/09/2026 khi làm `registration_enabled`).
+Còn mở: `FE-07`, `BE-26` (§4).
 
 ### Bảng điểm
 
@@ -826,7 +827,7 @@ xem `docs/10-trien-khai-van-hanh.md` §5.7.
 
 ---
 
-### FE-08 · Đăng nhập lại sau khi hết hạn token có lúc bị đẩy nhầm về trang chủ — ✅ ĐÃ XỬ LÝ (18/09/2026)
+### FE-08 · Đăng nhập lại sau khi hết hạn token có lúc bị đẩy nhầm về trang chủ — ✅ ĐÃ XỬ LÝ (24/09/2026 — 2 lần sửa ngày 18/09 chưa đủ, xem cập nhật cuối mục)
 
 Phát hiện qua báo cáo người dùng thật: token hết hạn giữa phiên → `proxy.ts` đẩy về
 `/login?redirectTo=%2Fadmin` → đăng nhập lại → trang **đứng im** ở `/login` một lúc, F5 mới về được
@@ -911,6 +912,147 @@ chứng giống nhau (đều "bật về trang chủ thay vì đúng trang"), ph
 người dùng (Network tab + Console thật) mới lộ ra lớp thứ 2, không dừng lại ở suy luận từ code một
 lần là xong.
 
+
+**Cập nhật (24/09/2026) — 2 bản sửa ngày 18/09 vẫn CHƯA đủ.** Lần này tái hiện được bằng trình duyệt
+thật (Playwright điều khiển Chrome, access token rút còn 8–10 giây). Điều kiện tái hiện mà lần trước
+bỏ sót: cookie `access_token` phải **thật sự hết hạn** (trình duyệt tự xoá vì `maxAge` = đúng thời hạn
+JWT), và người dùng phải **bấm Link** (điều hướng phía client), không phải `page.goto()` (tải lại trang
+cứng thì không có lỗi). Có **3 nguyên nhân chồng lên nhau**, không phải 1:
+
+1. **Đọc `?redirectTo=` sai thời điểm.** `useState(() => getRedirectTarget())` chạy lúc *render*. Khi
+   điều hướng phía client, trang login render **trước khi** thanh địa chỉ đổi sang
+   `/login?redirectTo=...`. Log thật: `getRedirectTarget` đọc `window.location.search=""` rồi mới có sự
+   kiện đổi URL, nên đích bị chốt thành `'/'`. "Chốt 1 lần lúc mount" (bản sửa 1) lại chốt đúng giá
+   trị sai.
+2. **Tin user cũ trong cache.** Effect `if (me) router.replace(...)` chạy ngay lần render đầu với `me`
+   là dữ liệu cũ (React Query **giữ data khi refetch lỗi**), không chờ kết quả `/account/me` mới. Đây
+   cũng là gốc của FE-09.
+3. **Client Cache của Next.js giữ kết quả redirect.** Các trang `/account/*`, `/admin/*` là trang tĩnh
+   (○ trong `next build`), Client Cache giữ tới 5 phút (`staleTimes.static`). Lần bấm Link lúc hết hạn
+   bị `proxy.ts` redirect về `/login`, và kết quả "trang này → redirect /login" được cache lại. Sau khi
+   đăng nhập lại (hoặc tự refresh thành công), `router.push('/account/devices')` **dùng lại redirect
+   cũ, không hỏi server**. Trace network thật: `POST /auth/login → 200`, rồi URL nhảy lại chính
+   `/login?...`, không có request nào tới `/account/devices`. Đây chính là triệu chứng "đứng im ở
+   /login, F5 mới được" trong báo cáo gốc.
+
+```mermaid
+sequenceDiagram
+    participant U as Người dùng
+    participant R as App Router (client)
+    participant P as proxy.ts
+    participant L as login/page.tsx
+
+    Note over U: access_token đã hết hạn, trình duyệt đã xoá cookie
+    U->>R: bấm Link /account/devices
+    R->>P: GET /account/devices (RSC)
+    P-->>R: 307 → /login?redirectTo=/account/devices
+    Note over R: ❌ cache: /account/devices = redirect /login
+    R->>L: render (URL trên thanh địa chỉ CHƯA đổi)
+    Note over L: ❌ window.location.search = "" → đích = "/"<br/>❌ me = user CŨ trong cache → điều hướng ngay
+    U->>L: đăng nhập lại
+    L->>R: router.push("/account/devices")
+    R-->>U: ❌ dùng redirect đã cache → đứng im ở /login
+```
+
+**Đã sửa**:
+
+| Nguyên nhân | Sửa |
+|---|---|
+| 1 | `useRedirectTarget()` đọc qua `useSearchParams()` — phản ánh đúng URL của trang đang render. `lib/redirect.ts` thành hàm thuần `safeRedirectTarget(raw)`, `proxy.ts` dùng chung. Trang login/register bọc `<Suspense>` (thiếu là `next build` lỗi — giống `reset-password`, `magic-link/verify`) |
+| 2 | Chỉ điều hướng khi `me && isSuccess && isFetchedAfterMount` — kết quả `/account/me` fetch thành công SAU khi trang mount |
+| 3 | Sau khi trạng thái đăng nhập đổi (đăng nhập xong / tự phục hồi phiên) dùng `hardRedirect()` (`lib/navigation.ts`, `window.location.replace`) thay vì `router.push`. Đánh đổi: tải lại trang 1 lần sau đăng nhập; đổi lại xoá luôn Client Cache, cache React Query và kết nối socket từ lúc chưa đăng nhập |
+
+**Kiểm chứng**: `tests/components/session-expiry.test.tsx` (axios/service/hook thật, chỉ mock
+`next/navigation`) + chạy đầu-cuối với backend thật (`JWT_ACCESS_EXPIRES_IN=10s`): hết hạn → bấm tab →
+tự phục hồi về đúng `/account/devices`; refresh token chết → đăng nhập lại bằng form → về đúng
+`/account/devices`. `next build` production sạch.
+
+**Bài học**: "không tái hiện được bằng Playwright" ở lần 1 là do kịch bản test chưa đúng điều kiện
+thật (cookie phải hết hạn thật + điều hướng bằng Link) — không phải do race quá hẹp.
+
+---
+
+### FE-09 · Header vẫn hiện tên người dùng sau khi phiên đã chết — ✅ ĐÃ XỬ LÝ (24/09/2026)
+
+**Triệu chứng** (báo cáo người dùng): token hết hạn → bị đưa về `/login` nhưng header vẫn hiện tên và
+menu tài khoản; F5 mới hết.
+
+**Nguyên nhân** (tái hiện bằng trình duyệt thật, backend trả 401 cho cả `/account/me` lẫn
+`/auth/refresh` mà header vẫn hiện user):
+
+1. **Không ai xoá cache `['account','me']` khi phiên chết.** React Query v5 giữ nguyên `data` cũ khi
+   refetch lỗi (status `error` nhưng `data` vẫn là user). `lib/axios.ts` khi refresh thất bại chỉ
+   reject; cả dự án chỉ xoá cache ở `useLogout`. `Nav` vì vậy tiếp tục render `UserMenu`.
+2. **Request xếp hàng chờ refresh bị treo vĩnh viễn.** Refresh thất bại thì `pendingQueue = []` —
+   bỏ rơi promise của các request đang chờ, không reject. Chạy thử với chính `axios.ts`: `refetchMe()`
+   treo, query kẹt `fetchStatus: 'fetching'` với data cũ; refetch khi focus lại tab cũng treo theo
+   (React Query gộp vào promise đang treo). Xảy ra dễ ở trang login vì `Nav` và `refetchMe()` cùng gọi
+   `/account/me`.
+3. **`AdminShell` mở cổng bằng role cũ**: `refetchMe().then(r => r.data?.roles)` — refetch lỗi thì
+   `r.data` vẫn là user cũ, nên nội dung trang admin vẫn render (chỉ là lớp UX — backend vẫn chặn API).
+
+**Đã sửa**:
+
+- `lib/axios.ts`: refresh thất bại → **reject từng request trong hàng đợi**; nếu refresh trả
+  **401/403** (phiên chết chắc chắn) thì phát tín hiệu `onSessionExpired()`. Lỗi mạng/5xx/429 **không**
+  phát — phiên có thể vẫn còn, tránh đăng xuất nhầm.
+- `useSessionExpiredHandler()` (mount 1 lần ở `Providers`): nhận tín hiệu → `setQueryData(['account',
+  'me'], null)` (không dùng `removeQueries` — gỡ khỏi cache không báo cho component đang mount render
+  lại) → nếu đang ở route cần đăng nhập thì `router.replace('/login?redirectTo=...')`. Danh sách route
+  cần đăng nhập gom về `lib/auth-routes.ts`, dùng chung với `proxy.ts`.
+- `useMe()` khai báo đúng kiểu `Me | null` (`null` = đã biết chắc phiên chết).
+- `AdminShell`: chỉ tin kết quả `refetch()` khi `isSuccess`.
+
+**Test**: `tests/unit/axios.test.ts` (+8: hàng đợi bị reject không treo, báo hết phiên đúng 1 lần,
+không báo với 500/429/lỗi mạng), `tests/components/session-expiry.test.tsx` (Nav chuyển về
+"Đăng nhập", redirect đúng khi đứng ở route cần đăng nhập, KHÔNG redirect ở trang công khai, giữ user
+khi refresh lỗi 500, AdminShell không mở cổng bằng role cũ), `tests/unit/auth-routes.test.ts` (bắt
+lệch danh sách route với `config.matcher` của `proxy.ts`).
+
+---
+
+### BE-24 · `/auth/refresh` thất bại không xoá cookie — ✅ ĐÃ XỬ LÝ (24/09/2026)
+
+**Vấn đề**: refresh token hết hạn/bị thu hồi → `401` nhưng cookie `refresh_token` vẫn nằm trong trình
+duyệt, bị gửi lại ở **mọi** lần tải trang sau đó (mỗi lần `useMe()` gặp 401). Tự nó chỉ gây request
+thừa, nhưng cộng với BE-25 thì mỗi lần gửi lại là một lần thu hồi toàn bộ phiên.
+
+**Đã sửa**: `auth.controller.ts#refresh` — lỗi `AppError` 401/403 (phiên chết, tài khoản bị khoá) →
+`clearAuthCookies()` rồi ném lỗi tiếp cho `errorHandler`. Lỗi hệ thống (DB sập → 500) **giữ nguyên
+cookie** — phiên có thể vẫn hợp lệ.
+
+**Test**: `tests/integration/auth.routes.test.ts` — 401 xoá cả 2 cookie đúng `Path`, 403 cũng xoá,
+500 không xoá. Kiểm chứng thật: sau khi refresh thất bại, trình duyệt không còn cookie `refresh_token`.
+
+---
+
+### BE-25 · Reuse detection báo nhầm khi thu hồi phiên hợp lệ → thu hồi hàng loạt + email cảnh báo giả — ✅ ĐÃ XỬ LÝ (24/09/2026)
+
+**Mức độ**: 🔴 cao — một thao tác hợp lệ của chính người dùng đăng xuất họ khỏi mọi thiết bị và gửi
+email "phát hiện đăng nhập bất thường" sai sự thật.
+
+**Vấn đề**: reuse detection (BE-03) coi **mọi** `sessions.revoked_at` khác `null` là dấu hiệu token bị
+đánh cắp. Nhưng `revoked_at` còn được set bởi các thu hồi **hợp lệ**: "Đăng xuất thiết bị", "Đăng xuất
+các thiết bị khác", đổi mật khẩu, superadmin khoá/reset. Kịch bản: từ máy A bấm "Đăng xuất thiết bị B"
+→ trình duyệt B vẫn giữ cookie cũ → lần sau B mở trang, refresh bằng token đó → backend thu hồi
+**toàn bộ** phiên (kể cả A vừa bấm) + ghi audit `auth.refresh_reuse_detected` + gửi email cảnh báo.
+Cộng BE-24: lặp lại **mỗi lần B tải trang** cho tới khi cookie hết hạn (30 ngày) — kể cả phiên A đăng
+nhập lại cũng bị thu hồi tiếp. Đổi mật khẩu "chừa phiên hiện tại" (BE-01) cũng bị vô hiệu theo cách này.
+
+**Đã sửa**: thêm cột `sessions.rotated_at` (migration `20260924100000_add_session_rotated_at`), CHỈ set
+khi thu hồi do xoay vòng ở `/auth/refresh` (`repo.rotateSession()`). Reuse detection dựa vào
+`rotated_at` thay vì `revoked_at`. Phiên bị thu hồi hợp lệ gửi lại → vẫn `401 SESSION_EXPIRED` (không gia
+hạn), nhưng không thu hồi phiên khác, không audit, không email.
+
+> ⚠️ **Giai đoạn chuyển tiếp**: các token đã xoay vòng TRƯỚC khi deploy migration có `rotated_at = null`
+> — nếu bị đánh cắp và dùng lại thì không bị phát hiện (vẫn bị từ chối 401). Không backfill được vì
+> không phân biệt được lý do thu hồi cũ. Cửa sổ rủi ro tự đóng khi các session đó hết hạn/bị job dọn dẹp.
+
+**Test**: unit (+4) + integration (+1): token đã xoay vòng gửi lại vẫn bị thu hồi toàn bộ; token bị thu
+hồi hợp lệ gửi lại → 401 nhưng không `updateMany`, không audit, không email. Kiểm chứng thật với
+backend + DB dev: B thu hồi 5 phiên khác (gồm A), A tiếp tục gửi token cũ → B vẫn đăng nhập bình
+thường; DB có 0 bản ghi `auth.refresh_reuse_detected`, 0 email `security_alert`.
+
 ---
 
 ## 4. 🟢 Ưu tiên thấp
@@ -929,6 +1071,7 @@ lần là xong.
 | `FE-06` | Chưa có metadata SEO cho từng trang | Thêm `generateMetadata` cho trang sản phẩm/danh mục | 3 giờ | ✅ *(11/09 — `generateMetadata` động cho `san-pham/[slug]` (title/description/og:image từ đúng sản phẩm, mô tả HTML được strip về text thuần) và `danh-muc/[slug]`; metadata tĩnh cho `ve-chung-toi`. **Chưa làm** `lien-he` — trang đó là Client Component (`'use client'`, có form), Next.js không cho export `metadata`/`generateMetadata` từ Client Component; cần tách phần form ra component riêng trước, nằm ngoài phạm vi 3h này. Xác nhận thật: khởi động cả 2 server, `curl` trực tiếp trang sản phẩm/danh mục thật trong DB dev, đọc đúng `<title>`/`<meta description>`/`og:*` — không chỉ qua mock. 6 test unit cho logic fallback (không có mô tả, không có ảnh, không tìm thấy))* |
 | `OPS-04` | Chưa có `.nvmrc` / `engines` | Chốt phiên bản Node để tránh lệch môi trường | 15 phút | ✅ *(11/09 — `.nvmrc`=22 ở gốc repo, `engines.node` ≥20.9.0 ở cả 2 package.json)* |
 | `FE-07` | 4 form còn lại dùng `type="email"` (`login`, `magic-link`, `forgot-password`, `NewsletterSignupForm`) thiếu `noValidate` — thiếu cờ này thì validate nguyên sinh của trình duyệt chặn sự kiện submit TRƯỚC react-hook-form, hiện tooltip mặc định (không tiếng Việt) thay vì thông báo zod. Đã sửa `register/page.tsx` (chặn thật bộ E2E, docs/12 BE-21 cùng đợt) — 4 form còn lại CHƯA có test chạm tới luồng email sai định dạng nên chưa lộ ra, nhưng cùng 1 lớp bug | Thêm `noValidate` vào 4 `<form>` còn lại | 15 phút | ⬜ |
+| `BE-26` | **Refresh đồng thời bằng CÙNG 1 refresh token** (vd trình duyệt khôi phục nhiều tab `/admin` cùng lúc sau khi mở lại máy — tab nào cũng thấy 401 và tự refresh): request tới trước xoay vòng token, request tới sau mang token vừa bị xoay vòng → bị reuse detection coi là đánh cắp → thu hồi TOÀN BỘ phiên + email cảnh báo giả. Khoá `isRefreshing` ở `lib/axios.ts` chỉ chặn được trong 1 tab. Phát hiện khi đọc code lúc làm BE-25, **chưa tái hiện thực tế** | *Grace window*: token có `rotated_at` trong vòng ~10–30 giây trở lại → chỉ trả 401 như phiên hết hạn, KHÔNG thu hồi toàn bộ (kẻ tấn công dùng lại token sau cửa sổ này vẫn bị bắt). Cân nhắc thêm `BroadcastChannel`/Web Locks để các tab dùng chung 1 lần refresh | 3 giờ | ⬜ |
 
 ---
 

@@ -8,8 +8,35 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+type PendingRequest = { retry: () => void; fail: () => void };
+
 let isRefreshing = false;
-let pendingQueue: Array<() => void> = [];
+let pendingQueue: PendingRequest[] = [];
+
+function drainQueue(): PendingRequest[] {
+  const current = pendingQueue;
+  pendingQueue = [];
+  return current;
+}
+
+// Báo cho tầng UI (useSessionExpiredHandler) khi phiên đã chết hẳn — file này cố ý không biết React
+// Query/router tồn tại (docs/04 §1), nên chỉ phát tín hiệu, không tự xoá cache hay điều hướng.
+type SessionExpiredListener = () => void;
+const sessionExpiredListeners = new Set<SessionExpiredListener>();
+
+export function onSessionExpired(listener: SessionExpiredListener): () => void {
+  sessionExpiredListeners.add(listener);
+  return () => {
+    sessionExpiredListeners.delete(listener);
+  };
+}
+
+// Chỉ 401/403 từ /auth/refresh mới chắc chắn phiên đã chết (hết hạn, bị thu hồi, tài khoản bị khoá).
+// Lỗi mạng/5xx/429 thì phiên có thể vẫn còn — báo "hết phiên" lúc đó là đăng xuất nhầm người dùng.
+function isSessionDead(refreshError: unknown): boolean {
+  const status = axios.isAxiosError(refreshError) ? refreshError.response?.status : undefined;
+  return status === 401 || status === 403;
+}
 
 // access_token cố ý hết hạn ngắn (mặc định 5 phút, xem JWT_ACCESS_EXPIRES_IN ở backend) — tự động
 // refresh 1 lần rồi retry request gốc, tránh user bị văng ra ngay khi token vừa hết hạn giữa phiên.
@@ -24,26 +51,32 @@ api.interceptors.response.use(
 
       // Đã có 1 request khác đang refresh — xếp hàng chờ thay vì gọi refresh trùng lặp.
       if (isRefreshing) {
-        return new Promise((resolve) => {
-          pendingQueue.push(() => resolve(api(originalRequest)));
+        return new Promise((resolve, reject) => {
+          pendingQueue.push({
+            retry: () => resolve(api(originalRequest)),
+            fail: () => reject(error),
+          });
         });
       }
 
       isRefreshing = true;
       try {
         await api.post('/api/v1/auth/refresh');
-        pendingQueue.forEach((resolve) => resolve());
-        pendingQueue = [];
+        drainQueue().forEach((pending) => pending.retry());
         // Request "chính" (request kích hoạt refresh) phải tự retry ở đây — KHÔNG được đẩy vào
         // pendingQueue vì hàng đợi vừa bị xoá rỗng ngay phía trên, đẩy vào đây thì không ai resolve
         // nữa, promise treo vĩnh viễn (bug thật đã xảy ra: user tưởng đã refresh xong nhưng request
         // gốc — vd useMe() — không bao giờ trả kết quả).
         return api(originalRequest);
-      } catch {
-        // Không có refresh token hợp lệ — có thể chỉ là khách chưa đăng nhập ghé trang public
-        // (vd gọi useMe() ở trang chủ). Không tự ý redirect ở đây: route thật sự cần đăng nhập đã
-        // được proxy.ts chặn từ trước khi vào trang; cứ để lỗi 401 trả về cho caller tự xử lý.
-        pendingQueue = [];
+      } catch (refreshError) {
+        // PHẢI reject từng request đang xếp hàng — trước đây chỉ gán `pendingQueue = []`, các promise
+        // đó treo vĩnh viễn; useMe() kẹt ở trạng thái "đang tải" với dữ liệu user CŨ, kể cả refetch khi
+        // focus lại tab cũng treo theo, chỉ F5 mới thoát (docs/12 FE-09).
+        drainQueue().forEach((pending) => pending.fail());
+        // Không tự redirect ở đây: khách chưa đăng nhập ghé trang public (vd useMe() ở trang chủ) cũng
+        // đi vào nhánh này — việc xoá cache user và quyết định có cần đưa về /login hay không là của
+        // useSessionExpiredHandler().
+        if (isSessionDead(refreshError)) sessionExpiredListeners.forEach((listener) => listener());
         return Promise.reject(error);
       } finally {
         isRefreshing = false;

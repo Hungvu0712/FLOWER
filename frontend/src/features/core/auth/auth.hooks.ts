@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { authService } from './auth.service';
 import { useToastStore } from '@/store/useToastStore';
-import { getRedirectTarget } from '@/lib/redirect';
+import { onSessionExpired } from '@/lib/axios';
+import { isProtectedPath, loginUrlFor } from '@/lib/auth-routes';
+import { hardRedirect } from '@/lib/navigation';
+import { safeRedirectTarget } from '@/lib/redirect';
 import type {
   LoginInput,
   RegisterInput,
@@ -21,24 +24,22 @@ export function useLoginMethods() {
   return useQuery({ queryKey: ['auth', 'login-methods'], queryFn: authService.getLoginMethods });
 }
 
-// Trước đây (docs/12 FE-02) còn ghi thêm user vào useAuthStore (Zustand) ở đây — 2 NGUỒN SỰ THẬT
-// song song với useMe() (React Query), lệch nhau ngay khi hồ sơ đổi qua đường khác (đổi tên/avatar)
-// mà không qua lại luồng đăng nhập. invalidateQueries bên dưới đã đủ để useMe() tự refetch — không
-// cần lưu user riêng.
-function useAfterAuthSuccess() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  // Chốt 1 LẦN DUY NHẤT lúc mount (giống login/page.tsx) — trang gọi hook này (login/magic-link/
-  // Google) thường TỰ NÓ cũng có 1 effect điều hướng riêng theo dõi useMe() (luồng tự phục hồi qua
-  // refresh token). Nếu cả 2 nơi cùng gọi getRedirectTarget() TƯƠI mỗi lần, nơi chạy sau có thể đọc
-  // phải URL đã bị nơi chạy trước đổi (mất ?redirectTo=), bật nhầm về '/' — bug thật đã xảy ra: đăng
-  // nhập lại sau khi bị đá về do hết hạn token có lúc về nhầm trang chủ thay vì đúng trang đã định vào.
-  const [target] = useState(() => getRedirectTarget());
+// Đích quay về sau đăng nhập, lấy từ ?redirectTo= mà proxy.ts gắn. Đọc qua useSearchParams() chứ KHÔNG
+// qua window.location: khi điều hướng phía client (bấm Link), trang mới render TRƯỚC khi URL trên
+// thanh địa chỉ đổi — window.location lúc đó vẫn là URL trang CŨ (không có ?redirectTo=), nên bật nhầm
+// về '/' (docs/12 FE-08, tái hiện bằng log thật). Component gọi hook này phải nằm trong <Suspense> —
+// Next.js yêu cầu vậy với useSearchParams() ở trang prerender tĩnh.
+export function useRedirectTarget(): string {
+  return safeRedirectTarget(useSearchParams().get('redirectTo'));
+}
 
-  return () => {
-    queryClient.invalidateQueries({ queryKey: ['account', 'me'] });
-    router.push(target);
-  };
+// Tải lại trang tại đích (hardRedirect, xem lib/navigation.ts) thay vì router.push — router.push từng kẹt
+// người dùng ở /login vì Client Cache còn giữ redirect cũ (docs/12 FE-08). Trang mới tự fetch
+// useMe() từ đầu nên không cần invalidate hay lưu user riêng (docs/12 FE-02: từng có useAuthStore trùng
+// lặp với useMe()).
+function useAfterAuthSuccess() {
+  const target = useRedirectTarget();
+  return () => hardRedirect(target);
 }
 
 export function useLogin() {
@@ -111,4 +112,29 @@ export function useLogout() {
       router.push('/login');
     },
   });
+}
+
+// Mount 1 lần duy nhất ở Providers. Phiên chết hẳn (lib/axios.ts: /auth/refresh trả 401/403) → xoá user
+// khỏi cache; nếu đang đứng ở route cần đăng nhập thì đưa về /login như proxy.ts sẽ làm.
+// Trước đây không ai làm việc này: React Query GIỮ data cũ khi refetch lỗi, nên header vẫn hiện tên
+// người dùng sau khi đã bị đá về /login — chỉ F5 mới hết (docs/12 FE-09).
+export function useSessionExpiredHandler() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  // usePathname(), KHÔNG window.location — cùng lý do như useRedirectTarget(): lúc điều hướng phía
+  // client, window.location có thể vẫn là URL trang cũ, redirect theo nó sẽ ghi đè ?redirectTo đúng.
+  const pathname = usePathname();
+
+  useEffect(
+    () =>
+      onSessionExpired(() => {
+        // setQueryData(null), KHÔNG removeQueries/clear(): gỡ query khỏi cache không báo cho component
+        // ĐANG mount (Nav/UserMenu) render lại — chúng vẫn hiện user cũ.
+        queryClient.setQueryData(['account', 'me'], null);
+        // Phiên chết GIỮA CHỪNG khi đang đứng yên ở trang cần đăng nhập — không có điều hướng nào nên
+        // proxy.ts không có cơ hội chặn; không redirect thì trang kẹt với dữ liệu lỗi/"Đang tải...".
+        if (isProtectedPath(pathname)) router.replace(loginUrlFor(pathname));
+      }),
+    [queryClient, router, pathname],
+  );
 }

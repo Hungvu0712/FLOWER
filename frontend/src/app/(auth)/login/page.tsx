@@ -1,27 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, LoginInput } from '@/features/core/auth/auth.schemas';
-import { useLogin, useLoginMethods } from '@/features/core/auth/auth.hooks';
+import { useLogin, useLoginMethods, useRedirectTarget } from '@/features/core/auth/auth.hooks';
 import { GoogleLoginButton } from '@/features/core/auth/GoogleLoginButton';
 import { useMe } from '@/features/core/account/account.hooks';
 import { FormField } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 import { getErrorMessage } from '@/lib/errors';
-import { getRedirectTarget } from '@/lib/redirect';
+import { hardRedirect } from '@/lib/navigation';
 
 function isEnabled(methods: { method: string; isEnabled: boolean }[] | undefined, method: string) {
   // Trong lúc đang tải danh sách, mặc định hiện — tránh nháy ẩn/hiện; backend vẫn là nơi chặn thật.
   return methods ? (methods.find((m) => m.method === method)?.isEnabled ?? false) : true;
 }
 
-export default function LoginPage() {
-  const router = useRouter();
-  const { data: me, refetch: refetchMe } = useMe();
+function LoginForm() {
+  const redirectTarget = useRedirectTarget();
+  const { data: me, isSuccess, isFetchedAfterMount, refetch: refetchMe } = useMe();
   const { data: methods } = useLoginMethods();
   const login = useLogin();
   const {
@@ -30,35 +29,26 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
-  // Chốt 1 LẦN DUY NHẤT lúc mount, KHÔNG gọi lại getRedirectTarget() ở effect bên dưới — nếu đọc lại
-  // window.location.search sau khi useLogin() (auth.hooks.ts) đã tự điều hướng đi thành công, query
-  // string ?redirectTo= đã biến mất khỏi URL, effect này đọc ra rỗng và bật nhầm về '/' (bug thật: sau
-  // khi đăng nhập lại từ trang bị đá về do hết hạn token, có lúc bị đẩy nhầm về trang chủ thay vì đúng
-  // trang đã định vào). 2 nơi cùng có thể điều hướng (mutation onSuccess VÀ effect theo dõi `me` dưới
-  // đây, cho luồng tự phục hồi qua refresh token) nay LUÔN nhắm cùng 1 đích đã chốt, gọi trùng vô hại.
-  const [redirectTarget] = useState(() => getRedirectTarget());
-  // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
-  console.log(`[login DEBUG] render — redirectTarget chốt = "${redirectTarget}", me =`, me);
-
   // proxy.ts chặn theo token lúc điều hướng — nếu token đó vừa hết hạn thì bị đẩy về đây, nhưng ngay
-  // sau đó có thể tự refresh ngầm thành công (vẫn còn refresh token hợp lệ). Không có effect này thì
+  // sau đó có thể tự refresh ngầm thành công (vẫn còn refresh token hợp lệ). Không có 2 effect này thì
   // người dùng bị kẹt ở trang login dù thực chất đã đăng nhập lại.
-  // refetch() ở đây CỐ Ý bỏ qua staleTime (30s) của useMe() — nếu chỉ dựa vào `me` từ cache, dữ liệu có
-  // thể là kết quả fetch TRƯỚC KHI token hết hạn (vẫn còn "tươi" theo staleTime dù cookie thật đã hết
-  // hạn), khiến effect tưởng đã đăng nhập và replace đi trong khi cookie thật vẫn hết hạn — proxy.ts lại
-  // chặn, tạo vòng lặp redirect. refetch() luôn gọi API thật, đi qua đúng luồng refresh-token thật sự.
+  // refetch() CỐ Ý bỏ qua staleTime (30s) của useMe() — luôn gọi API thật, đi qua đúng luồng
+  // refresh-token thật sự.
   useEffect(() => {
     refetchMe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Chỉ điều hướng khi có kết quả /account/me MỚI — fetch thành công SAU khi trang này mount. KHÔNG tin
+  // `me` còn trong cache: bị đá về đây do hết phiên thì cache vẫn giữ user cũ (React Query giữ data khi
+  // refetch lỗi) — từng điều hướng ngay theo dữ liệu đó dù phiên đã chết, cộng với đọc nhầm redirectTo
+  // nên văng về trang chủ với header vẫn hiện tên người dùng (docs/12 FE-08, FE-09).
+  // hardRedirect thay vì router.replace: xem lib/navigation.ts. Mutation đăng nhập (useLogin) cũng
+  // điều hướng tới CÙNG đích này — gọi trùng vô hại.
+  const hasFreshSession = Boolean(me) && isSuccess && isFetchedAfterMount;
   useEffect(() => {
-    if (me) {
-      // eslint-disable-next-line no-console -- log chẩn đoán tạm thời
-      console.log(`[login DEBUG] effect: me có dữ liệu -> router.replace("${redirectTarget}")`);
-      router.replace(redirectTarget);
-    }
-  }, [me, router, redirectTarget]);
+    if (hasFreshSession) hardRedirect(redirectTarget);
+  }, [hasFreshSession, redirectTarget]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -118,5 +108,15 @@ export default function LoginPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+// useRedirectTarget() dùng useSearchParams() — Next.js bắt buộc bọc <Suspense> (thiếu là `next build`
+// lỗi), giống magic-link/verify và reset-password.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-ink-soft">Đang tải...</p>}>
+      <LoginForm />
+    </Suspense>
   );
 }

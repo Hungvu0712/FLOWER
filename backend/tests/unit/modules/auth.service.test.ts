@@ -629,10 +629,31 @@ describe("refreshSession — rotation", () => {
     const session = await authService.refreshSession("refresh-cu");
 
     expect(db.session.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "sess-1" }, data: { revokedAt: expect.any(Date) } }),
+      expect.objectContaining({
+        where: { id: "sess-1" },
+        data: { revokedAt: expect.any(Date), rotatedAt: expect.any(Date) },
+      }),
     );
     expect(db.session.create).toHaveBeenCalled();
     expect(session.refreshToken).not.toBe("refresh-cu");
+  });
+
+  it("đánh dấu rotatedAt khi xoay vòng — để lần gửi lại token này mới bị coi là reuse (docs/12 BE-25)", async () => {
+    db.session.findUnique.mockResolvedValue({
+      id: "sess-1",
+      userId: "user-1",
+      revokedAt: null,
+      rotatedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    db.user.findUnique.mockResolvedValue(ACTIVE_USER);
+    db.session.update.mockResolvedValue({});
+    db.session.create.mockResolvedValue({});
+
+    await authService.refreshSession("refresh-cu");
+
+    const { data } = db.session.update.mock.calls[0]![0];
+    expect(data.rotatedAt).toEqual(data.revokedAt);
   });
 
   it("tra cứu session KHÔNG lọc revokedAt (cần phân biệt chưa tồn tại với đã bị thu hồi — docs/12 BE-03)", async () => {
@@ -681,6 +702,7 @@ describe("refreshSession — rotation", () => {
         id: "sess-1",
         userId: "user-1",
         revokedAt: new Date(),
+        rotatedAt: new Date(),
         expiresAt: new Date(Date.now() + 60_000),
       });
       db.user.findUnique.mockResolvedValue(ACTIVE_USER);
@@ -696,6 +718,7 @@ describe("refreshSession — rotation", () => {
         id: "sess-1",
         userId: "user-1",
         revokedAt: new Date(),
+        rotatedAt: new Date(),
         expiresAt: new Date(Date.now() + 60_000),
       });
       db.user.findUnique.mockResolvedValue(ACTIVE_USER);
@@ -714,6 +737,7 @@ describe("refreshSession — rotation", () => {
         id: "sess-1",
         userId: "user-1",
         revokedAt: new Date(),
+        rotatedAt: new Date(),
         expiresAt: new Date(Date.now() + 60_000),
       });
       db.user.findUnique.mockResolvedValue(ACTIVE_USER);
@@ -738,6 +762,7 @@ describe("refreshSession — rotation", () => {
         id: "sess-1",
         userId: "user-1",
         revokedAt: new Date(),
+        rotatedAt: new Date(),
         expiresAt: new Date(Date.now() + 60_000),
       });
       db.user.findUnique.mockResolvedValue(ACTIVE_USER);
@@ -754,6 +779,7 @@ describe("refreshSession — rotation", () => {
         id: "sess-1",
         userId: "user-1",
         revokedAt: new Date(),
+        rotatedAt: new Date(),
         expiresAt: new Date(Date.now() + 60_000),
       });
       db.user.findUnique.mockResolvedValue(ACTIVE_USER);
@@ -762,6 +788,40 @@ describe("refreshSession — rotation", () => {
       await expect(authService.refreshSession("token-da-thu-hoi")).rejects.toMatchObject({
         code: "SESSION_EXPIRED",
       });
+    });
+  });
+
+  // docs/12 BE-25: "Đăng xuất thiết bị B" từ máy A (hoặc đổi mật khẩu, superadmin khoá/reset) chỉ set
+  // revokedAt. Trình duyệt của B vẫn giữ cookie cũ và gửi lại — KHÔNG phải dấu hiệu đánh cắp.
+  describe("phiên bị thu hồi HỢP LỆ (không xoay vòng) được gửi lại", () => {
+    const LEGIT_REVOKED_SESSION = {
+      id: "sess-b",
+      userId: "user-1",
+      revokedAt: new Date(),
+      rotatedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+
+    it("vẫn 401 SESSION_EXPIRED — không gia hạn phiên đã bị thu hồi", async () => {
+      db.session.findUnique.mockResolvedValue(LEGIT_REVOKED_SESSION);
+      await expect(authService.refreshSession("token-thiet-bi-b")).rejects.toMatchObject({
+        statusCode: 401,
+        code: "SESSION_EXPIRED",
+      });
+      expect(db.session.create).not.toHaveBeenCalled();
+    });
+
+    it("KHÔNG thu hồi phiên khác của user (máy A vừa bấm đăng xuất B phải còn đăng nhập)", async () => {
+      db.session.findUnique.mockResolvedValue(LEGIT_REVOKED_SESSION);
+      await authService.refreshSession("token-thiet-bi-b").catch(() => {});
+      expect(db.session.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("KHÔNG ghi audit reuse và KHÔNG gửi email cảnh báo giả", async () => {
+      db.session.findUnique.mockResolvedValue(LEGIT_REVOKED_SESSION);
+      await authService.refreshSession("token-thiet-bi-b").catch(() => {});
+      expect(auditLog.record).not.toHaveBeenCalled();
+      expect(emailService.sendEmail).not.toHaveBeenCalled();
     });
   });
 });

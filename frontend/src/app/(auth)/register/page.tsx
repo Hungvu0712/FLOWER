@@ -1,21 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterInput } from '@/features/core/auth/auth.schemas';
-import { useRegister } from '@/features/core/auth/auth.hooks';
+import { useRedirectTarget, useRegister } from '@/features/core/auth/auth.hooks';
 import { useMe } from '@/features/core/account/account.hooks';
 import { FormField } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 import { getErrorMessage } from '@/lib/errors';
-import { getRedirectTarget } from '@/lib/redirect';
+import { hardRedirect } from '@/lib/navigation';
 
-export default function RegisterPage() {
-  const router = useRouter();
-  const { data: me, refetch: refetchMe } = useMe();
+function RegisterForm() {
+  const redirectTarget = useRedirectTarget();
+  const { data: me, isSuccess, isFetchedAfterMount, refetch: refetchMe } = useMe();
   const registerMutation = useRegister();
   const {
     register,
@@ -23,16 +22,17 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
 
-  // Xem giải thích ở login/page.tsx — refetch() cố ý bỏ qua cache/staleTime để tránh vòng lặp redirect
-  // khi dữ liệu cache còn "tươi" nhưng cookie thật đã hết hạn.
+  // Xem giải thích ở login/page.tsx — chỉ rời trang khi có kết quả /account/me MỚI fetch sau khi mount,
+  // không tin user cũ còn trong cache (docs/12 FE-08, FE-09).
   useEffect(() => {
     refetchMe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const hasFreshSession = Boolean(me) && isSuccess && isFetchedAfterMount;
   useEffect(() => {
-    if (me) router.replace(getRedirectTarget());
-  }, [me, router]);
+    if (hasFreshSession) hardRedirect(redirectTarget);
+  }, [hasFreshSession, redirectTarget]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -73,5 +73,14 @@ export default function RegisterPage() {
         Đã có tài khoản? Đăng nhập
       </Link>
     </div>
+  );
+}
+
+// useRedirectTarget() dùng useSearchParams() — bắt buộc bọc <Suspense>, xem login/page.tsx.
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-ink-soft">Đang tải...</p>}>
+      <RegisterForm />
+    </Suspense>
   );
 }
