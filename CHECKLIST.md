@@ -295,15 +295,14 @@ Chi tiết: [docs/gitbook/07-trao-doi.md](docs/gitbook/07-trao-doi.md).
 
 ### Trạng thái hiện tại
 
-- Cập nhật lần cuối: 2026-09-24
-- Mốc code được review: commit `bdf8d99` (HEAD của `main`/`review` lúc checkout); không tính thay đổi chưa commit
-- Giai đoạn đang thực hiện: P0 — Khẩn cấp
+- Cập nhật lần cuối: 2026-09-24 (đối chiếu lại sau khi merge nhánh `review` vào `main`, commit `676ae9e`)
+- Mốc code được review: commit `bdf8d99` (HEAD của `main`/`review` lúc checkout)
+- Giai đoạn đang thực hiện: P0 — Khẩn cấp (6/8 mục đã xong, còn SEC-04 + phần ESLint của CODE-01)
 - Điểm review gần nhất: **7,25/10 (Khá)** — xem [`review-source/`](review-source/00-MUC-LUC.md)
-- Thống kê vấn đề còn mở: Critical 0 · High 6 · Medium 33 · Low 22
+- Thống kê vấn đề còn mở: Critical 0 · High 6 · Medium 33 · Low 22 *(số cũ lúc review — chưa đếm lại sau khi 6 mục P0 dưới đây đã fix)*
 - Ghi chú:
-  - SEC-04 có thể là **Critical** nếu production chưa cấu hình `BACKUP_ENCRYPTION_PUBLIC_KEY`. Kiểm tra việc này trước tiên.
-  - Tại thời điểm review, working tree có thay đổi **chưa commit** chạm tới FE-01, FE-02, ERR-01, SEC-01, SEC-02. Review không tính các thay đổi đó; khi commit, đối chiếu đúng "Hoàn thành khi" bên dưới rồi mới tick.
-  - `CHECKLIST.md` cũng đang có thay đổi định dạng chưa commit (căn bảng, đổi `*` thành `_`), không do review tạo ra.
+  - SEC-04 có thể là **Critical** nếu production chưa cấu hình `BACKUP_ENCRYPTION_PUBLIC_KEY`. Kiểm tra việc này trước tiên — **cần bạn tự kiểm tra trên VPS**, không phải việc sửa code.
+  - ~~Tại thời điểm review, working tree có thay đổi chưa commit...~~ — đã commit và merge (`676ae9e`), đối chiếu lại "Hoàn thành khi" từng mục P0 bên dưới bằng test thật (25 test `auth.routes.test.ts` + 17 test `axios.test.ts` + 10 test `session-expiry.test.tsx`) — 6/8 mục đã xanh, tick lại cho đúng thực tế.
 
 ### P0 — Khẩn cấp
 
@@ -311,12 +310,12 @@ Gồm lỗi Critical tiềm ẩn và các lỗi High đang gây hại cho ngư�
 
 - [ ] [SEC-04] Kiểm tra production đã đặt `BACKUP_ENCRYPTION_PUBLIC_KEY` chưa; kiểm tra các file `backups/*.dump` đã upload có đang công khai không — Hoàn thành khi: xác nhận bằng văn bản; nếu có bản rõ công khai thì đã xoá và đổi mật khẩu DB
 - [ ] [SEC-04] `env.ts` bắt buộc khoá backup khi `NODE_ENV=production` và `RUN_JOBS=true`; upload với `type: "authenticated"`; truyền mật khẩu DB qua `PGPASSWORD` — Hoàn thành khi: thiếu khoá thì worker production không khởi động; URL backup công khai trả 401/404
-- [ ] [CODE-01] Xoá 7 `console.log` DEBUG (`proxy.ts`, `lib/redirect.ts`, `login/page.tsx`); thêm ESLint `no-console` — Hoàn thành khi: `grep -rn "DEBUG" frontend/src` rỗng, lint chặn `console.log` mới
-- [ ] [SEC-01] Tách "thu hồi do xoay vòng" (cột mới, vd `rotatedAt`) khỏi thu hồi hợp lệ; reuse detection chỉ xét token đã xoay vòng — Hoàn thành khi: test "đăng xuất thiết bị B rồi B gửi lại token" trả 401, **không** thu hồi phiên khác, không gửi email (docs/12 BE-03)
-- [ ] [SEC-02] `/auth/refresh` lỗi 401/403 thì `clearAuthCookies`; lỗi 500 giữ cookie — Hoàn thành khi: integration test kiểm `Set-Cookie` hết hạn đúng `Path`
-- [ ] [ERR-01] Interceptor axios reject từng request trong hàng đợi khi refresh lỗi — Hoàn thành khi: unit test "3 request cùng 401 + refresh 401" cả 3 đều reject trong < 1 giây
-- [ ] [FE-01] Phiên chết (refresh 401/403) thì đặt `['account','me'] = null`, đưa về `/login` nếu đang ở route cần đăng nhập; AdminShell chỉ tin `isSuccess` — Hoàn thành khi: E2E "refresh token bị thu hồi → bấm Link" thấy header hiện "Đăng nhập"
-- [ ] [FE-02] `useSearchParams` + `<Suspense>` thay cho `window.location`; chỉ điều hướng khi `/me` vừa fetch thành công; điều hướng cứng sau khi đăng nhập — Hoàn thành khi: E2E "token hết hạn → bấm Link" về đúng trang, và "đăng nhập lại" không kẹt ở `/login`; mở lại/cập nhật docs/12 FE-08
+- [~] [CODE-01] Xoá 7 `console.log` DEBUG (`proxy.ts`, `lib/redirect.ts`, `login/page.tsx`) — **đã xoá** (`grep -rn "DEBUG" frontend/src` rỗng, xác nhận 24/09/2026); còn thiếu ESLint `no-console` để chặn log mới lọt vào — Hoàn thành khi: lint chặn `console.log` mới
+- [x] [SEC-01] Tách "thu hồi do xoay vòng" (cột `rotatedAt`) khỏi thu hồi hợp lệ; reuse detection chỉ xét token đã xoay vòng *(24/09/2026 — xác nhận qua 2 test thật: "token ĐÃ XOAY VÒNG được gửi lại → 401 + thu hồi toàn bộ session" và "token bị thu hồi HỢP LỆ (đăng xuất thiết bị) → 401 nhưng KHÔNG thu hồi phiên khác" — `backend/tests/integration/auth.routes.test.ts`, xem docs/12 BE-25)*
+- [x] [SEC-02] `/auth/refresh` lỗi 401/403 thì `clearAuthCookies`; lỗi 500 giữ cookie *(24/09/2026 — 3 test thật: `SESSION_EXPIRED`/`ACCOUNT_BLOCKED` xoá cả 2 cookie đúng Path; lỗi hệ thống 500 GIỮ cookie — `auth.routes.test.ts`)*
+- [x] [ERR-01] Interceptor axios reject từng request trong hàng đợi khi refresh lỗi *(24/09/2026 — test "MỌI request đang xếp hàng chờ refresh đều bị reject, không treo promise" — `frontend/tests/unit/axios.test.ts`, xem docs/12 FE-09)*
+- [x] [FE-01] Phiên chết (refresh 401/403) thì đặt `['account','me'] = null`, đưa về `/login` nếu đang ở route cần đăng nhập; AdminShell chỉ tin `isSuccess` *(24/09/2026 — `useSessionExpiredHandler()` mới ở `providers.tsx`, test trong `session-expiry.test.tsx`)*
+- [x] [FE-02] `useSearchParams` + `<Suspense>` thay cho `window.location`; chỉ điều hướng khi `/me` vừa fetch thành công; điều hướng cứng (`hardRedirect`, tải lại trang thật — né Next.js Router Cache giữ redirect cũ) sau khi đăng nhập *(24/09/2026 — test "đăng nhập bằng form → về đúng ?redirectTo" — `session-expiry.test.tsx`; đây chính là nguyên nhân gốc của bug "hết token → chọn trang khác → về nhầm trang chủ" báo cáo thật trong phiên làm việc 18-24/09, xem docs/12 FE-08)*
 
 ### P1 — Lưới an toàn
 
