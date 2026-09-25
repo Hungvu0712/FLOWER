@@ -104,6 +104,30 @@ describe("POST /api/v1/admin/coupons", () => {
   });
 });
 
+describe("PATCH /api/v1/admin/coupons/:id", () => {
+  it("cập nhật thành công khi hợp lệ", async () => {
+    const cookie = loginAs("admin-1", ["admin"], ["promotions.manage"]);
+    db.coupon.findUnique.mockResolvedValueOnce(ACTIVE_COUPON).mockResolvedValueOnce(null);
+    db.coupon.update.mockResolvedValue({ ...ACTIVE_COUPON, value: 15 });
+    const res = await request(app)
+      .patch(`/api/v1/admin/coupons/${ID}`)
+      .set("Cookie", cookie)
+      .send({ value: 15 });
+    expect(res.status).toBe(200);
+  });
+
+  it("422 khi PATCH {value: 500} lên mã ĐANG là percent mà không gửi kèm type — validate lại theo bản ghi sau khi merge, không chỉ field gửi lên (review VAL-01)", async () => {
+    const cookie = loginAs("admin-1", ["admin"], ["promotions.manage"]);
+    db.coupon.findUnique.mockResolvedValueOnce(ACTIVE_COUPON); // type: "percent" có sẵn trong DB
+    const res = await request(app)
+      .patch(`/api/v1/admin/coupons/${ID}`)
+      .set("Cookie", cookie)
+      .send({ value: 500 });
+    expect(res.status).toBe(422);
+    expect(db.coupon.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("DELETE /api/v1/admin/coupons/:id", () => {
   it("xoá thành công khi chưa từng dùng", async () => {
     const cookie = loginAs("admin-1", ["admin"], ["promotions.manage"]);

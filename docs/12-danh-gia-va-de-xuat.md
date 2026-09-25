@@ -1055,6 +1055,37 @@ thường; DB có 0 bản ghi `auth.refresh_reuse_detected`, 0 email `security_a
 
 ---
 
+### BE-27 · Sửa coupon KHÔNG validate lại theo bản ghi sau khi merge — giảm giá vượt subtotal — ✅ ĐÃ XỬ LÝ (25/09/2026)
+
+**Mức độ**: 🔴 cao — lỗi tài chính thật, không phải lý thuyết.
+
+**Phát hiện khi** đối chiếu `review-source/08-LO-TRINH-CAI-THIEN.md` (mục VAL-01) với code thật.
+
+**Vấn đề**: `coupons.service.ts#update()` chỉ validate zod theo **field có mặt trong request đang xử
+lý** (`coupons.validation.ts`, `.refine((v) => v.type !== "percent" || v.value === undefined ||
+v.value <= 100, ...)`), không biết record hiện tại trong DB. `PATCH { value: 500 }` lên 1 mã **đang
+có sẵn** `type: "percent"` nhưng không gửi kèm `type` trong request đó: zod thấy `v.type ===
+undefined` (khác `"percent"`) → coi hợp lệ, bỏ qua giới hạn ≤ 100. Ghi thẳng `value: 500` vào DB dù
+`type` thật vẫn là `percent` → `computeDiscount()` sau đó tính `Math.floor(subtotal * 500 / 100)` =
+gấp 5 lần subtotal, đơn hàng giảm giá khống nghiêm trọng.
+
+**Đã sửa** 2 lớp:
+1. `update()` tính **bản ghi sau khi merge** (`mergedType = input.type ?? before.type`, tương tự
+   `mergedValue`) rồi validate lại — `type` merged là `percent` mà `value` merged `> 100` thì
+   `ValidationError` (422), **trước khi** gọi `prisma.coupon.update()`.
+2. `computeDiscount()` — chốt an toàn cuối cùng, bọc `Math.min(raw, subtotal)` ở **NGOÀI** cả 2 nhánh
+   percent/fixed (trước đây chỉ nhánh fixed có `Math.min`) — không tin riêng lớp validate ở `update()`
+   đã chặn đủ (vd dữ liệu xấu lỡ lọt vào DB từ trước khi có kiểm tra này).
+
+**Test**: `coupons.service.test.ts` (+5): 422 khi `PATCH {value: 500}` lên mã percent có sẵn không gửi
+kèm `type`; 422 khi đổi `type` sang percent kèm `value > 100` trong cùng request; hợp lệ khi giữ
+percent với `value ≤ 100`; hợp lệ khi đổi sang `fixed` với `value` lớn (giới hạn 100 chỉ áp cho
+percent); `computeDiscount` không bao giờ vượt subtotal dù `value` xấu lọt qua. `coupons.routes.test.ts`
+(+2): xác nhận qua HTTP thật — `PATCH` hợp lệ trả 200, `PATCH {value: 500}` thiếu `type` trả 422 và
+KHÔNG gọi `prisma.coupon.update`.
+
+---
+
 ## 4. 🟢 Ưu tiên thấp
 
 | Mã | Vấn đề | Đề xuất | Ước lượng | Trạng thái |

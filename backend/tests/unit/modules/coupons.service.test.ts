@@ -22,6 +22,10 @@ describe("computeDiscount", () => {
   it("fixed — KHÔNG BAO GIỜ giảm vượt subtotal (đơn nhỏ hơn giá trị mã)", () => {
     expect(service.computeDiscount({ type: "fixed", value: 50000 }, 30000)).toBe(30000);
   });
+
+  it("percent — chốt an toàn cuối cùng, KHÔNG BAO GIỜ giảm vượt subtotal dù value > 100 lọt vào DB (review VAL-01)", () => {
+    expect(service.computeDiscount({ type: "percent", value: 500 }, 100000)).toBe(100000);
+  });
 });
 
 describe("checkCoupon / validate", () => {
@@ -226,6 +230,52 @@ describe("update", () => {
       .mockResolvedValueOnce({ id: "c1", code: "SALE10" });
     db.coupon.update.mockResolvedValue({ id: "c1", code: "SALE10" });
     await service.update(ACTOR, "c1", { code: "SALE10", isActive: false } as never);
+    expect(db.coupon.update).toHaveBeenCalled();
+  });
+
+  it("422 khi PATCH {value: 500} lên mã ĐANG là percent mà không gửi kèm type (review VAL-01)", async () => {
+    // Mã hiện có trong DB: type percent. Request chỉ gửi value — zod ở route không biết record hiện
+    // tại, phải validate lại ở service theo BẢN GHI SAU KHI MERGE.
+    db.coupon.findUnique.mockResolvedValueOnce({
+      id: "c1",
+      code: "SALE10",
+      type: "percent",
+      value: 10,
+    });
+    await expect(service.update(ACTOR, "c1", { value: 500 } as never)).rejects.toMatchObject({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+    });
+    expect(db.coupon.update).not.toHaveBeenCalled();
+  });
+
+  it("422 khi đổi type sang percent kèm value > 100 trong CÙNG request", async () => {
+    db.coupon.findUnique.mockResolvedValueOnce({
+      id: "c1",
+      code: "SALE10",
+      type: "fixed",
+      value: 20000,
+    });
+    await expect(
+      service.update(ACTOR, "c1", { type: "percent", value: 200 } as never),
+    ).rejects.toMatchObject({ statusCode: 422, code: "VALIDATION_ERROR" });
+  });
+
+  it("value ≤ 100 kèm type percent có sẵn vẫn cập nhật bình thường", async () => {
+    db.coupon.findUnique
+      .mockResolvedValueOnce({ id: "c1", code: "SALE10", type: "percent", value: 10 })
+      .mockResolvedValueOnce(null); // không đổi code -> không tra trùng
+    db.coupon.update.mockResolvedValue({ id: "c1", code: "SALE10", type: "percent", value: 50 });
+    await service.update(ACTOR, "c1", { value: 50 } as never);
+    expect(db.coupon.update).toHaveBeenCalled();
+  });
+
+  it("đổi type sang fixed kèm value lớn (>100) vẫn hợp lệ — giới hạn 100 chỉ áp cho percent", async () => {
+    db.coupon.findUnique
+      .mockResolvedValueOnce({ id: "c1", code: "SALE10", type: "percent", value: 10 })
+      .mockResolvedValueOnce(null);
+    db.coupon.update.mockResolvedValue({ id: "c1", code: "SALE10", type: "fixed", value: 50000 });
+    await service.update(ACTOR, "c1", { type: "fixed", value: 50000 } as never);
     expect(db.coupon.update).toHaveBeenCalled();
   });
 });

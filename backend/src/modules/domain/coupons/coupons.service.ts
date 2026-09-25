@@ -1,5 +1,5 @@
 import { prisma } from "../../../config/prisma";
-import { AppError } from "../../../shared/errors";
+import { AppError, ValidationError } from "../../../shared/errors";
 import { buildPaginationMeta } from "../../../shared/response/ApiResponse";
 import * as auditLog from "../../core/audit-log/auditLog.service";
 import type {
@@ -29,8 +29,12 @@ const COUPON_SELECT = {
 // percent giảm theo % của subtotal; fixed giảm số tiền cố định nhưng KHÔNG BAO GIỜ vượt subtotal
 // (đơn giá trị thấp hơn mã fixed vẫn hợp lệ, chỉ giảm tối đa bằng đúng subtotal, không âm tiền đơn).
 export function computeDiscount(coupon: { type: string; value: number }, subtotal: number): number {
-  if (coupon.type === "percent") return Math.floor((subtotal * coupon.value) / 100);
-  return Math.min(coupon.value, subtotal);
+  const raw =
+    coupon.type === "percent" ? Math.floor((subtotal * coupon.value) / 100) : coupon.value;
+  // Math.min ở NGOÀI cả 2 nhánh — chốt an toàn cuối cùng, không tin riêng validate() đã chặn đủ ở
+  // update() bên dưới (vd dữ liệu cũ lỡ lọt vào DB từ trước khi có kiểm tra này). Không bao giờ giảm
+  // vượt subtotal dù type/value có sai lệch thế nào (review VAL-01).
+  return Math.min(raw, subtotal);
 }
 
 // Kiểm tra 1 mã có áp dụng ĐƯỢC cho subtotal hiện tại không — dùng chung cho endpoint public
@@ -129,6 +133,17 @@ export async function update(
 ) {
   const before = await prisma.coupon.findUnique({ where: { id } });
   if (!before) throw new AppError("Mã giảm giá không tồn tại", 404, "NOT_FOUND");
+
+  // Validate lại theo BẢN GHI SAU KHI MERGE, không chỉ field có mặt trong request này — zod ở route
+  // (coupons.validation.ts) chỉ xét field THỰC SỰ GỬI LÊN, không biết record hiện tại trong DB. PATCH
+  // {value: 500} lên 1 mã ĐANG có sẵn type "percent" nhưng không gửi kèm type sẽ lọt qua zod (coi
+  // "chưa gửi type" = "không phải percent"), ghi thẳng value=500 vào DB dù type thật vẫn là percent —
+  // computeDiscount() sau đó giảm 500% đơn hàng (review VAL-01, 24/09/2026).
+  const mergedType = input.type ?? before.type;
+  const mergedValue = input.value ?? before.value;
+  if (mergedType === "percent" && mergedValue > 100) {
+    throw new ValidationError({ value: "Mã giảm theo % phải từ 1 đến 100" });
+  }
 
   if (input.code) {
     const code = input.code.toUpperCase();

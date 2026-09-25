@@ -341,7 +341,7 @@ Gồm lỗi Critical tiềm ẩn và các lỗi High đang gây hại cho ngư�
 - [ ] [SEC-03] auth: liên kết Google/magic link vào tài khoản `emailVerifiedAt = null` thì xoá `passwordHash` + thu hồi phiên + đặt `emailVerifiedAt`; chuẩn hoá email chữ thường (SEC-10) — Hoàn thành khi: test pre-hijacking pass
 - [ ] [SEC-05] files: kiểm `publicId` bắt đầu bằng `uploads/`; `setEntityFile` kiểm `uploadedBy` + MIME ảnh — Hoàn thành khi: test member gửi `publicId` lạ nhận 403/422, không có lời gọi purge
 - [ ] [SEC-07] seed: tách seed bắt buộc và seed mẫu (chặn ở production); không in mật khẩu; sửa `docs/10` — Hoàn thành khi: `NODE_ENV=production npm run seed:domain` không tạo coupon/sản phẩm mẫu
-- [ ] [VAL-01] coupons: validate lại sau khi merge bản ghi hiện tại; `computeDiscount` luôn ≤ subtotal — Hoàn thành khi: test PATCH `{value: 500}` lên mã percent trả 422
+- [x] [VAL-01] coupons: validate lại sau khi merge bản ghi hiện tại; `computeDiscount` luôn ≤ subtotal *(25/09/2026 — bug tài chính thật, không phải lý thuyết: `PATCH {value: 500}` lên mã percent có sẵn không gửi kèm `type` từng lọt qua zod, giảm giá gấp 5 lần đơn hàng; xem docs/12 BE-27)*
 - [ ] [ERR-05] orders: bắt buộc `variantId` khi sản phẩm có biến thể; bảng `ALLOWED_TRANSITIONS`; hoàn lượt coupon khi huỷ; sinh mã đơn trong transaction + retry — Hoàn thành khi: test cho từng quy tắc
 - [ ] [CODE-03] orders: tách `create` thành các hàm < 60 dòng — Hoàn thành khi: test orders hiện có vẫn pass
 - [ ] [DB-02] products: kiểm trùng slug tính cả bản ghi đã xoá mềm (hoặc partial unique index) — Hoàn thành khi: tạo lại sản phẩm trùng tên với sản phẩm đã xoá thành công
