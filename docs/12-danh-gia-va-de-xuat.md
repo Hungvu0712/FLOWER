@@ -1086,6 +1086,47 @@ KHÔNG gọi `prisma.coupon.update`.
 
 ---
 
+### BE-28 · Backup database: khoá mã hoá không bắt buộc, upload công khai, mật khẩu lộ ở tham số dòng lệnh — ✅ ĐÃ XỬ LÝ (25/09/2026)
+
+**Mức độ**: 🔴 cao — 3 lỗ hổng cộng dồn có thể lộ trực tiếp dữ liệu khách hàng (tên, SĐT, địa chỉ
+giao hàng) và mật khẩu database.
+
+**Phát hiện khi** đối chiếu `review-source/08-LO-TRINH-CAI-THIEN.md` (mục SEC-04) với code thật.
+
+**3 vấn đề**:
+1. Thiếu `BACKUP_ENCRYPTION_PUBLIC_KEY` chỉ log cảnh báo (`logger.warn`), không chặn gì — dễ bị bỏ
+   sót giữa hàng nghìn dòng log khác, backup thô (không mã hoá) vẫn chạy bình thường ở production.
+2. `cloudinary.uploader.upload()` không truyền `type` — mặc định `"upload"` (**công khai**). Cộng với
+   `use_filename: false, unique_filename: false` (giữ đúng tên file đã đặt sẵn timestamp, để
+   `cleanupOldBackups` tra lại được bằng prefix), `public_id` hoàn toàn **đoán được**
+   (`backups/db-<ISO-timestamp>.dump[.enc]`) — bất kỳ ai dựng đúng URL đều tải được, kể cả không có
+   quyền gì trên tài khoản Cloudinary.
+3. `dumpToFile()` gọi `spawn("pg_dump", [env.databaseUrl, ...])` — `DATABASE_URL` (chứa mật khẩu rõ)
+   nằm nguyên trong tham số dòng lệnh của tiến trình con, đọc được bởi USER KHÁC trên cùng máy qua
+   `ps aux` / `/proc/<pid>/cmdline` trong suốt thời gian `pg_dump` chạy.
+
+**Đã sửa**:
+1. `env.ts` — `NODE_ENV=production` **và** `RUN_JOBS=true` mà thiếu `BACKUP_ENCRYPTION_PUBLIC_KEY` thì
+   **fail-fast ngay lúc khởi động** (cùng khối kiểm tra với `COOKIE_SECRET`/2 JWT secret trùng nhau).
+   Chỉ áp dụng cho container thật sự chạy job (`worker`) — container API (`RUN_JOBS=false` mặc định)
+   không bị ảnh hưởng.
+2. `backupDatabase.job.ts` — thêm hằng `DELIVERY_TYPE = "authenticated"`, dùng nhất quán ở cả 3 chỗ:
+   `uploader.upload()`, `api.resources()` (liệt kê để dọn dẹp), `uploader.destroy()` (Cloudinary cần
+   đúng `type` để tìm thấy resource, khác `type` thì coi như không tồn tại). Tải xuống vẫn làm được
+   qua Cloudinary Media Library hoặc Admin API (đã xác thực bằng tài khoản Cloudinary, không qua URL
+   công khai) — không ảnh hưởng luồng khôi phục thủ công ở docs/10 §7.
+3. `dumpToFile()` — parse `DATABASE_URL` bằng `new URL()`, truyền `--host/--port/--username/--dbname`
+   rời rạc cho `pg_dump`, mật khẩu truyền qua biến môi trường `PGPASSWORD` của riêng tiến trình con
+   (`spawn(..., { env: { ...process.env, PGPASSWORD } })`) — không bao giờ xuất hiện trong `args`.
+
+**Test**: `env.test.ts` (+3): production + `RUN_JOBS=true` thiếu khoá → từ chối khởi động; có khoá →
+chạy bình thường; production nhưng `RUN_JOBS=false` (container API) → KHÔNG bị chặn dù thiếu khoá.
+`backupDatabase.dump.test.ts` (+2): mật khẩu không xuất hiện trong `args` gửi cho `pg_dump`, có mặt
+đúng trong `PGPASSWORD`; upload có `type: "authenticated"`. `backupDatabase.job.test.ts`: `destroy()`
+và `api.resources()` đều truyền đúng `type: "authenticated"`.
+
+---
+
 ## 4. 🟢 Ưu tiên thấp
 
 | Mã | Vấn đề | Đề xuất | Ước lượng | Trạng thái |

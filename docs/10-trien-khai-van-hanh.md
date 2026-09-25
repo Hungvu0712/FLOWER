@@ -540,21 +540,27 @@ lệch với `.nvmrc` gốc repo sau này).
 
 ```mermaid
 flowchart LR
-    CRON["node-cron trong tiến trình backend<br/>chỉ chạy khi NODE_ENV=production"] -->|"0 3 */2 * *"| DUMP["pg_dump --format=custom<br/>--compress=9"]
-    DUMP --> ENC{"BACKUP_ENCRYPTION_<br/>PUBLIC_KEY đã cấu hình?"}
-    ENC -->|Có| CRYPT["Mã hoá RSA + AES-256-GCM<br/>(khoá riêng KHÔNG ở server)"]
-    ENC -->|Không — chỉ log cảnh báo| UP
-    CRYPT --> UP["upload → Cloudinary<br/>resource_type: raw<br/>backups/db-<timestamp>.dump[.enc]"]
+    START["worker khởi động<br/>NODE_ENV=production + RUN_JOBS=true"] -->|"THIẾU BACKUP_ENCRYPTION_PUBLIC_KEY"| FAIL["❌ Không khởi động<br/>(env.ts fail-fast)"]
+    START -->|"đã cấu hình khoá"| CRON["node-cron"]
+    CRON -->|"0 3 */2 * *"| DUMP["pg_dump --format=custom --compress=9<br/>mật khẩu DB qua PGPASSWORD<br/>(không lộ ở tham số dòng lệnh)"]
+    DUMP --> CRYPT["Mã hoá RSA + AES-256-GCM<br/>(khoá riêng KHÔNG ở server)"]
+    CRYPT --> UP["upload → Cloudinary<br/>resource_type: raw · type: authenticated<br/>backups/db-<timestamp>.dump.enc"]
     CRON -->|"30 3 */2 * *"| CLEAN["Xoá backup > 30 ngày<br/>(lặp qua next_cursor)"]
     CRON -->|"0 4 */10 * *"| ORPHAN["Xoá file mồ côi<br/>(không còn file_usages, > 24h)"]
 
-    style CRON fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
+    style START fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#78350f
+    style FAIL fill:#fee2e2,stroke:#b91c1c,stroke-width:2px,color:#7f1d1d
     style CRYPT fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#14532d
+    style UP fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e3a8a
 ```
+
+> Container **API** (`backend`, `RUN_JOBS=false` mặc định) không bị chặn khởi động dù thiếu khoá —
+> chỉ container **`worker`** (`RUN_JOBS=true`) mới thật sự chạy job backup nên mới cần khoá. Ở
+> dev/container không chạy job, thiếu khoá vẫn backup được nhưng KHÔNG mã hoá (chỉ log cảnh báo).
 
 | Job | Lịch | Việc |
 |---|---|---|
-| `backupDatabase` | ~2 ngày/lần, 03:00 | `pg_dump --compress=9` → mã hoá (nếu có khoá) → Cloudinary (`resource_type: "raw"`, prefix `backups/`) |
+| `backupDatabase` | ~2 ngày/lần, 03:00 | `pg_dump --compress=9` → mã hoá → Cloudinary (`resource_type: "raw"`, `type: "authenticated"` — không tải công khai qua URL dù đoán đúng tên file, prefix `backups/`) |
 | `cleanupOldBackups` | ~2 ngày/lần, 03:30 | Xoá backup cũ hơn 30 ngày (lặp hết mọi trang qua `next_cursor`) |
 | `cleanupOrphanFiles` | ~10 ngày/lần, 04:00 | Xoá file Cloudinary (`resource_type: "image"`) không còn ai dùng |
 
@@ -591,6 +597,14 @@ psql "$DATABASE_URL" -c "SELECT count(*) FROM users;"
 > ✅ **Nén + mã hoá backup đã xử lý** (`docs/12 OPS-02`, 11/09/2026) — `pg_dump --compress=9` +
 > mã hoá RSA/AES-256-GCM khi có `BACKUP_ENCRYPTION_PUBLIC_KEY`. Dòng "chưa nén, chưa mã hoá" trước
 > đây ở bảng này đã được gỡ.
+
+> ✅ **3 lỗ hổng SEC-04 đã xử lý** (`docs/12 BE-27`, 25/09/2026): (1) thiếu khoá mã hoá ở production
+> `worker` giờ **chặn khởi động** thay vì chỉ log cảnh báo dễ bỏ sót; (2) file backup upload với
+> `type: "authenticated"` thay vì mặc định `"upload"` (công khai) — trước đây `public_id` đoán được
+> (`use_filename/unique_filename: false`) nghĩa là ai đoán đúng tên file (có timestamp) đều tải được
+> file thô/`.enc` qua URL công khai, dù không có quyền gì trên Cloudinary; (3) mật khẩu DB không còn
+> truyền qua tham số dòng lệnh của `pg_dump` (đọc được bởi user khác trên cùng máy qua `ps aux`), nay
+> truyền qua biến môi trường `PGPASSWORD` của riêng tiến trình con.
 
 ---
 

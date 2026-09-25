@@ -12,20 +12,42 @@ const RETENTION_DAYS = 30;
 // File .dump không phải ảnh/video — resourceType "raw" (khác "image" của module Files, xem
 // files.service.ts) là loại duy nhất Cloudinary chấp nhận cho file nhị phân tuỳ ý.
 const RESOURCE_TYPE = "raw";
+// "authenticated" (khác "upload" mặc định — CÔNG KHAI, ai có URL cũng tải được) — public_id có thể
+// đoán được (use_filename/unique_filename: false, xem bên dưới), backup chứa dữ liệu khách hàng thật
+// (tên, SĐT, địa chỉ giao hàng) dù đã mã hoá hay chưa. Tải xuống vẫn được qua Media Library/Admin API
+// (đã xác thực bằng tài khoản Cloudinary, không qua URL công khai) — xem docs/10 §7 "Khôi phục từ
+// backup". Review-source SEC-04.
+const DELIVERY_TYPE = "authenticated";
 
 // Yêu cầu binary `pg_dump` có sẵn trong môi trường chạy (VPS/Docker image production) — xem
 // docs/02 §5. Chạy 2 ngày/lần (jobs/index.ts). `--compress=9` (docs/12 OPS-02): định dạng "custom"
 // vốn đã nén sẵn mặc định, nhưng mức nén mặc định phụ thuộc bản pg_dump — ép rõ mức tối đa để không
 // phụ thuộc cấu hình môi trường.
 function dumpToFile(filePath: string): Promise<void> {
+  // Tách connection string thành từng phần + truyền mật khẩu qua biến môi trường PGPASSWORD — KHÔNG
+  // đưa nguyên DATABASE_URL (chứa mật khẩu rõ) làm tham số dòng lệnh. Tham số dòng lệnh của MỌI tiến
+  // trình đều đọc được bởi user khác trên cùng máy qua `ps aux`/`/proc/<pid>/cmdline`; PGPASSWORD nằm
+  // trong environment của riêng tiến trình con, không lộ theo cách đó (review-source SEC-04).
+  const dbUrl = new URL(env.databaseUrl);
+  const args = [
+    "--format=custom",
+    "--compress=9",
+    "--host",
+    dbUrl.hostname,
+    "--port",
+    dbUrl.port || "5432",
+    "--username",
+    decodeURIComponent(dbUrl.username),
+    "--dbname",
+    decodeURIComponent(dbUrl.pathname.slice(1)),
+    "--file",
+    filePath,
+  ];
+
   return new Promise((resolve, reject) => {
-    const dump = spawn("pg_dump", [
-      env.databaseUrl,
-      "--format=custom",
-      "--compress=9",
-      "--file",
-      filePath,
-    ]);
+    const dump = spawn("pg_dump", args, {
+      env: { ...process.env, PGPASSWORD: decodeURIComponent(dbUrl.password) },
+    });
     dump.on("error", reject); // vd không tìm thấy binary pg_dump
     dump.on("close", (code) =>
       code === 0 ? resolve() : reject(new Error(`pg_dump exited with code ${code}`)),
@@ -65,6 +87,7 @@ export async function backupDatabase(): Promise<void> {
     // biệt), để cleanupOldBackups tra lại bằng prefix mà không bị Cloudinary tự thêm hậu tố ngẫu nhiên.
     await cloudinary.uploader.upload(uploadPath, {
       resource_type: RESOURCE_TYPE,
+      type: DELIVERY_TYPE,
       public_id: `${BACKUP_PREFIX}${uploadFileName}`,
       use_filename: false,
       unique_filename: false,
@@ -92,7 +115,7 @@ async function listAllBackupResources(): Promise<Array<{ public_id: string; crea
   do {
     const page = await cloudinary.api.resources({
       resource_type: RESOURCE_TYPE,
-      type: "upload",
+      type: DELIVERY_TYPE,
       prefix: BACKUP_PREFIX,
       max_results: 500, // giới hạn tối đa 1 lần gọi của Cloudinary
       next_cursor: nextCursor,
@@ -114,6 +137,7 @@ export async function cleanupOldBackups(): Promise<void> {
   for (const resource of expired) {
     await cloudinary.uploader.destroy(resource.public_id, {
       resource_type: RESOURCE_TYPE,
+      type: DELIVERY_TYPE,
     });
   }
 

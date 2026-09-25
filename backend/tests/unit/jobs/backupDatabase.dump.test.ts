@@ -66,6 +66,35 @@ describe("backupDatabase — nén + mã hoá (docs/12 OPS-02)", () => {
     expect(args).toContain("--compress=9");
   });
 
+  it("mật khẩu DB KHÔNG xuất hiện trong tham số dòng lệnh — truyền qua PGPASSWORD (review-source SEC-04)", async () => {
+    await backupDatabase();
+    const args = spawnMock.mock.calls[0]![1] as string[];
+    const options = spawnMock.mock.calls[0]![2] as { env?: Record<string, string> };
+    expect(args.join(" ")).not.toContain("test:test"); // user:password của envMock.databaseUrl
+    expect(args.join(" ")).not.toContain(envMock.databaseUrl);
+    expect(options.env?.PGPASSWORD).toBe("test");
+    expect(args).toEqual(
+      expect.arrayContaining([
+        "--host",
+        "localhost",
+        "--port",
+        "5432",
+        "--username",
+        "test",
+        "--dbname",
+        "test",
+      ]),
+    );
+  });
+
+  it("upload backup với type 'authenticated' — KHÔNG công khai dù resource_type raw (review-source SEC-04)", async () => {
+    await backupDatabase();
+    const uploadOptions = vi.mocked(cloudinary.uploader.upload).mock.calls[0]![1] as unknown as {
+      type: string;
+    };
+    expect(uploadOptions.type).toBe("authenticated");
+  });
+
   it("CHƯA cấu hình khoá công khai → upload file thô, KHÔNG gọi encryptBackupBuffer", async () => {
     await backupDatabase();
 

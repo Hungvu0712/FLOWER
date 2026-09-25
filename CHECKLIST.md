@@ -295,21 +295,21 @@ Chi tiết: [docs/gitbook/07-trao-doi.md](docs/gitbook/07-trao-doi.md).
 
 ### Trạng thái hiện tại
 
-- Cập nhật lần cuối: 2026-09-24 (đối chiếu lại sau khi merge nhánh `review` vào `main`, commit `676ae9e`)
+- Cập nhật lần cuối: 2026-09-25
 - Mốc code được review: commit `bdf8d99` (HEAD của `main`/`review` lúc checkout)
-- Giai đoạn đang thực hiện: P0 — Khẩn cấp (6/8 mục đã xong, còn SEC-04 + phần ESLint của CODE-01)
+- Giai đoạn đang thực hiện: P0 — Khẩn cấp (7/8 mục đã xong — chỉ còn bước **kiểm tra thủ công trên VPS**)
 - Điểm review gần nhất: **7,25/10 (Khá)** — xem [`review-source/`](review-source/00-MUC-LUC.md)
-- Thống kê vấn đề còn mở: Critical 0 · High 6 · Medium 33 · Low 22 *(số cũ lúc review — chưa đếm lại sau khi 6 mục P0 dưới đây đã fix)*
+- Thống kê vấn đề còn mở: Critical 0 · High 6 · Medium 33 · Low 22 *(số cũ lúc review — chưa đếm lại sau khi các mục P0 dưới đây đã fix)*
 - Ghi chú:
-  - SEC-04 có thể là **Critical** nếu production chưa cấu hình `BACKUP_ENCRYPTION_PUBLIC_KEY`. Kiểm tra việc này trước tiên — **cần bạn tự kiểm tra trên VPS**, không phải việc sửa code.
-  - ~~Tại thời điểm review, working tree có thay đổi chưa commit...~~ — đã commit và merge (`676ae9e`), đối chiếu lại "Hoàn thành khi" từng mục P0 bên dưới bằng test thật (25 test `auth.routes.test.ts` + 17 test `axios.test.ts` + 10 test `session-expiry.test.tsx`) — 6/8 mục đã xanh, tick lại cho đúng thực tế.
+  - Phần **code** của SEC-04 đã xong (25/09/2026, docs/12 BE-28) — worker production giờ **không khởi động được** nếu thiếu khoá mã hoá, backup upload với `type: "authenticated"` (không còn công khai). Vẫn còn 1 việc CHỈ bạn làm được: kiểm tra VPS hiện tại đã có `BACKUP_ENCRYPTION_PUBLIC_KEY` chưa, và các backup ĐÃ upload từ trước có đang lộ công khai không (bản đã upload trước bản vá này vẫn ở chế độ cũ, phải tự kiểm tra/xoá tay) — xem hướng dẫn ngay bên dưới.
+  - ~~Tại thời điểm review, working tree có thay đổi chưa commit...~~ — đã commit và merge (`676ae9e`), đối chiếu lại "Hoàn thành khi" từng mục P0 bên dưới bằng test thật.
 
 ### P0 — Khẩn cấp
 
 Gồm lỗi Critical tiềm ẩn và các lỗi High đang gây hại cho người dùng thật.
 
-- [ ] [SEC-04] Kiểm tra production đã đặt `BACKUP_ENCRYPTION_PUBLIC_KEY` chưa; kiểm tra các file `backups/*.dump` đã upload có đang công khai không — Hoàn thành khi: xác nhận bằng văn bản; nếu có bản rõ công khai thì đã xoá và đổi mật khẩu DB
-- [ ] [SEC-04] `env.ts` bắt buộc khoá backup khi `NODE_ENV=production` và `RUN_JOBS=true`; upload với `type: "authenticated"`; truyền mật khẩu DB qua `PGPASSWORD` — Hoàn thành khi: thiếu khoá thì worker production không khởi động; URL backup công khai trả 401/404
+- [ ] [SEC-04] Kiểm tra production đã đặt `BACKUP_ENCRYPTION_PUBLIC_KEY` chưa; kiểm tra các file `backups/*.dump` đã upload TRƯỚC KHI có bản vá (25/09/2026) có đang công khai không (đã upload ở chế độ cũ, không tự đổi type hồi tố) — Hoàn thành khi: xác nhận bằng văn bản; nếu có bản rõ công khai thì đã xoá và đổi mật khẩu DB *(cần bạn tự làm trên VPS — không phải việc sửa code)*
+- [x] [SEC-04] `env.ts` bắt buộc khoá backup khi `NODE_ENV=production` và `RUN_JOBS=true`; upload với `type: "authenticated"`; truyền mật khẩu DB qua `PGPASSWORD` *(25/09/2026 — worker thiếu khoá không khởi động được; backup mới upload không còn công khai; mật khẩu DB không còn lộ qua `ps aux`; 3 việc xác nhận qua 5 test thật (`env.test.ts` +3, `backupDatabase.dump.test.ts` +2) — xem docs/12 BE-28)*
 - [~] [CODE-01] Xoá 7 `console.log` DEBUG (`proxy.ts`, `lib/redirect.ts`, `login/page.tsx`) — **đã xoá** (`grep -rn "DEBUG" frontend/src` rỗng, xác nhận 24/09/2026); còn thiếu ESLint `no-console` để chặn log mới lọt vào — Hoàn thành khi: lint chặn `console.log` mới
 - [x] [SEC-01] Tách "thu hồi do xoay vòng" (cột `rotatedAt`) khỏi thu hồi hợp lệ; reuse detection chỉ xét token đã xoay vòng *(24/09/2026 — xác nhận qua 2 test thật: "token ĐÃ XOAY VÒNG được gửi lại → 401 + thu hồi toàn bộ session" và "token bị thu hồi HỢP LỆ (đăng xuất thiết bị) → 401 nhưng KHÔNG thu hồi phiên khác" — `backend/tests/integration/auth.routes.test.ts`, xem docs/12 BE-25)*
 - [x] [SEC-02] `/auth/refresh` lỗi 401/403 thì `clearAuthCookies`; lỗi 500 giữ cookie *(24/09/2026 — 3 test thật: `SESSION_EXPIRED`/`ACCOUNT_BLOCKED` xoá cả 2 cookie đúng Path; lỗi hệ thống 500 GIỮ cookie — `auth.routes.test.ts`)*

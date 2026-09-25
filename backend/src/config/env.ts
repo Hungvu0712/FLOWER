@@ -106,6 +106,16 @@ if (isProd) {
       "JWT_ACCESS_SECRET và JWT_REFRESH_SECRET đang trùng nhau — phải là 2 giá trị khác nhau.",
     );
   }
+  // Chỉ ép ở container thật sự CHẠY job (RUN_JOBS=true, xem comment RUN_JOBS phía trên) — container
+  // API (backend) production luôn RUN_JOBS=false nên không bị chặn khởi động bởi việc này. Trước đây
+  // thiếu khoá chỉ log cảnh báo (OPS-02) — backup thô chứa dữ liệu khách hàng (tên, SĐT, địa chỉ) upload
+  // công khai lên Cloudinary mà không ai buộc phải để ý dòng log đó (review-source VAL SEC-04).
+  if (raw.RUN_JOBS === "true" && !raw.BACKUP_ENCRYPTION_PUBLIC_KEY) {
+    prodErrors.push(
+      "RUN_JOBS=true ở production nhưng thiếu BACKUP_ENCRYPTION_PUBLIC_KEY — backup database sẽ upload " +
+        "THÔ (không mã hoá) lên Cloudinary, chứa dữ liệu khách hàng. Cấu hình khoá trước khi chạy worker.",
+    );
+  }
   if (prodErrors.length > 0) {
     throw new Error(
       `Cấu hình không an toàn cho production:\n${prodErrors.map((e) => `  - ${e}`).join("\n")}`,
@@ -171,8 +181,10 @@ export const env = {
   // chưa cấu hình riêng.
   contactEmail: raw.CONTACT_EMAIL || raw.EMAIL_FROM,
 
-  // undefined khi chưa cấu hình — backupDatabase.job.ts tự quyết định bỏ qua mã hoá + log cảnh báo,
-  // KHÔNG throw ở đây (không muốn 1 tính năng phụ làm sập toàn bộ server lúc khởi động).
+  // undefined khi chưa cấu hình — backupDatabase.job.ts tự quyết định bỏ qua mã hoá + log cảnh báo.
+  // KHÔNG throw riêng ở đây: container API (RUN_JOBS=false) không cần khoá này, không nên sập vì thiếu
+  // biến không liên quan tới nó. Container `worker` (RUN_JOBS=true) đã bị chặn khởi động ở khối
+  // prodErrors phía trên nếu thiếu — undefined ở ĐÂY chỉ còn xảy ra ở dev/container không chạy job.
   backupEncryptionPublicKeyPem: raw.BACKUP_ENCRYPTION_PUBLIC_KEY
     ? Buffer.from(raw.BACKUP_ENCRYPTION_PUBLIC_KEY, "base64").toString("utf8")
     : undefined,

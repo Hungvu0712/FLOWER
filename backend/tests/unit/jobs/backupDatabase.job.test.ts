@@ -31,7 +31,13 @@ describe("cleanupOldBackups — phân trang qua next_cursor (docs/12 OPS-03)", (
     await cleanupOldBackups();
 
     expect(cloudinary.api.resources).toHaveBeenCalledTimes(1);
-    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("backups/a", { resource_type: "raw" });
+    expect(cloudinary.api.resources).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "authenticated" }),
+    );
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("backups/a", {
+      resource_type: "raw",
+      type: "authenticated",
+    });
   });
 
   it("nhiều hơn 1 trang (có next_cursor) → lặp cho tới khi hết trang, không bỏ sót object trang sau", async () => {
@@ -54,9 +60,11 @@ describe("cleanupOldBackups — phân trang qua next_cursor (docs/12 OPS-03)", (
     );
     expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("backups/trang-1", {
       resource_type: "raw",
+      type: "authenticated",
     });
     expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("backups/trang-2", {
       resource_type: "raw",
+      type: "authenticated",
     });
   });
 
@@ -75,6 +83,7 @@ describe("cleanupOldBackups — phân trang qua next_cursor (docs/12 OPS-03)", (
     expect(cloudinary.uploader.destroy).toHaveBeenCalledTimes(1);
     expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("backups/cu", {
       resource_type: "raw",
+      type: "authenticated",
     });
   });
 });

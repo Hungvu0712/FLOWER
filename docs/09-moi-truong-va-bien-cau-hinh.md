@@ -66,7 +66,7 @@ thường. Ở `NODE_ENV=production` có thêm 2 kiểm tra riêng: `COOKIE_SECR
 | `CLOUDINARY_CLOUD_NAME` | tính năng | `""` | Tên định danh tài khoản — dùng dựng URL upload/URL công khai file. **Không** phải secret |
 | `CLOUDINARY_API_KEY` | tính năng | `""` | Nửa còn lại của cặp khoá API (không tự đứng riêng là secret, nhưng đi kèm `API_SECRET`) |
 | `CLOUDINARY_API_SECRET` | tính năng | `""` | 🔑 Secret — ký chữ ký HMAC upload + gọi Admin API (ảnh/file **và** backup DB) |
-| `BACKUP_ENCRYPTION_PUBLIC_KEY` | tính năng | — (không mã hoá) | Base64 của khoá CÔNG KHAI RSA (PEM) — mã hoá file backup trước khi upload. Khuyến nghị **bắt buộc** ở production (docs/12 OPS-02); khoá RIÊNG không bao giờ đặt trên server |
+| `BACKUP_ENCRYPTION_PUBLIC_KEY` | **BẮT BUỘC nếu `RUN_JOBS=true` ở production** | — (không mã hoá) | Base64 của khoá CÔNG KHAI RSA (PEM) — mã hoá file backup trước khi upload. Thiếu biến này thì container `worker` (`RUN_JOBS=true`) production **không khởi động được** (env.ts fail-fast, docs/12 review-source SEC-04); khoá RIÊNG không bao giờ đặt trên server |
 | `EMAIL_PROVIDER` | | `smtp` | `resend` \| `smtp` |
 | `EMAIL_FROM` | | `no-reply@example.com` | Địa chỉ người gửi |
 | `RESEND_API_KEY` | tính năng | `""` | 🔑 Secret — khi `EMAIL_PROVIDER=resend` |

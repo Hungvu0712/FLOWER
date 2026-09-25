@@ -126,5 +126,40 @@ describe("config/env — validate GIÁ TRỊ, không chỉ sự tồn tại (doc
       expect(env.isProd).toBe(false);
       expect(env.cookieSecret).toBe("dev-only-secret");
     });
+
+    describe("RUN_JOBS=true bắt buộc BACKUP_ENCRYPTION_PUBLIC_KEY (review-source SEC-04)", () => {
+      function setValidProdSecrets() {
+        process.env.COOKIE_SECRET = "cookie-secret-that-la-that-khong-phai-mac-dinh";
+        process.env.JWT_ACCESS_SECRET = "a".repeat(40);
+        process.env.JWT_REFRESH_SECRET = "b".repeat(40);
+      }
+
+      it("production + RUN_JOBS=true + thiếu khoá mã hoá backup → từ chối khởi động", async () => {
+        process.env.NODE_ENV = "production";
+        process.env.RUN_JOBS = "true";
+        delete process.env.BACKUP_ENCRYPTION_PUBLIC_KEY;
+        setValidProdSecrets();
+        await expect(loadEnv()).rejects.toThrow(/BACKUP_ENCRYPTION_PUBLIC_KEY/);
+      });
+
+      it("production + RUN_JOBS=true + ĐÃ có khoá mã hoá → khởi động bình thường", async () => {
+        process.env.NODE_ENV = "production";
+        process.env.RUN_JOBS = "true";
+        process.env.BACKUP_ENCRYPTION_PUBLIC_KEY = "ZmFrZS1rZXk="; // base64("fake-key"), chỉ cần có mặt
+        setValidProdSecrets();
+        const { env } = await loadEnv();
+        expect(env.runJobs).toBe(true);
+      });
+
+      it("production nhưng RUN_JOBS=false (container API) — KHÔNG bắt buộc khoá mã hoá backup", async () => {
+        process.env.NODE_ENV = "production";
+        process.env.RUN_JOBS = "false";
+        delete process.env.BACKUP_ENCRYPTION_PUBLIC_KEY;
+        setValidProdSecrets();
+        const { env } = await loadEnv();
+        expect(env.runJobs).toBe(false);
+        expect(env.backupEncryptionPublicKeyPem).toBeUndefined();
+      });
+    });
   });
 });
