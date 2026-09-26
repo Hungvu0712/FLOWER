@@ -297,7 +297,7 @@ Chi tiết: [docs/gitbook/07-trao-doi.md](docs/gitbook/07-trao-doi.md).
 
 - Cập nhật lần cuối: 2026-09-25
 - Mốc code được review: commit `bdf8d99` (HEAD của `main`/`review` lúc checkout)
-- Giai đoạn đang thực hiện: P0 — Khẩn cấp **XONG 7/8, còn 1 việc nhỏ** (rule ESLint `no-console` của CODE-01) → sắp chuyển sang P1
+- Giai đoạn đang thực hiện: P0 — Khẩn cấp **XONG 8/8** → chuyển sang P1
 - Điểm review gần nhất: **7,25/10 (Khá)** — xem [`review-source/`](review-source/00-MUC-LUC.md)
 - Thống kê vấn đề còn mở: Critical 0 · High 6 · Medium 33 · Low 22 *(số cũ lúc review — chưa đếm lại sau khi các mục P0 dưới đây đã fix)*
 - Ghi chú:
@@ -310,7 +310,7 @@ Gồm lỗi Critical tiềm ẩn và các lỗi High đang gây hại cho ngư�
 
 - [x] [SEC-04] Kiểm tra production đã đặt `BACKUP_ENCRYPTION_PUBLIC_KEY` chưa; kiểm tra các file `backups/*.dump` đã upload TRƯỚC KHI có bản vá có đang công khai không *(25/09/2026 — VPS trước đó CHƯA cấu hình khoá (biến tồn tại nhưng để trống); sinh cặp khoá RSA 4096-bit, điền khoá công khai vào `backend/.env`. Kiểm tra qua Cloudinary Admin API (`type: "upload"`, prefix `backups/`): phát hiện **5 backup đang công khai, chưa mã hoá** (15-23/09/2026) — đã xoá sạch cả 5. Xác nhận không có dữ liệu khách hàng thật bị ảnh hưởng (chỉ tài khoản test/seed) nên không cần bắt buộc đổi mật khẩu người dùng. Deploy code mới (`git pull` + `docker compose build && up -d`) — log xác nhận `worker` khởi động thành công với khoá đã cấu hình, cron `backupDatabase` đăng ký lại bình thường)*
 - [x] [SEC-04] `env.ts` bắt buộc khoá backup khi `NODE_ENV=production` và `RUN_JOBS=true`; upload với `type: "authenticated"`; truyền mật khẩu DB qua `PGPASSWORD` *(25/09/2026 — worker thiếu khoá không khởi động được; backup mới upload không còn công khai; mật khẩu DB không còn lộ qua `ps aux`; 3 việc xác nhận qua 5 test thật (`env.test.ts` +3, `backupDatabase.dump.test.ts` +2) — xem docs/12 BE-28)*
-- [~] [CODE-01] Xoá 7 `console.log` DEBUG (`proxy.ts`, `lib/redirect.ts`, `login/page.tsx`) — **đã xoá** (`grep -rn "DEBUG" frontend/src` rỗng, xác nhận 24/09/2026); còn thiếu ESLint `no-console` để chặn log mới lọt vào — Hoàn thành khi: lint chặn `console.log` mới
+- [x] [CODE-01] Xoá 7 `console.log` DEBUG (`proxy.ts`, `lib/redirect.ts`, `login/page.tsx`); thêm ESLint `no-console` *(26/09/2026 — log đã xoá sạch từ 24/09; rule thêm ở `frontend/eslint.config.mjs`, mức `"error"` — cho phép `warn`/`error`. Xác nhận rule THẬT SỰ chặn được bằng file thử tạm (`console.log` → lint báo lỗi ngay), không chỉ tin cấu hình đúng cú pháp. Xem docs/12 FE-10)*
 - [x] [SEC-01] Tách "thu hồi do xoay vòng" (cột `rotatedAt`) khỏi thu hồi hợp lệ; reuse detection chỉ xét token đã xoay vòng *(24/09/2026 — xác nhận qua 2 test thật: "token ĐÃ XOAY VÒNG được gửi lại → 401 + thu hồi toàn bộ session" và "token bị thu hồi HỢP LỆ (đăng xuất thiết bị) → 401 nhưng KHÔNG thu hồi phiên khác" — `backend/tests/integration/auth.routes.test.ts`, xem docs/12 BE-25)*
 - [x] [SEC-02] `/auth/refresh` lỗi 401/403 thì `clearAuthCookies`; lỗi 500 giữ cookie *(24/09/2026 — 3 test thật: `SESSION_EXPIRED`/`ACCOUNT_BLOCKED` xoá cả 2 cookie đúng Path; lỗi hệ thống 500 GIỮ cookie — `auth.routes.test.ts`)*
 - [x] [ERR-01] Interceptor axios reject từng request trong hàng đợi khi refresh lỗi *(24/09/2026 — test "MỌI request đang xếp hàng chờ refresh đều bị reject, không treo promise" — `frontend/tests/unit/axios.test.ts`, xem docs/12 FE-09)*
