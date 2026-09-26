@@ -319,8 +319,8 @@ Gồm lỗi Critical tiềm ẩn và các lỗi High đang gây hại cho ngư�
 
 ### P1 — Lưới an toàn
 
-- [ ] [OPS-01] Bật branch protection cho `main` (CI xanh + review); làm việc trên nhánh tính năng — Hoàn thành khi: push thẳng lên `main` bị từ chối
-- [ ] [OPS-01] CI: chạy E2E luồng auth trên PR; thêm bước `npm run build` cho backend — Hoàn thành khi: PR hiển thị job e2e + build backend
+- [ ] [OPS-01] Bật branch protection cho `main` (CI xanh + review); làm việc trên nhánh tính năng — Hoàn thành khi: push thẳng lên `main` bị từ chối *(cần bạn tự bật qua GitHub Settings → Branches — không có cách bật qua code)*
+- [x] [OPS-01] CI: chạy E2E luồng auth trên PR; thêm bước `npm run build` cho backend *(26/09/2026 — job `e2e` giờ chạy trên MỌI PR (trước đây chỉ push vào `main`), phạm vi tuỳ trigger: PR chỉ 2 file `auth.spec.ts` + `session-expiry.spec.ts` (nhanh, đúng chỗ hay phát sinh bug thật nhất), push vào `main` chạy toàn bộ suite như cũ; thêm bước `npm run build` vào job `backend` (đã có ở `frontend` từ trước). Xác nhận: YAML parse hợp lệ, `npm run build` backend chạy sạch cục bộ, 949 test backend vẫn xanh — đang chờ CI xác nhận thật trên GitHub Actions)*
 - [ ] [TEST-01] Test luồng phiên phía client: component test Nav khi phiên chết; E2E xoá cookie `access_token` rồi bấm Link — Hoàn thành khi: các test này **đỏ** trên `bdf8d99` và **xanh** sau khi sửa P0
 - [ ] [TEST-02] Sửa test reuse detection để phân biệt thu hồi hợp lệ với xoay vòng; thêm DB test (Testcontainers) cho rollback đặt hàng và race coupon — Hoàn thành khi: `npm run test:db` có các case này
 - [ ] [DOC-01] Tạo `frontend/.env.example` (mô tả từng biến theo CLAUDE.md §4), thêm `!.env.example` vào `frontend/.gitignore`, sửa quick start — Hoàn thành khi: người mới clone làm theo README chạy được frontend

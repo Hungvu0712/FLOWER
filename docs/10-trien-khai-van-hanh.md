@@ -515,21 +515,22 @@ sum(rate({service="backend"} | json | detail_code=~"UNAUTHENTICATED|INVALID_TOKE
 
 ## 6. CI/CD — GitHub Actions (file thật, 14/09/2026)
 
-`.github/workflows/ci.yml` — 4 job, chạy trên mọi PR + push vào `main` (riêng `e2e` chỉ chạy khi vào
-`main`, xem lý do trong chính file):
+`.github/workflows/ci.yml` — 4 job, chạy trên mọi PR + push vào `main`. `e2e` chạy trên CẢ HAI nhưng
+**phạm vi khác nhau** theo trigger (review-source OPS-01, 26/09/2026) — xem lý do trong chính file:
 
 | Job | Bước chính | Cần database thật? |
 |---|---|---|
-| `backend` | `npm ci` → `prisma generate` → `lint` → `typecheck` → `format:check` → `test` | Không — test suite dùng Prisma mock (`vitest.config.ts` alias sang `tests/mocks/prisma.mock.ts`), biến môi trường bắt buộc do `tests/setup.ts` tự set giả |
+| `backend` | `npm ci` → `prisma generate` → `lint` → `typecheck` → `build` → `format:check` → `test` | Không — test suite dùng Prisma mock (`vitest.config.ts` alias sang `tests/mocks/prisma.mock.ts`), biến môi trường bắt buộc do `tests/setup.ts` tự set giả. `test:db` (Testcontainers, Postgres thật) vẫn chỉ chạy khi push vào `main` |
 | `frontend` | `lint` → `typecheck` → `format:check` → `test` → `build` (`NEXT_PUBLIC_API_URL` giả, chỉ cần CÓ MẶT lúc build) | Không |
 | `docs` | Cài `mermaid`+`jsdom`, chạy `scripts/check-mermaid.mjs` | Không — formalize đúng bước "kiểm tra trước khi commit" ở CLAUDE.md §2 thành gate CI thật |
-| `e2e` | Migrate + seed thật, build + chạy backend nền, Playwright tự khởi động frontend (`playwright.config.ts` đã có sẵn `webServer`), chạy `test:e2e` | **Có** — service `postgres:16`, JWT secret trong workflow là giá trị CI-only, không phải secret thật |
+| `e2e` | Migrate + seed thật, build + chạy backend nền, Playwright tự khởi động frontend (`playwright.config.ts` đã có sẵn `webServer`), chạy `test:e2e` — **PR** chỉ `auth.spec.ts` + `session-expiry.spec.ts` (nơi hay phát sinh bug thật nhất, docs/12 FE-08/FE-09/BE-24/BE-25); **push vào `main`** chạy toàn bộ suite | **Có** — service `postgres:16`, JWT secret trong workflow là giá trị CI-only, không phải secret thật |
 
 Cả 2 job `backend`/`frontend` dùng `node-version-file: .nvmrc` (không hard-code số Node riêng, tránh
 lệch với `.nvmrc` gốc repo sau này).
 
 **Chặn merge** khi CI đỏ (chưa tự bật): GitHub → Settings → Branches → Branch protection rule cho
-`main` → *Require status checks to pass*.
+`main` → *Require status checks to pass* (review-source OPS-01 — **vẫn phải tự bật qua giao diện web**,
+GitHub không có cách bật qua thay đổi code trong repo).
 
 **Quét secret bị commit nhầm** (chưa làm — mục riêng trong CHECKLIST, khác việc này): thêm bước
 `gitleaks` hoặc `trufflehog` vào workflow — xem [07 · Bảo mật §8](07-bao-mat.md).

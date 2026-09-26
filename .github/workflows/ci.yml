@@ -1,9 +1,12 @@
 # CI — xem docs/10-trien-khai-van-hanh.md §6. `backend`/`frontend`/`docs` chạy mỗi PR + mỗi push vào
 # main, không cần database thật (test suite dùng Prisma mock — xem backend/vitest.config.ts +
-# backend/tests/setup.ts). `e2e` CHỈ chạy khi vào main (chậm hơn nhiều — cần Postgres thật + cài
-# trình duyệt Playwright), tránh làm chậm vòng lặp review PR thường ngày. Bước `test:db` trong job
-# `backend` (docs/08 §3.4) cũng CHỈ chạy khi vào main, cùng lý do — dựng Postgres thật qua
-# Testcontainers (Docker có sẵn trên runner ubuntu-latest, không cần cấu hình thêm).
+# backend/tests/setup.ts). `e2e` chạy MỌI PR lẫn push vào main, nhưng phạm vi khác nhau (review-source
+# OPS-01, 26/09/2026): PR chỉ chạy 2 file luồng auth (auth.spec.ts + session-expiry.spec.ts — nơi hay
+# phát sinh bug thật nhất, xem docs/12 FE-08/FE-09), push vào main mới chạy TOÀN BỘ suite — tránh làm
+# chậm vòng lặp review PR thường ngày trong khi vẫn bắt được regression auth sớm nhất có thể. Bước
+# `test:db` trong job `backend` (docs/08 §3.4) vẫn CHỈ chạy khi vào main — dựng Postgres thật qua
+# Testcontainers (Docker có sẵn trên runner ubuntu-latest, không cần cấu hình thêm) chậm hơn nhiều so
+# với 2 file E2E auth, chưa đáng chạy trên mọi PR.
 name: CI
 
 on:
@@ -28,6 +31,10 @@ jobs:
       - run: npx prisma generate
       - run: npm run lint
       - run: npm run typecheck
+      # review-source OPS-01 (26/09/2026) — typecheck (`tsc --noEmit`) không sinh output nên có thể
+      # bỏ sót lỗi chỉ lộ ra lúc build thật (vd cấu hình tsconfig khác giữa noEmit và build). Nhẹ, nên
+      # chạy trên mọi PR chứ không đợi tới main.
+      - run: npm run build
       - run: npm run format:check
       - run: npm test
       # Chỉ chạy khi vào main — dựng Postgres thật qua Testcontainers (kéo image + migrate deploy +
@@ -78,11 +85,10 @@ jobs:
       - run: npm install --no-save mermaid@11 jsdom@26
       - run: node scripts/check-mermaid.mjs
 
-  # Chỉ chạy khi đã vào main (không phải mọi PR) — cần dựng Postgres thật + build/khởi động backend
-  # thật + cài trình duyệt Playwright, chậm hơn nhiều so với 3 job trên.
+  # Chạy mọi PR lẫn push vào main (review-source OPS-01, 26/09/2026) — PHẠM VI khác nhau theo trigger,
+  # xem bước "Cài Playwright + chạy E2E" bên dưới và comment đầu file.
   e2e:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     needs: [backend, frontend]
     services:
       postgres:
@@ -128,11 +134,18 @@ jobs:
       # KHÔNG tự build/start frontend ở đây — playwright.config.ts đã có sẵn `webServer` (chạy
       # `npm run dev`, tự đợi $BASE_URL sẵn sàng) tự động khởi động lúc `npm run test:e2e`, tự start
       # thủ công ở đây sẽ trùng port 3000 với server Playwright tự mở.
+      # Push vào main: chạy TOÀN BỘ suite. PR: chỉ 2 file luồng auth (đủ nhanh cho vòng lặp review PR
+      # thường ngày, vẫn bắt được regression ở đúng chỗ hay phát sinh bug thật nhất — docs/12 FE-08/
+      # FE-09/BE-24/BE-25, review-source OPS-01).
       - name: Cài Playwright + chạy E2E
         working-directory: frontend
         run: |
           npx playwright install --with-deps chromium
-          npm run test:e2e
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            npm run test:e2e
+          else
+            npm run test:e2e -- e2e/auth.spec.ts e2e/session-expiry.spec.ts
+          fi
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
